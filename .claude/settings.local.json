@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\".specify/scripts/bash/create-phr.sh\" --title \"Phase I Constitution Creation\" --stage constitution --json)",
+      "Bash(git fetch:*)",
+      "Bash(powershell:*)",
+      "SlashCommand(/sp.tasks)",
+      "SlashCommand(/sp.implement)",
+      "Bash(git rev-parse:*)",
+      "Bash(test:*)",
+      "Bash(if [ ! -d \"src\" ])",
+      "Bash(then mkdir src)",
+      "Bash(fi)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

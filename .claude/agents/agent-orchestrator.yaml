@@ -1,0 +1,324 @@
+# Agent Orchestrator Configuration
+# Defines all available agents and their invocation patterns
+
+version: "1.0"
+project: "evolution-of-todo"
+created: "2025-12-13"
+
+# Agent Categories
+categories:
+  - spec-workflow
+  - phase-developers
+  - infrastructure
+  - ai-mcp
+  - quality
+  - specialized
+
+# Agent Definitions
+agents:
+  # === Spec-Driven Workflow Agents ===
+
+  specifier:
+    category: spec-workflow
+    file: spec-workflow/specifier-agent.md
+    subagent_type: specifier
+    description: "Requirements gathering and specification writing"
+    expertise:
+      - Requirements analysis
+      - User story creation
+      - Acceptance criteria
+    inputs:
+      - Feature name
+      - User requirements
+      - Current phase
+    outputs:
+      - specs/<feature>/spec.md
+      - Checklist files
+    slash_command: /sp.specify
+
+  architect:
+    category: spec-workflow
+    file: spec-workflow/architect-agent.md
+    subagent_type: architect
+    description: "System architecture and technical planning"
+    expertise:
+      - Component design
+      - Data modeling
+      - API contracts
+      - Constitution compliance
+    inputs:
+      - specs/<feature>/spec.md
+      - Constitution
+    outputs:
+      - specs/<feature>/plan.md
+      - Data models
+      - Contracts
+    slash_command: /sp.plan
+    dependencies:
+      - specifier
+
+  task-breakdown:
+    category: spec-workflow
+    file: spec-workflow/task-breakdown-agent.md
+    subagent_type: task-breakdown
+    description: "Breaking plans into atomic tasks"
+    expertise:
+      - Task decomposition
+      - Dependency management
+      - Acceptance criteria
+    inputs:
+      - specs/<feature>/plan.md
+    outputs:
+      - specs/<feature>/tasks.md
+    slash_command: /sp.tasks
+    dependencies:
+      - architect
+
+  implementer:
+    category: spec-workflow
+    file: spec-workflow/implementer-agent.md
+    subagent_type: implementer
+    description: "Code implementation from tasks"
+    expertise:
+      - Code generation
+      - Test writing
+      - Task execution
+    inputs:
+      - specs/<feature>/tasks.md
+      - specs/<feature>/plan.md
+    outputs:
+      - Source code
+      - Tests
+    slash_command: /sp.implement
+    dependencies:
+      - task-breakdown
+
+  # === Phase-Specific Developers ===
+
+  phase-i-developer:
+    category: phase-developers
+    file: phase-developers/phase-i-developer.md
+    subagent_type: phase-i-developer
+    description: "Python CLI console application specialist"
+    expertise:
+      - Python standard library
+      - CLI design
+      - In-memory data
+    phase: I
+    constraints:
+      - Python stdlib only
+      - In-memory storage
+      - Single file
+      - Menu-driven CLI
+
+  phase-ii-fullstack:
+    category: phase-developers
+    file: phase-developers/phase-ii-fullstack-developer.md
+    subagent_type: phase-ii-fullstack
+    description: "Full-stack web application developer"
+    expertise:
+      - Next.js
+      - FastAPI
+      - Neon PostgreSQL
+      - Better Auth
+    phase: II
+    constraints:
+      - Monorepo structure
+      - RESTful APIs
+      - JWT authentication
+
+  # === Infrastructure Agents ===
+
+  k8s-engineer:
+    category: infrastructure
+    file: infrastructure/kubernetes-engineer.md
+    subagent_type: k8s-engineer
+    description: "Kubernetes and container specialist"
+    expertise:
+      - Docker
+      - Kubernetes
+      - Helm charts
+      - Container orchestration
+    phase:
+      - IV
+      - V
+
+  # === AI & MCP Agents ===
+
+  mcp-architect:
+    category: ai-mcp
+    file: ai-mcp/mcp-architect.md
+    subagent_type: mcp-architect
+    description: "MCP tool design and implementation"
+    expertise:
+      - MCP protocol
+      - Tool schemas
+      - AI integration
+    phase: III+
+
+  # === Quality Assurance Agents ===
+
+  code-reviewer:
+    category: quality
+    file: quality/code-reviewer.md
+    subagent_type: code-reviewer
+    description: "Code quality and standards enforcement"
+    expertise:
+      - Code review
+      - Best practices
+      - Bug detection
+    can_review:
+      - All code
+      - All phases
+
+# Workflow Orchestration
+
+workflows:
+  spec-driven-development:
+    name: "Complete Spec-Driven Development Workflow"
+    description: "Full cycle from requirements to implementation"
+    steps:
+      - agent: specifier
+        description: "Create feature specification"
+        command: /sp.specify
+
+      - agent: architect
+        description: "Generate implementation plan"
+        command: /sp.plan
+        depends_on: [specifier]
+
+      - agent: task-breakdown
+        description: "Break plan into tasks"
+        command: /sp.tasks
+        depends_on: [architect]
+
+      - agent: implementer
+        description: "Execute tasks"
+        command: /sp.implement
+        depends_on: [task-breakdown]
+
+      - agent: code-reviewer
+        description: "Review implementation"
+        depends_on: [implementer]
+
+  phase-transition:
+    name: "Phase Transition Workflow"
+    description: "Upgrade from one phase to the next"
+    steps:
+      - validate_completion
+      - create_migration_adr
+      - update_constitution
+      - generate_migration_spec
+      - execute_migration
+      - validate_backward_compatibility
+
+# Agent Communication Patterns
+
+communication:
+  handoff_format: |
+    Agent: {from_agent}
+    To: {to_agent}
+    Artifact: {artifact_path}
+    Status: {status}
+    Notes: {notes}
+
+  error_reporting: |
+    Agent: {agent_name}
+    Error: {error_type}
+    Details: {error_details}
+    Suggestions: {suggestions}
+
+# Parallel Execution Groups
+# Agents in same group can run in parallel
+
+parallel_groups:
+  testing:
+    - unit-test-generator
+    - integration-test-generator
+
+  deployment:
+    - docker-builder
+    - k8s-manifest-generator
+    - helm-chart-generator
+
+# Agent Priorities
+# Higher priority agents get preference when multiple agents could handle task
+
+priorities:
+  high:
+    - specifier
+    - architect
+    - code-reviewer
+  medium:
+    - task-breakdown
+    - implementer
+  low:
+    - documentation-generator
+    - diagram-generator
+
+# Hackathon Scoring Contributions
+
+scoring:
+  phase_completion:
+    phase_i: 100
+    phase_ii: 150
+    phase_iii: 200
+    phase_iv: 250
+    phase_v: 300
+
+  bonus_points:
+    reusable_intelligence:
+      description: "Creating and using agents/skills"
+      points: 200
+      agents_contributing:
+        - All agents in this orchestrator
+
+    cloud_native_blueprints:
+      description: "Spec-driven infrastructure"
+      points: 200
+      agents_contributing:
+        - k8s-engineer
+        - cloud-architect
+
+# Agent Invocation Examples
+
+examples:
+  via_task_tool: |
+    Task(
+        subagent_type="architect",
+        description="Design architecture",
+        prompt="Create implementation plan for specs/001-todo-crud/spec.md"
+    )
+
+  via_slash_command: |
+    /sp.plan
+
+  via_direct_prompt: |
+    @architect: Create the plan for the todo CRUD feature
+
+# Agent Health Checks
+
+health_checks:
+  startup_validation:
+    - Check all agent files exist
+    - Validate markdown structure
+    - Verify agent categories
+
+  runtime_validation:
+    - Check agent has required expertise
+    - Verify phase compatibility
+    - Validate dependencies met
+
+# Metadata
+
+metadata:
+  total_agents: 10
+  total_workflows: 2
+  supported_phases:
+    - I
+    - II
+    - III
+    - IV
+    - V
+  hackathon: "PIAIC Hackathon II"
+  project: "Evolution of TODO"
