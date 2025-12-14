@@ -58,9 +58,9 @@ export default function DashboardPage() {
     }
   };
 
-  const handleCreateTask = async (title: string, description: string) => {
+  const handleCreateTask = async (title: string, description: string, priority: string, tags: string) => {
     try {
-      const newTask = await createTask(title, description);
+      const newTask = await createTask(title, description, priority as any, tags);
       setTasks([newTask, ...tasks]); // Add to beginning of list
       showSuccess("Task created successfully!");
     } catch (err) {
@@ -83,9 +83,9 @@ export default function DashboardPage() {
     setEditDialogOpen(true);
   };
 
-  const handleSaveEdit = async (taskId: number, title: string, description: string) => {
+  const handleSaveEdit = async (taskId: number, title: string, description: string, priority: string, tags: string) => {
     try {
-      const updatedTask = await updateTask(taskId, { title, description });
+      const updatedTask = await updateTask(taskId, { title, description, priority: priority as any, tags });
       setTasks(tasks.map((t) => (t.id === taskId ? updatedTask : t)));
       showSuccess("Task updated successfully!");
     } catch (err: any) {

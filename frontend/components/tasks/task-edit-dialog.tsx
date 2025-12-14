@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
-import { Task } from "@/types/task";
+import { Task, TaskPriority } from "@/types/task";
 
 interface TaskEditDialogProps {
   task: Task;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (taskId: number, title: string, description: string) => Promise<void>;
+  onSave: (taskId: number, title: string, description: string, priority: TaskPriority, tags: string) => Promise<void>;
 }
 
 export default function TaskEditDialog({
@@ -18,6 +18,8 @@ export default function TaskEditDialog({
 }: TaskEditDialogProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
+  const [priority, setPriority] = useState<TaskPriority>(task.priority);
+  const [tags, setTags] = useState(task.tags || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,6 +27,8 @@ export default function TaskEditDialog({
   useEffect(() => {
     setTitle(task.title);
     setDescription(task.description || "");
+    setPriority(task.priority);
+    setTags(task.tags || "");
     setError("");
   }, [task]);
 
@@ -40,7 +44,7 @@ export default function TaskEditDialog({
     setLoading(true);
 
     try {
-      await onSave(task.id, title.trim(), description.trim());
+      await onSave(task.id, title.trim(), description.trim(), priority, tags.trim());
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to update task");
@@ -52,6 +56,8 @@ export default function TaskEditDialog({
   const handleCancel = () => {
     setTitle(task.title);
     setDescription(task.description || "");
+    setPriority(task.priority);
+    setTags(task.tags || "");
     setError("");
     onClose();
   };
@@ -99,6 +105,39 @@ export default function TaskEditDialog({
               placeholder="Enter task description"
               disabled={loading}
               maxLength={10000}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="edit-priority" className="block text-sm font-medium mb-2">
+              Priority
+            </label>
+            <select
+              id="edit-priority"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as TaskPriority)}
+              className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled={loading}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="edit-tags" className="block text-sm font-medium mb-2">
+              Tags (optional, comma-separated)
+            </label>
+            <input
+              id="edit-tags"
+              type="text"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="e.g., work, urgent, personal"
+              disabled={loading}
+              maxLength={500}
             />
           </div>
 

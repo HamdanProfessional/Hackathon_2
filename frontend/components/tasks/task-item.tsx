@@ -17,6 +17,16 @@ export default function TaskItem({
 }: TaskItemProps) {
   const formattedDate = new Date(task.created_at).toLocaleDateString();
 
+  // Priority badge colors
+  const priorityColors = {
+    low: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+    high: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  };
+
+  // Parse tags
+  const tagList = task.tags ? task.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
+
   return (
     <div className="border border-border rounded-lg p-4 bg-card hover:shadow-md transition-shadow">
       <div className="flex items-start gap-3">
@@ -30,15 +40,21 @@ export default function TaskItem({
 
         {/* Task Content */}
         <div className="flex-1 min-w-0">
-          <h3
-            className={`text-lg font-medium ${
-              task.completed
-                ? "line-through text-muted-foreground"
-                : "text-foreground"
-            }`}
-          >
-            {task.title}
-          </h3>
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <h3
+              className={`text-lg font-medium ${
+                task.completed
+                  ? "line-through text-muted-foreground"
+                  : "text-foreground"
+              }`}
+            >
+              {task.title}
+            </h3>
+            {/* Priority Badge */}
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${priorityColors[task.priority]}`}>
+              {task.priority.toUpperCase()}
+            </span>
+          </div>
 
           {task.description && (
             <p
@@ -48,6 +64,20 @@ export default function TaskItem({
             >
               {task.description}
             </p>
+          )}
+
+          {/* Tags */}
+          {tagList.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {tagList.map((tag, idx) => (
+                <span
+                  key={idx}
+                  className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
           )}
 
           <p className="mt-2 text-xs text-muted-foreground">

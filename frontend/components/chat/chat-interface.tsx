@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { sendChatMessage, getConversationMessages, type ChatMessage } from "@/lib/chat-client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import VoiceInputButton from "@/components/ui/voice-input-button";
 
 interface ChatInterfaceProps {
   conversationId?: number;
@@ -18,6 +19,7 @@ export default function ChatInterface({
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [voiceError, setVoiceError] = useState("");
   const [currentConversationId, setCurrentConversationId] = useState<number | undefined>(conversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +97,16 @@ export default function ChatInterface({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVoiceInput = (transcript: string) => {
+    setInputValue(transcript);
+    setVoiceError("");
+  };
+
+  const handleVoiceError = (error: string) => {
+    setVoiceError(error);
+    setTimeout(() => setVoiceError(""), 5000);
   };
 
   return (
@@ -183,6 +195,13 @@ export default function ChatInterface({
         </div>
       )}
 
+      {/* Voice Error Message */}
+      {voiceError && (
+        <div className="px-6 py-2 bg-yellow-50 border-t border-yellow-200">
+          <p className="text-sm text-yellow-600">{voiceError}</p>
+        </div>
+      )}
+
       {/* Input Area */}
       <div className="px-6 py-4 border-t border-gray-200">
         <form onSubmit={handleSendMessage} className="flex gap-2">
@@ -190,9 +209,14 @@ export default function ChatInterface({
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type your message..."
+            placeholder="Type your message or click mic to speak..."
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={loading}
+          />
+          <VoiceInputButton
+            onResult={handleVoiceInput}
+            onError={handleVoiceError}
+            language="en-US"
           />
           <button
             type="submit"

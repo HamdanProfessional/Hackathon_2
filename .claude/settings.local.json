@@ -28,7 +28,9 @@
       "Bash(npm run build:*)",
       "Bash(npm install:*)",
       "Bash(del:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(git push:*)",
+      "Bash(git remote add:*)"
     ],
     "deny": [],
     "ask": []

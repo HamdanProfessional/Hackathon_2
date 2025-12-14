@@ -1,10 +1,18 @@
 """Task SQLAlchemy model."""
 from datetime import datetime
+import enum
 
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+
+
+class TaskPriority(str, enum.Enum):
+    """Task priority levels."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
 
 
 class Task(Base):
@@ -17,6 +25,8 @@ class Task(Base):
     title = Column(String(500), nullable=False)
     description = Column(Text, default="", nullable=False)
     completed = Column(Boolean, default=False, nullable=False)
+    priority = Column(Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False)
+    tags = Column(Text, default="", nullable=False)  # Comma-separated tags
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
