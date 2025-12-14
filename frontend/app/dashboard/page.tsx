@@ -24,6 +24,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("created-desc");
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -120,8 +124,60 @@ export default function DashboardPage() {
     setTimeout(() => setSuccessMessage(""), 3000);
   };
 
-  const completedCount = tasks.filter((t) => t.completed).length;
-  const totalCount = tasks.length;
+  // Filter and sort tasks
+  const filteredAndSortedTasks = tasks
+    .filter((task) => {
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const titleMatch = task.title.toLowerCase().includes(query);
+        const descriptionMatch = task.description.toLowerCase().includes(query);
+        const tagsMatch = task.tags.toLowerCase().includes(query);
+        const priorityMatch = task.priority.toLowerCase().includes(query);
+
+        if (!titleMatch && !descriptionMatch && !tagsMatch && !priorityMatch) {
+          return false;
+        }
+      }
+
+      // Priority filter
+      if (filterPriority !== "all" && task.priority !== filterPriority) {
+        return false;
+      }
+
+      // Status filter
+      if (filterStatus === "active" && task.completed) {
+        return false;
+      }
+      if (filterStatus === "completed" && !task.completed) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      // Sort logic
+      switch (sortBy) {
+        case "created-desc":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "created-asc":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "title-asc":
+          return a.title.localeCompare(b.title);
+        case "title-desc":
+          return b.title.localeCompare(a.title);
+        case "priority":
+          const priorityOrder = { high: 0, medium: 1, low: 2 };
+          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        case "status":
+          return (a.completed ? 1 : 0) - (b.completed ? 1 : 0);
+        default:
+          return 0;
+      }
+    });
+
+  const completedCount = filteredAndSortedTasks.filter((t) => t.completed).length;
+  const totalCount = filteredAndSortedTasks.length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -170,6 +226,102 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Search and Filter Bar */}
+        <div className="bg-card border border-border rounded-lg p-4 mb-6 space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <svg
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search tasks by title, description, tags, or priority..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Filters and Sort */}
+          <div className="flex flex-wrap gap-3">
+            {/* Priority Filter */}
+            <div className="flex-1 min-w-[140px]">
+              <label htmlFor="filter-priority" className="block text-xs font-medium mb-1 text-muted-foreground">
+                Priority
+              </label>
+              <select
+                id="filter-priority"
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="all">All Priorities</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
+            {/* Status Filter */}
+            <div className="flex-1 min-w-[140px]">
+              <label htmlFor="filter-status" className="block text-xs font-medium mb-1 text-muted-foreground">
+                Status
+              </label>
+              <select
+                id="filter-status"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="all">All Tasks</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+            {/* Sort By */}
+            <div className="flex-1 min-w-[140px]">
+              <label htmlFor="sort-by" className="block text-xs font-medium mb-1 text-muted-foreground">
+                Sort By
+              </label>
+              <select
+                id="sort-by"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="created-desc">Newest First</option>
+                <option value="created-asc">Oldest First</option>
+                <option value="priority">Priority (High → Low)</option>
+                <option value="title-asc">Title (A → Z)</option>
+                <option value="title-desc">Title (Z → A)</option>
+                <option value="status">Status (Active First)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         {/* Create Task Form */}
         <TaskCreateForm onSubmit={handleCreateTask} />
 
@@ -182,13 +334,51 @@ export default function DashboardPage() {
         ) : (
           /* Task List */
           <div>
-            <h2 className="text-xl font-semibold mb-4">Your Tasks</h2>
-            <TaskList
-              tasks={tasks}
-              onToggleComplete={handleToggleComplete}
-              onEdit={handleEdit}
-              onDelete={handleDeleteClick}
-            />
+            <h2 className="text-xl font-semibold mb-4">
+              Your Tasks
+              {searchQuery && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  (filtered)
+                </span>
+              )}
+            </h2>
+            {filteredAndSortedTasks.length === 0 && (searchQuery || filterPriority !== "all" || filterStatus !== "all") ? (
+              <div className="text-center py-12 bg-card border border-border rounded-lg">
+                <svg
+                  className="w-16 h-16 mx-auto mb-4 text-muted-foreground"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <p className="text-muted-foreground">
+                  No tasks found with the current filters
+                </p>
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setFilterPriority("all");
+                    setFilterStatus("all");
+                  }}
+                  className="mt-4 text-sm text-primary hover:underline"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            ) : (
+              <TaskList
+                tasks={filteredAndSortedTasks}
+                onToggleComplete={handleToggleComplete}
+                onEdit={handleEdit}
+                onDelete={handleDeleteClick}
+              />
+            )}
           </div>
         )}
 
