@@ -1,27 +1,33 @@
 # The Evolution of TODO: Project Constitution
 <!--
 SYNC IMPACT REPORT:
-Version: 1.0.0 → 2.0.0
-Change Type: MAJOR - Evolutionary architecture model added, Phase I principles now scoped to current phase
-Modified Principles:
-  - Principle I: Spec-First Development (unchanged - still NON-NEGOTIABLE)
-  - Principle II: In-Memory Storage Only → Phase I Storage (scoped to Phase I only)
-  - Principle III: Standard Library Only → Phase I Dependencies (scoped to Phase I only)
-  - Principle IV: Continuous Loop Interface → Phase I Interface (scoped to Phase I only)
-Added Sections:
-  - Project Vision & Role Definition
-  - Evolutionary Architecture Roadmap (5 phases)
-  - Phase Transition Rules
-  - Technology Stack Evolution
-Removed Sections: None
+Version: 2.0.0 → 3.0.0
+Change Type: MAJOR - Phase II complete, transitioning to Phase III (AI-Powered Chatbot)
+Modified Sections:
+  - Phase II: Modular Monolith → COMPLETED
+  - Phase III: Agent-Augmented System → CURRENT
+Added Technologies:
+  - OpenAI Agents SDK for AI agent orchestration
+  - Model Context Protocol (MCP) for tool integration
+  - OpenAI ChatKit for conversational UI
+  - Conversation persistence (messages, conversations tables)
+Added Principles:
+  - AI Agent Integration Standards
+  - MCP Tool Design Patterns
+  - Stateless Agent Architecture
+  - Conversation State Management
+Breaking Changes:
+  - New database tables: conversations, messages
+  - New API endpoints: /api/chat, /api/conversations
+  - New MCP server exposing task operations as tools
 Templates Status:
-  ✅ plan-template.md - Constitution Check section still aligns (Phase I constraints preserved)
-  ✅ spec-template.md - Requirements structure compatible
-  ✅ tasks-template.md - Task categorization aligned
-  ⚠ Future phases will require template updates for new tech stacks
+  ✅ plan-template.md - Compatible with agent architecture
+  ✅ spec-template.md - Compatible with conversational features
+  ✅ tasks-template.md - Compatible with MCP implementation tasks
 Follow-up TODOs:
-  - Create phase-specific spec templates when transitioning to Phase II
-  - Document migration strategy from Phase I to Phase II in ADR
+  - Create Phase III migration ADR (Phase II → Phase III)
+  - Document AI agent behavior and MCP tool specifications
+  - Define conversation flow and state management strategy
 -->
 
 ## Project Vision
@@ -101,7 +107,7 @@ Transitioning between phases requires explicit governance and cannot occur mid-f
 
 **Rationale:** Prevents architectural chaos and ensures each phase is fully validated before evolution. Maintains system stability during transitions.
 
-## Phase I: Monolithic Script (Current Phase)
+## Phase I: Monolithic Script ✅ COMPLETED
 
 ### Storage Constraints
 
@@ -174,9 +180,88 @@ Phase I application MUST run in a continuous interactive loop until the user exp
 - Prefer self-documenting code (clear names, simple logic)
 - Docstrings explain "why", not "what"
 
+## Phase III: AI Agent Integration Standards
+
+### AI Agent Architecture Principles
+
+**Stateless Agent Design:**
+- ALL agent endpoints MUST be stateless (no in-memory session state)
+- Conversation history stored in database (conversations, messages tables)
+- Each request contains full context (conversation_id + message history)
+- Server can restart without losing conversation state
+- Horizontally scalable design (any instance handles any request)
+
+**MCP Tool Integration:**
+- Task operations exposed as MCP tools (add_task, list_tasks, complete_task, update_task, delete_task)
+- Each MCP tool MUST validate user ownership (user_id parameter required)
+- MCP tools are stateless and database-backed
+- Tools return structured responses (task_id, status, data)
+- Error handling with specific error codes and messages
+
+**Conversation State Management:**
+- Conversations table: user_id, conversation_id, created_at, updated_at
+- Messages table: conversation_id, role (user/assistant), content, created_at
+- Conversation history loaded from database on each request
+- Message history passed to AI agent with each turn
+- Conversation lifecycle: create → append messages → retrieve history
+
+**Natural Language Processing:**
+- AI agent interprets user intent from natural language
+- Agent selects appropriate MCP tools based on intent
+- Agent can chain multiple tool calls in single response
+- Agent provides friendly confirmations for actions taken
+- Agent handles ambiguity by asking clarifying questions
+
+### Technology Stack (Phase III)
+
+**AI Framework:**
+- OpenAI Agents SDK for agent orchestration
+- OpenAI API (GPT-4 or Claude via OpenAI-compatible endpoint)
+- Async/await pattern for all agent operations
+
+**MCP Server:**
+- Official MCP SDK (Python)
+- Tools defined with JSON schemas
+- HTTP/stdio transport for tool invocation
+- Integrated with FastAPI backend
+
+**Frontend:**
+- OpenAI ChatKit for conversational UI
+- Domain allowlist configured for production deployment
+- Message streaming for real-time responses
+- Markdown rendering for agent responses
+
+**Backend:**
+- Phase II stack (FastAPI + SQLAlchemy + Neon)
+- New endpoints: POST /api/chat, GET /api/conversations
+- Async message processing
+- Token usage tracking and limits
+
+### Code Quality Standards (Phase III)
+
+**Agent Integration:**
+- Agent behavior documented in spec (intent mapping → tool calls)
+- Agent prompts versioned and tested
+- Fallback behavior for agent failures
+- Rate limiting on chat endpoints
+- Token budget management
+
+**Testing:**
+- Unit tests for MCP tools
+- Integration tests for agent → tool → database flow
+- Conversation flow tests (multi-turn scenarios)
+- Edge case handling (malformed input, missing context)
+
+**Security:**
+- User_id validation on all MCP tools
+- Conversation ownership validation
+- Input sanitization for AI-generated content
+- Rate limiting to prevent abuse
+- Token usage monitoring
+
 ## Evolutionary Architecture Roadmap
 
-### Phase I: Monolithic Script ✅ CURRENT
+### Phase I: Monolithic Script ✅ COMPLETED
 **Goal**: Validate core CRUD functionality with minimal complexity
 **Duration**: Single feature implementation
 **Architecture**: Single Python file with layered structure (Model/Logic/Presentation)
@@ -186,17 +271,17 @@ Phase I application MUST run in a continuous interactive loop until the user exp
 **Deployment**: Local execution (`python src/main.py`)
 **Success Criteria**: All CRUD operations working with error handling
 
-### Phase II: Modular Monolith
+### Phase II: Modular Monolith ✅ COMPLETED
 **Goal**: Add persistence, web UI, and API layer while maintaining modularity
 **Architecture**: Separate frontend/backend with clear module boundaries
 **Technology**: Next.js (frontend) + FastAPI (backend) + Neon PostgreSQL (database)
 **Storage**: Neon (PostgreSQL) with migrations
 **Interface**: Web UI (Next.js React components) + REST API (FastAPI endpoints)
 **Deployment**: Vercel (frontend) + Cloud provider (backend) + Neon (database)
-**Success Criteria**: Web CRUD with persistence, authentication, multi-user support
-**Migration Path**: Extract TaskManager logic → FastAPI endpoints, build Next.js UI consuming API
+**Success Criteria**: Web CRUD with persistence, authentication, multi-user support ✅
+**Migration Path**: Extract TaskManager logic → FastAPI endpoints, build Next.js UI consuming API ✅
 
-### Phase III: Agent-Augmented System
+### Phase III: Agent-Augmented System ⚙️ CURRENT
 **Goal**: Integrate AI agents for intelligent task management and assistance
 **Architecture**: Phase II stack + AI agent layer + MCP integration
 **Technology**: Phase II stack + AI Agents (Claude, GPT) + MCP (Model Context Protocol)
@@ -327,4 +412,4 @@ A phase transition can ONLY occur when:
 - ADRs stored in `history/adr/` directory
 - ADR format: Context, Decision, Consequences, Alternatives Considered
 
-**Version**: 2.0.0 | **Ratified**: 2025-12-05 | **Last Amended**: 2025-12-05
+**Version**: 3.0.0 | **Ratified**: 2025-12-05 | **Last Amended**: 2025-12-13

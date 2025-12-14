@@ -1,0 +1,90 @@
+{
+  "name": "add_task",
+  "description": "Create a new task for the authenticated user. Use this when user expresses intent to create, add, or remember something.",
+  "category": "task_management",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "integer",
+        "description": "ID of the user creating the task (auto-injected by agent, not from user input)"
+      },
+      "title": {
+        "type": "string",
+        "description": "Task title extracted from user's natural language input",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional detailed description of the task",
+        "maxLength": 10000,
+        "default": ""
+      }
+    },
+    "required": ["user_id", "title"]
+  },
+  "returns": {
+    "type": "object",
+    "properties": {
+      "task_id": {
+        "type": "integer",
+        "description": "Auto-generated ID of the created task"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["created"],
+        "description": "Confirmation that task was successfully created"
+      },
+      "title": {
+        "type": "string",
+        "description": "Echo of the created task title for confirmation"
+      }
+    }
+  },
+  "errors": [
+    {
+      "code": "VALIDATION_ERROR",
+      "message": "Title is required and must not exceed 500 characters",
+      "http_status": 400
+    },
+    {
+      "code": "UNAUTHORIZED",
+      "message": "User ID validation failed",
+      "http_status": 401
+    }
+  ],
+  "examples": [
+    {
+      "description": "Simple task creation",
+      "input": {
+        "user_id": 1,
+        "title": "Buy groceries"
+      },
+      "output": {
+        "task_id": 42,
+        "status": "created",
+        "title": "Buy groceries"
+      }
+    },
+    {
+      "description": "Task with description",
+      "input": {
+        "user_id": 1,
+        "title": "Finish Q4 report",
+        "description": "Complete financial analysis and projections for Q4 2025"
+      },
+      "output": {
+        "task_id": 43,
+        "status": "created",
+        "title": "Finish Q4 report"
+      }
+    }
+  ],
+  "usage_patterns": [
+    "User says: 'Add buy milk to my list' → title='Buy milk'",
+    "User says: 'Remind me to call mom tomorrow' → title='Call mom'",
+    "User says: 'I need to finish the report' → title='Finish the report'"
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "name": "list_tasks",
+  "description": "Retrieve tasks for the authenticated user with optional filtering. Use this when user asks to see, show, list, or view their tasks.",
+  "category": "task_management",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "integer",
+        "description": "ID of the user whose tasks to retrieve (auto-injected by agent)"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["all", "pending", "completed"],
+        "description": "Filter tasks by completion status",
+        "default": "all"
+      }
+    },
+    "required": ["user_id"]
+  },
+  "returns": {
+    "type": "object",
+    "properties": {
+      "tasks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "description": "Task ID"
+            },
+            "title": {
+              "type": "string",
+              "description": "Task title"
+            },
+            "description": {
+              "type": "string",
+              "description": "Task description (may be empty)"
+            },
+            "completed": {
+              "type": "boolean",
+              "description": "Whether task is marked as complete"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When task was created"
+            }
+          }
+        }
+      },
+      "count": {
+        "type": "integer",
+        "description": "Total number of tasks returned"
+      }
+    }
+  },
+  "errors": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "User ID validation failed",
+      "http_status": 401
+    },
+    {
+      "code": "INVALID_STATUS",
+      "message": "Status must be one of: all, pending, completed",
+      "http_status": 400
+    }
+  ],
+  "examples": [
+    {
+      "description": "List all tasks",
+      "input": {
+        "user_id": 1,
+        "status": "all"
+      },
+      "output": {
+        "tasks": [
+          {
+            "id": 1,
+            "title": "Buy groceries",
+            "description": "",
+            "completed": false,
+            "created_at": "2025-12-13T10:30:00Z"
+          },
+          {
+            "id": 2,
+            "title": "Call mom",
+            "description": "Wish her happy birthday",
+            "completed": true,
+            "created_at": "2025-12-12T15:20:00Z"
+          }
+        ],
+        "count": 2
+      }
+    },
+    {
+      "description": "List only pending tasks",
+      "input": {
+        "user_id": 1,
+        "status": "pending"
+      },
+      "output": {
+        "tasks": [
+          {
+            "id": 1,
+            "title": "Buy groceries",
+            "description": "",
+            "completed": false,
+            "created_at": "2025-12-13T10:30:00Z"
+          }
+        ],
+        "count": 1
+      }
+    }
+  ],
+  "usage_patterns": [
+    "User says: 'What's on my todo list?' → status='all'",
+    "User says: 'Show me pending tasks' → status='pending'",
+    "User says: 'What did I complete?' → status='completed'"
+  ]
+}

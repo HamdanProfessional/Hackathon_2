@@ -1,0 +1,113 @@
+{
+  "name": "update_task",
+  "description": "Update a task's title or description. Use this when user wants to modify, change, or edit task details.",
+  "category": "task_management",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "integer",
+        "description": "ID of the user who owns the task (auto-injected by agent)"
+      },
+      "task_id": {
+        "type": "integer",
+        "description": "ID of the task to update"
+      },
+      "title": {
+        "type": "string",
+        "description": "New task title (optional, provide only if changing)",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "description": {
+        "type": "string",
+        "description": "New task description (optional, provide only if changing)",
+        "maxLength": 10000
+      }
+    },
+    "required": ["user_id", "task_id"]
+  },
+  "returns": {
+    "type": "object",
+    "properties": {
+      "task_id": {
+        "type": "integer",
+        "description": "ID of the updated task"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["updated"],
+        "description": "Confirmation that task was successfully updated"
+      },
+      "title": {
+        "type": "string",
+        "description": "Updated task title"
+      }
+    }
+  },
+  "errors": [
+    {
+      "code": "NOT_FOUND",
+      "message": "Task not found or does not belong to user",
+      "http_status": 404
+    },
+    {
+      "code": "VALIDATION_ERROR",
+      "message": "At least one field (title or description) must be provided",
+      "http_status": 400
+    },
+    {
+      "code": "UNAUTHORIZED",
+      "message": "User ID validation failed",
+      "http_status": 401
+    }
+  ],
+  "examples": [
+    {
+      "description": "Update task title only",
+      "input": {
+        "user_id": 1,
+        "task_id": 42,
+        "title": "Buy groceries and toiletries"
+      },
+      "output": {
+        "task_id": 42,
+        "status": "updated",
+        "title": "Buy groceries and toiletries"
+      }
+    },
+    {
+      "description": "Update task description only",
+      "input": {
+        "user_id": 1,
+        "task_id": 43,
+        "description": "Complete by Friday EOD"
+      },
+      "output": {
+        "task_id": 43,
+        "status": "updated",
+        "title": "Finish Q4 report"
+      }
+    },
+    {
+      "description": "Update both title and description",
+      "input": {
+        "user_id": 1,
+        "task_id": 44,
+        "title": "Weekly team standup",
+        "description": "Every Monday at 10 AM"
+      },
+      "output": {
+        "task_id": 44,
+        "status": "updated",
+        "title": "Weekly team standup"
+      }
+    }
+  ],
+  "usage_patterns": [
+    "User says: 'Change task 5 to...' → task_id=5, title=new_title",
+    "User says: 'Update the groceries task to include fruits' → find task matching 'groceries', update description",
+    "User says: 'Rename buy milk to buy dairy products' → find task, update title"
+  ]
+}

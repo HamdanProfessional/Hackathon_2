@@ -1,0 +1,76 @@
+{
+  "name": "delete_task",
+  "description": "Permanently delete a task. Use this when user wants to remove, delete, or get rid of a task. ALWAYS confirm with user before calling this tool.",
+  "category": "task_management",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "integer",
+        "description": "ID of the user who owns the task (auto-injected by agent)"
+      },
+      "task_id": {
+        "type": "integer",
+        "description": "ID of the task to permanently delete"
+      }
+    },
+    "required": ["user_id", "task_id"]
+  },
+  "returns": {
+    "type": "object",
+    "properties": {
+      "task_id": {
+        "type": "integer",
+        "description": "ID of the deleted task"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["deleted"],
+        "description": "Confirmation that task was permanently deleted"
+      },
+      "title": {
+        "type": "string",
+        "description": "Title of the deleted task (for confirmation message)"
+      }
+    }
+  },
+  "errors": [
+    {
+      "code": "NOT_FOUND",
+      "message": "Task not found or does not belong to user",
+      "http_status": 404
+    },
+    {
+      "code": "UNAUTHORIZED",
+      "message": "User ID validation failed",
+      "http_status": 401
+    }
+  ],
+  "examples": [
+    {
+      "description": "Delete task by ID",
+      "input": {
+        "user_id": 1,
+        "task_id": 42
+      },
+      "output": {
+        "task_id": 42,
+        "status": "deleted",
+        "title": "Old meeting notes"
+      }
+    }
+  ],
+  "usage_patterns": [
+    "User says: 'Delete task 5' → FIRST ask 'Are you sure you want to delete task 5?', THEN call tool if confirmed",
+    "User says: 'Remove the groceries task' → find task matching 'groceries', ask for confirmation, then delete",
+    "User says: 'Get rid of completed tasks' → ask 'Do you want to delete all completed tasks?', confirm before batch operation"
+  ],
+  "important_notes": [
+    "DESTRUCTIVE OPERATION - This action cannot be undone",
+    "Agent MUST ask for explicit user confirmation before calling this tool",
+    "Example confirmation: 'Are you sure you want to delete [task title]? This cannot be undone.'",
+    "Only call tool after user confirms with 'yes', 'confirm', 'delete it', or similar affirmative response",
+    "If user says 'no', 'cancel', 'nevermind', DO NOT call the tool"
+  ]
+}
