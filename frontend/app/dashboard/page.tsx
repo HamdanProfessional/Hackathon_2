@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   getTasks,
   createTask,
@@ -16,10 +17,12 @@ import TaskCreateForm from "@/components/tasks/task-create-form";
 import TaskList from "@/components/tasks/task-list";
 import TaskEditDialog from "@/components/tasks/task-edit-dialog";
 import TaskDeleteDialog from "@/components/tasks/task-delete-dialog";
+import LanguageToggle from "@/components/ui/language-toggle";
 import type { Task } from "@/types/task";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { t, isRTL } = useLanguage();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -185,12 +188,13 @@ export default function DashboardPage() {
       <header className="border-b border-border bg-card">
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">Todo Dashboard</h1>
+            <h1 className="text-2xl font-bold">{t("todoDashboard")}</h1>
             <p className="text-sm text-muted-foreground">
-              {totalCount} tasks ({completedCount} completed)
+              {totalCount} {t("tasks")} ({completedCount} {t("completed")})
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <LanguageToggle />
             <Link
               href="/chat"
               className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -198,13 +202,13 @@ export default function DashboardPage() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
-              AI Chat
+              {t("aiChat")}
             </Link>
             <button
               onClick={handleLogout}
               className="px-4 py-2 text-sm border border-border rounded-md hover:bg-accent transition-colors"
             >
-              Logout
+              {t("logout")}
             </button>
           </div>
         </div>
