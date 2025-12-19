@@ -1,0 +1,37 @@
+# FastAPI and ASGI server
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+
+# Database
+sqlmodel>=0.0.19
+sqlalchemy>=2.0.30
+alembic>=1.13.1
+psycopg2-binary>=2.9.9  # For sync connections (if needed)
+asyncpg>=0.29.0  # For async PostgreSQL connections
+greenlet>=3.0.3  # Required for SQLAlchemy async support
+
+# Data validation
+pydantic>=2.8.0
+pydantic-settings>=2.6.1
+email-validator>=2.0.0
+
+# Authentication and security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+httpx>=0.27.0
+
+# CORS
+python-dotenv==1.0.0
+
+# Rate limiting
+slowapi==0.1.9
+
+# Phase III: AI Agent Integration (Google Gemini via OpenAI-compatible API)
+openai>=1.0.0
+mcp>=1.0.0
+# Note: Using OpenAI client with Gemini's OpenAI-compatible endpoint for LLM access

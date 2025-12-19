@@ -1,0 +1,79 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-db",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-tables",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-register",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-direct-user",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-schema",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-tasks-schema",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-priority-table",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-priorities-data",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-create-priorities",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-create-task",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-create-task-crud",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-auth",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/docs",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "/api/index.py"
+    }
+  ]
+}

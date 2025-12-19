@@ -1,0 +1,248 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Modern gradient colors */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    /* Vibrant primary colors */
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    /* Accent colors */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 221 83% 53%;
+    --accent-foreground: 210 40% 98%;
+
+    /* Status colors */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 76% 36%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222.2 47.4% 11.2%;
+
+    /* UI elements */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221 83% 53%;
+    --radius: 0.75rem;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+
+  .dark {
+    /* Nebula 2025 Dark Theme */
+    --background: 240 10% 3.9%; /* Zinc-950 */
+    --foreground: 240 5% 91%; /* Zinc-100 */
+    --card: 240 10% 3.9%; /* Zinc-950 */
+    --card-foreground: 240 5% 91%; /* Zinc-100 */
+    --popover: 240 10% 3.9%; /* Zinc-950 */
+    --popover-foreground: 240 5% 91%; /* Zinc-100 */
+
+    /* Electric Violet primary in dark mode */
+    --primary: 262 83% 58%; /* Electric Violet */
+    --primary-foreground: 240 5% 91%; /* Zinc-100 */
+    --secondary: 240 7% 17%; /* Zinc-900 */
+    --secondary-foreground: 240 5% 91%; /* Zinc-100 */
+
+    /* Muted accents */
+    --muted: 240 7% 17%; /* Zinc-900 */
+    --muted-foreground: 240 5% 64%; /* Zinc-400 */
+    --accent: 262 83% 58%; /* Electric Violet */
+    --accent-foreground: 240 5% 91%; /* Zinc-100 */
+
+    /* Status colors in dark mode */
+    --destructive: 0 63% 31%; /* Red-800 */
+    --destructive-foreground: 240 5% 91%; /* Zinc-100 */
+    --success: 142 76% 36%; /* Green-600 */
+    --success-foreground: 240 5% 91%; /* Zinc-100 */
+    --warning: 38 92% 50%; /* Yellow-500 */
+    --warning-foreground: 240 9% 4%; /* Zinc-950 */
+
+    /* Dark UI elements */
+    --border: 240 10% 20%; /* Zinc-800 */
+    --input: 240 10% 20%; /* Zinc-800 */
+    --ring: 262 83% 58%; /* Electric Violet */
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-zinc-950 text-zinc-100 antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Force dark mode by default */
+  html, body {
+    color-scheme: dark;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-primary/20;
+  }
+}
+
+@layer components {
+  /* Nebula 2025 Gradient backgrounds */
+  .gradient-bg {
+    background: linear-gradient(135deg, #7c3aed 0%, #c026d3 50%, #a855f7 100%); /* Electric Violet to Fuchsia */
+  }
+
+  .gradient-bg-light {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(192, 38, 211, 0.05) 100%);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Glassmorphism effects */
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl;
+  }
+
+  .glass-input {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 placeholder:text-zinc-400;
+  }
+
+  /* Button variants */
+  .btn-glass {
+    @apply glass-card hover:bg-white/10 transition-all duration-200;
+  }
+
+  /* Animation utilities */
+  .fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-zinc-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-zinc-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-600;
+  }
+}
+
+@layer utilities {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideDown {
+    from {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulseSlow {
+    0%, 100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  /* Custom utility classes */
+  .text-gradient {
+    @apply gradient-text;
+  }
+
+  .bg-gradient {
+    @apply gradient-bg;
+  }
+
+  /* Animation classes */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  .animate-pulse-slow {
+    animation: pulseSlow 3s ease-in-out infinite;
+  }
+}

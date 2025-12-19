@@ -1,0 +1,81 @@
+{
+  "name": "complete_task",
+  "description": "Toggle a task's completion status (mark as complete or incomplete). Use this when user indicates they finished a task or wants to mark it done.",
+  "category": "task_management",
+  "version": "1.0.0",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "integer",
+        "description": "ID of the user who owns the task (auto-injected by agent)"
+      },
+      "task_id": {
+        "type": "integer",
+        "description": "ID of the task to toggle completion status"
+      }
+    },
+    "required": ["user_id", "task_id"]
+  },
+  "returns": {
+    "type": "object",
+    "properties": {
+      "task_id": {
+        "type": "integer",
+        "description": "ID of the modified task"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["completed", "incomplete"],
+        "description": "New completion status after toggle"
+      },
+      "title": {
+        "type": "string",
+        "description": "Task title for confirmation"
+      }
+    }
+  },
+  "errors": [
+    {
+      "code": "NOT_FOUND",
+      "message": "Task not found or does not belong to user",
+      "http_status": 404
+    },
+    {
+      "code": "UNAUTHORIZED",
+      "message": "User ID validation failed",
+      "http_status": 401
+    }
+  ],
+  "examples": [
+    {
+      "description": "Mark incomplete task as complete",
+      "input": {
+        "user_id": 1,
+        "task_id": 42
+      },
+      "output": {
+        "task_id": 42,
+        "status": "completed",
+        "title": "Buy groceries"
+      }
+    },
+    {
+      "description": "Mark completed task as incomplete (undo)",
+      "input": {
+        "user_id": 1,
+        "task_id": 42
+      },
+      "output": {
+        "task_id": 42,
+        "status": "incomplete",
+        "title": "Buy groceries"
+      }
+    }
+  ],
+  "usage_patterns": [
+    "User says: 'Mark task 5 as done' → task_id=5",
+    "User says: 'I finished buying groceries' → find task with title matching 'groceries', use its ID",
+    "User says: 'I'm done with the report' → find task matching 'report', mark complete"
+  ]
+}
