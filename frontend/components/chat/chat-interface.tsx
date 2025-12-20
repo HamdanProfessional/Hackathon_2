@@ -5,7 +5,8 @@ import { sendChatMessage, getConversationMessages, type ChatMessage } from "@/li
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import VoiceInputButton from "@/components/ui/voice-input-button";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/use-speech";
 
 interface ChatInterfaceProps {
   conversationId?: number;
@@ -22,12 +23,47 @@ export default function ChatInterface({
   const [error, setError] = useState("");
   const [voiceError, setVoiceError] = useState("");
   const [currentConversationId, setCurrentConversationId] = useState<number | undefined>(conversationId);
+  const [language, setLanguage] = useState<'en-US' | 'ur-PK'>('en-US');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Speech hooks
+  const {
+    transcript,
+    isListening,
+    isSupported: isRecognitionSupported,
+    startListening,
+    stopListening,
+    resetTranscript,
+    error: speechError
+  } = useSpeechRecognition();
+
+  const {
+    speak,
+    cancel: cancelSpeech,
+    isSpeaking,
+    isSupported: isSynthesisSupported
+  } = useSpeechSynthesis();
 
   // Version marker
   useEffect(() => {
-    console.log('🎯 ChatInterface v2.0 - DASHBOARD ARROW BUTTON - Loaded at:', new Date().toISOString());
+    console.log('🎯 ChatInterface v3.0 - VOICE + BILINGUAL - Loaded at:', new Date().toISOString());
   }, []);
+
+  // Handle speech recognition transcript
+  useEffect(() => {
+    if (transcript) {
+      setInputValue(transcript);
+      resetTranscript();
+    }
+  }, [transcript, resetTranscript]);
+
+  // Handle speech recognition errors
+  useEffect(() => {
+    if (speechError) {
+      setVoiceError(speechError);
+      setTimeout(() => setVoiceError(""), 5000);
+    }
+  }, [speechError]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -177,21 +213,51 @@ export default function ChatInterface({
             key={idx}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
-            <div
-              className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                msg.role === "user"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {msg.role === "user" ? (
-                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              ) : (
-                <div className="text-sm prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-800 prose-pre:text-gray-100">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {msg.content}
-                  </ReactMarkdown>
-                </div>
+            <div className="flex flex-col gap-2 max-w-[70%]">
+              <div
+                className={`rounded-lg px-4 py-2 ${
+                  msg.role === "user"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {msg.role === "user" ? (
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                ) : (
+                  <div className="text-sm prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-800 prose-pre:text-gray-100">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
+              </div>
+
+              {/* Text-to-Speech Button for AI Messages */}
+              {msg.role === "assistant" && isSynthesisSupported && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isSpeaking) {
+                      cancelSpeech();
+                    } else {
+                      speak(msg.content, language);
+                    }
+                  }}
+                  className="self-start flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded transition-colors"
+                  title={isSpeaking ? 'Stop speaking' : 'Read aloud'}
+                >
+                  {isSpeaking ? (
+                    <>
+                      <VolumeX className="w-3 h-3 animate-pulse" />
+                      <span>Stop</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-3 h-3" />
+                      <span>Listen</span>
+                    </>
+                  )}
+                </button>
               )}
             </div>
           </div>
@@ -237,15 +303,47 @@ export default function ChatInterface({
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={loading}
           />
-          <VoiceInputButton
-            onResult={handleVoiceInput}
-            onError={handleVoiceError}
-            language="en-US"
-          />
+          {/* Language Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setLanguage(lang => lang === 'en-US' ? 'ur-PK' : 'en-US')}
+            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium"
+            title={`Current: ${language === 'en-US' ? 'English' : 'Urdu'}`}
+          >
+            {language === 'en-US' ? '🇬🇧 EN' : '🇵🇰 UR'}
+          </button>
+
+          {/* Microphone Button for Voice Input */}
+          {isRecognitionSupported && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isListening) {
+                  stopListening();
+                } else {
+                  startListening(language);
+                }
+              }}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center justify-center min-w-[44px] ${
+                isListening
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+              }`}
+              title={isListening ? 'Stop recording' : 'Start voice input'}
+              disabled={loading}
+            >
+              {isListening ? (
+                <MicOff className="w-5 h-5 animate-pulse" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </button>
+          )}
+
           <button
             type="submit"
             disabled={!inputValue.trim() || loading}
-            data-version="v2-dashboard-arrow"
+            data-version="v3-voice-bilingual"
             aria-label="Send message"
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[44px]"
           >
