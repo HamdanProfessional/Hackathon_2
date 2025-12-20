@@ -143,7 +143,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionResult {
 }
 
 export interface UseSpeechSynthesisResult {
-  speak: (text: string, language?: string) => void;
+  speak: (text: string, language?: string, rate?: number, pitch?: number) => void;
   cancel: () => void;
   isSpeaking: boolean;
   isSupported: boolean;
@@ -152,14 +152,14 @@ export interface UseSpeechSynthesisResult {
 /**
  * Hook for Web Speech API - Speech Synthesis (Text-to-Speech)
  *
- * Supports both English and Urdu text-to-speech.
+ * Supports both English and Urdu text-to-speech with customizable speed and pitch.
  */
 export function useSpeechSynthesis(): UseSpeechSynthesisResult {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
 
-  const speak = useCallback((text: string, language = 'en-US') => {
+  const speak = useCallback((text: string, language = 'en-US', rate = 0.9, pitch = 1) => {
     if (!isSupported) {
       console.error('Speech synthesis not supported');
       return;
@@ -170,8 +170,8 @@ export function useSpeechSynthesis(): UseSpeechSynthesisResult {
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = language; // en-US for English, ur-PK for Urdu
-    utterance.rate = 0.9; // Slightly slower for clarity
-    utterance.pitch = 1;
+    utterance.rate = rate; // Speed of speech (0.1 to 10)
+    utterance.pitch = pitch; // Pitch of speech (0 to 2)
     utterance.volume = 1;
 
     utterance.onstart = () => setIsSpeaking(true);

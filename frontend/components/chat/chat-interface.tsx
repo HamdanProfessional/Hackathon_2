@@ -4,8 +4,19 @@ import { useState, useEffect, useRef } from "react";
 import { sendChatMessage, getConversationMessages, type ChatMessage } from "@/lib/chat-client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import VoiceInputButton from "@/components/ui/voice-input-button";
-import { ArrowRight, Loader2, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import {
+  ArrowRight,
+  Loader2,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Copy,
+  Check,
+  Settings,
+  Clock,
+  Waves
+} from "lucide-react";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/use-speech";
 
 interface ChatInterfaceProps {
@@ -24,7 +35,14 @@ export default function ChatInterface({
   const [voiceError, setVoiceError] = useState("");
   const [currentConversationId, setCurrentConversationId] = useState<number | undefined>(conversationId);
   const [language, setLanguage] = useState<'en-US' | 'ur-PK'>('en-US');
+  const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [voiceSpeed, setVoiceSpeed] = useState(0.9);
+  const [voicePitch, setVoicePitch] = useState(1);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [autoPlay, setAutoPlay] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Speech hooks
   const {
@@ -46,8 +64,66 @@ export default function ChatInterface({
 
   // Version marker
   useEffect(() => {
-    console.log('🎯 ChatInterface v3.0 - VOICE + BILINGUAL - Loaded at:', new Date().toISOString());
+    console.log('🎯 ChatInterface v4.0 - ENHANCED VOICE + DESIGN - Loaded at:', new Date().toISOString());
   }, []);
+
+  // Recording timer
+  useEffect(() => {
+    if (isListening) {
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setRecordingTime(0);
+    }
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, [isListening]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Spacebar to toggle recording (when not typing in input)
+      if (e.code === 'Space' && e.target === document.body && !loading) {
+        e.preventDefault();
+        if (isListening) {
+          stopListening();
+        } else {
+          startListening(language);
+        }
+      }
+      // Escape to stop recording or speaking
+      if (e.code === 'Escape') {
+        if (isListening) {
+          stopListening();
+        }
+        if (isSpeaking) {
+          cancelSpeech();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isListening, isSpeaking, loading, language, startListening, stopListening, cancelSpeech]);
+
+  // Auto-play new AI responses
+  useEffect(() => {
+    if (autoPlay && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'assistant' && !isSpeaking) {
+        speak(lastMessage.content, language, voiceSpeed, voicePitch);
+      }
+    }
+  }, [messages, autoPlay, language, voiceSpeed, voicePitch]);
 
   // Handle speech recognition transcript
   useEffect(() => {
@@ -169,108 +245,254 @@ export default function ChatInterface({
     setTimeout(() => setVoiceError(""), 5000);
   };
 
+  const copyToClipboard = async (text: string, messageId: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatTimestamp = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).format(date);
+  };
+
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-800">AI Task Assistant</h2>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-          <span className="text-sm text-gray-600">Online</span>
+    <div className="flex flex-col h-full bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+      {/* Header with glassmorphism */}
+      <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-blue-600/10 border-b border-white/10 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 animate-pulse"></div>
+            <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-400 animate-ping opacity-75"></div>
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+              AI Task Assistant
+            </h2>
+            <p className="text-xs text-slate-400 flex items-center gap-1">
+              <span>Voice-Enabled</span>
+              <span className="text-slate-600">•</span>
+              <span>{language === 'en-US' ? 'English' : 'اردو'}</span>
+            </p>
+          </div>
         </div>
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          title="Voice Settings"
+        >
+          <Settings className="w-5 h-5 text-slate-400" />
+        </button>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      {/* Voice Settings Panel */}
+      {showSettings && (
+        <div className="px-6 py-4 bg-slate-800/50 border-b border-white/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-300">Auto-play responses</span>
+            <button
+              onClick={() => setAutoPlay(!autoPlay)}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                autoPlay ? 'bg-blue-600' : 'bg-slate-600'
+              }`}
+            >
+              <div
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                  autoPlay ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+          <div>
+            <label className="text-sm text-slate-300 block mb-1">
+              Voice Speed: {voiceSpeed.toFixed(1)}x
+            </label>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={voiceSpeed}
+              onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
+              className="w-full accent-blue-500"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-slate-300 block mb-1">
+              Voice Pitch: {voicePitch.toFixed(1)}
+            </label>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={voicePitch}
+              onChange={(e) => setVoicePitch(parseFloat(e.target.value))}
+              className="w-full accent-purple-500"
+            />
+          </div>
+          <div className="text-xs text-slate-400 pt-2 border-t border-white/10">
+            <p>⌨️ Shortcuts: <span className="text-slate-300">Space</span> to record, <span className="text-slate-300">Esc</span> to stop</p>
+          </div>
+        </div>
+      )}
+
+      {/* Messages Area with enhanced scrollbar */}
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 custom-scrollbar">
         {messages.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 mb-2">
-              <svg
-                className="w-16 h-16 mx-auto mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                />
-              </svg>
+          <div className="flex flex-col items-center justify-center h-full text-center py-12">
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-3xl"></div>
+              <Waves className="w-20 h-20 text-blue-400 relative animate-pulse" />
             </div>
-            <h3 className="text-lg font-medium text-gray-700 mb-2">
-              Start a conversation
+            <h3 className="text-xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-3">
+              Start a Voice-Enabled Conversation
             </h3>
-            <p className="text-gray-500 text-sm max-w-md mx-auto">
-              Ask me to add tasks, like "Add buy groceries to my list" or "Remind me to call mom tomorrow"
+            <p className="text-slate-400 text-sm max-w-md mx-auto mb-4">
+              Try saying: <span className="text-blue-400">"Add buy groceries to my list"</span>
             </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <span className="px-3 py-1 bg-blue-600/20 border border-blue-500/30 rounded-full text-xs text-blue-300">
+                🎤 Voice Input
+              </span>
+              <span className="px-3 py-1 bg-purple-600/20 border border-purple-500/30 rounded-full text-xs text-purple-300">
+                🗣️ Bilingual (EN/UR)
+              </span>
+              <span className="px-3 py-1 bg-green-600/20 border border-green-500/30 rounded-full text-xs text-green-300">
+                🔊 Text-to-Speech
+              </span>
+            </div>
           </div>
         )}
 
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group`}
           >
-            <div className="flex flex-col gap-2 max-w-[70%]">
-              <div
-                className={`rounded-lg px-4 py-2 ${
-                  msg.role === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-800"
-                }`}
-              >
-                {msg.role === "user" ? (
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                ) : (
-                  <div className="text-sm prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-code:bg-gray-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-800 prose-pre:text-gray-100">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content}
-                    </ReactMarkdown>
+            <div className="flex flex-col gap-2 max-w-[75%]">
+              <div className="flex items-start gap-2">
+                {msg.role === "assistant" && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 mt-1">
+                    AI
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div
+                    className={`rounded-2xl px-4 py-3 shadow-lg ${
+                      msg.role === "user"
+                        ? "bg-gradient-to-br from-blue-600 to-blue-500 text-white"
+                        : "bg-slate-800/80 backdrop-blur-sm border border-white/10 text-slate-100"
+                    }`}
+                  >
+                    {msg.role === "user" ? (
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    ) : (
+                      <div className="text-sm prose prose-sm prose-invert max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-code:bg-slate-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-slate-900/50 prose-pre:border prose-pre:border-white/10">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Message actions bar */}
+                  <div className="flex items-center gap-2 mt-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-xs text-slate-500">
+                      {formatTimestamp(new Date())}
+                    </span>
+
+                    {/* Copy button */}
+                    <button
+                      onClick={() => copyToClipboard(msg.content, idx)}
+                      className="p-1 hover:bg-slate-700/50 rounded transition-colors"
+                      title="Copy message"
+                    >
+                      {copiedMessageId === idx ? (
+                        <Check className="w-3 h-3 text-green-400" />
+                      ) : (
+                        <Copy className="w-3 h-3 text-slate-400" />
+                      )}
+                    </button>
+
+                    {/* Text-to-Speech Button for AI Messages */}
+                    {msg.role === "assistant" && isSynthesisSupported && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isSpeaking) {
+                            cancelSpeech();
+                          } else {
+                            speak(msg.content, language, voiceSpeed, voicePitch);
+                          }
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-slate-700/50 rounded transition-colors"
+                        title={isSpeaking ? 'Stop speaking' : 'Read aloud'}
+                      >
+                        {isSpeaking ? (
+                          <>
+                            <VolumeX className="w-3 h-3 text-red-400 animate-pulse" />
+                            <span className="text-red-400">Stop</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-3 h-3 text-blue-400" />
+                            <span className="text-blue-400">Listen</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {msg.role === "user" && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 mt-1">
+                    U
                   </div>
                 )}
               </div>
-
-              {/* Text-to-Speech Button for AI Messages */}
-              {msg.role === "assistant" && isSynthesisSupported && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isSpeaking) {
-                      cancelSpeech();
-                    } else {
-                      speak(msg.content, language);
-                    }
-                  }}
-                  className="self-start flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded transition-colors"
-                  title={isSpeaking ? 'Stop speaking' : 'Read aloud'}
-                >
-                  {isSpeaking ? (
-                    <>
-                      <VolumeX className="w-3 h-3 animate-pulse" />
-                      <span>Stop</span>
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="w-3 h-3" />
-                      <span>Listen</span>
-                    </>
-                  )}
-                </button>
-              )}
             </div>
           </div>
         ))}
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-lg px-4 py-2">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+            <div className="flex items-start gap-2">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                AI
               </div>
+              <div className="bg-slate-800/80 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3 shadow-lg">
+                <div className="flex gap-1.5">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recording indicator with transcript preview */}
+        {isListening && transcript && (
+          <div className="flex justify-end">
+            <div className="max-w-[75%] bg-blue-600/20 border border-blue-500/30 rounded-2xl px-4 py-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-blue-300">Recording preview...</span>
+              </div>
+              <p className="text-sm text-slate-200 italic">{transcript}</p>
             </div>
           </div>
         )}
@@ -292,28 +514,55 @@ export default function ChatInterface({
         </div>
       )}
 
-      {/* Input Area */}
-      <div className="px-6 py-4 border-t border-gray-200">
+      {/* Input Area with glassmorphism */}
+      <div className="px-6 py-4 bg-gradient-to-r from-slate-900/50 via-slate-800/50 to-slate-900/50 border-t border-white/10 backdrop-blur-sm">
+        {/* Recording Timer Bar */}
+        {isListening && (
+          <div className="mb-3 flex items-center gap-3 px-4 py-2 bg-red-600/10 border border-red-500/30 rounded-lg">
+            <div className="flex items-center gap-2 flex-1">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-red-400 font-medium">Recording...</span>
+              <div className="flex gap-0.5 ml-2">
+                {[...Array(5)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-1 bg-red-400 rounded-full animate-pulse"
+                    style={{
+                      height: `${Math.random() * 16 + 8}px`,
+                      animationDelay: `${i * 0.1}s`
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-red-400">
+              <Clock className="w-4 h-4" />
+              <span className="text-sm font-mono">{formatTime(recordingTime)}</span>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type your message or click mic to speak..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder={isListening ? "Listening..." : "Type or press Space to speak..."}
+            className="flex-1 px-4 py-3 bg-slate-800/50 border border-white/10 text-slate-100 placeholder:text-slate-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
             disabled={loading}
           />
+
           {/* Language Toggle Button */}
           <button
             type="button"
             onClick={() => setLanguage(lang => lang === 'en-US' ? 'ur-PK' : 'en-US')}
-            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium"
-            title={`Current: ${language === 'en-US' ? 'English' : 'Urdu'}`}
+            className="px-4 py-3 bg-gradient-to-br from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 border border-white/10 rounded-xl transition-all shadow-lg text-sm font-medium backdrop-blur-sm"
+            title={`Switch to ${language === 'en-US' ? 'Urdu' : 'English'}`}
           >
-            {language === 'en-US' ? '🇬🇧 EN' : '🇵🇰 UR'}
+            <span className="text-lg">{language === 'en-US' ? '🇬🇧' : '🇵🇰'}</span>
           </button>
 
-          {/* Microphone Button for Voice Input */}
+          {/* Microphone Button with Recording Animation */}
           {isRecognitionSupported && (
             <button
               type="button"
@@ -324,18 +573,21 @@ export default function ChatInterface({
                   startListening(language);
                 }
               }}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center justify-center min-w-[44px] ${
+              className={`relative px-4 py-3 rounded-xl transition-all flex items-center justify-center min-w-[52px] shadow-lg backdrop-blur-sm ${
                 isListening
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  ? 'bg-gradient-to-br from-red-600 to-red-500 hover:from-red-700 hover:to-red-600'
+                  : 'bg-gradient-to-br from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600'
               }`}
-              title={isListening ? 'Stop recording' : 'Start voice input'}
+              title={isListening ? 'Stop recording (Esc)' : 'Start voice input (Space)'}
               disabled={loading}
             >
+              {isListening && (
+                <div className="absolute inset-0 rounded-xl bg-red-400 animate-ping opacity-25"></div>
+              )}
               {isListening ? (
-                <MicOff className="w-5 h-5 animate-pulse" />
+                <MicOff className="w-5 h-5 text-white animate-pulse relative z-10" />
               ) : (
-                <Mic className="w-5 h-5" />
+                <Mic className="w-5 h-5 text-white relative z-10" />
               )}
             </button>
           )}
@@ -343,9 +595,9 @@ export default function ChatInterface({
           <button
             type="submit"
             disabled={!inputValue.trim() || loading}
-            data-version="v3-voice-bilingual"
+            data-version="v4-enhanced-voice"
             aria-label="Send message"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[44px]"
+            className="px-4 py-3 bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-xl hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg flex items-center justify-center min-w-[52px] backdrop-blur-sm"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -355,6 +607,24 @@ export default function ChatInterface({
           </button>
         </form>
       </div>
+
+      {/* Custom scrollbar styles */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(15, 23, 42, 0.3);
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: linear-gradient(to bottom, rgb(59, 130, 246), rgb(147, 51, 234));
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(to bottom, rgb(37, 99, 235), rgb(126, 34, 206));
+        }
+      `}</style>
     </div>
   );
 }
