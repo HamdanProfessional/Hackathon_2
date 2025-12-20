@@ -35,3 +35,5 @@ slowapi==0.1.9
 openai>=1.0.0
 mcp>=1.0.0
 # Note: Using OpenAI client with Gemini's OpenAI-compatible endpoint for LLM access
+# The agent orchestration and conversation management will be implemented manually
+# using the OpenAI library since specialized SDKs are not yet available

@@ -13,6 +13,8 @@ categories:
   - ai-mcp
   - quality
   - specialized
+  - development
+  - deployment
 
 # Agent Definitions
 agents:
@@ -160,7 +162,7 @@ agents:
 
   code-reviewer:
     category: quality
-    file: quality/code-reviewer.md
+    file: code-reviewer.md
     subagent_type: code-reviewer
     description: "Code quality and standards enforcement"
     expertise:
@@ -170,6 +172,448 @@ agents:
     can_review:
       - All code
       - All phases
+
+  # === Development Specialists ===
+
+  backend-specialist:
+    category: development
+    file: backend-specialist.md
+    subagent_type: backend-specialist
+    description: "Backend API and database specialist"
+    expertise:
+      - FastAPI
+      - SQLModel
+      - PostgreSQL
+      - JWT Authentication
+      - REST APIs
+    phases:
+      - II
+      - III
+      - V
+
+  frontend-specialist:
+    category: development
+    file: frontend-specialist.md
+    subagent_type: frontend-specialist
+    description: "Frontend UI and interaction specialist"
+    expertise:
+      - Next.js
+      - TypeScript
+      - Tailwind CSS
+      - OpenAI ChatKit
+      - JWT Token Handling
+    phases:
+      - II
+      - III
+
+  database-migration-specialist:
+    category: development
+    file: database-migration-specialist.md
+    subagent_type: database-migration-specialist
+    description: "Database schema and migration specialist"
+    expertise:
+      - Alembic
+      - SQLModel schema updates
+      - Data migration
+      - Data integrity
+    phases:
+      - II
+      - III
+      - IV
+      - V
+
+  api-integration-specialist:
+    category: development
+    file: api-integration-specialist.md
+    subagent_type: api-integration-specialist
+    description: "Frontend-backend integration specialist"
+    expertise:
+      - Schema synchronization
+      - Type conversion
+      - CORS handling
+      - API contract management
+    phases:
+      - II
+      - III
+
+  dapr-event-specialist:
+    category: development
+    file: dapr-event-specialist.md
+    subagent_type: dapr-event-specialist
+    description: "Dapr event-driven architecture specialist"
+    expertise:
+      - Dapr pub/sub
+      - Event publishing
+      - Event subscription
+      - Service-to-service communication
+    phases:
+      - V
+
+  python-cli:
+    category: development
+    file: python-cli.md
+    subagent_type: python-cli
+    description: "Python CLI and scripting specialist"
+    expertise:
+      - Python 3.13+
+      - CLI applications
+      - Scripting tasks
+    phase: I
+
+  # === Deployment and Infrastructure Specialists ===
+
+  deployment-engineer:
+    category: deployment
+    file: deployment-engineer.md
+    subagent_type: deployment-engineer
+    description: "Kubernetes deployment specialist"
+    expertise:
+      - Kubernetes (Minikube/DOKS)
+      - Docker images
+      - Kubernetes secrets
+      - Dapr components
+      - Service scaling
+    phases:
+      - IV
+      - V
+
+  cloudops-engineer:
+    category: deployment
+    file: cloudops-engineer.md
+    subagent_type: cloudops-engineer
+    description: "Cloud infrastructure and DevOps specialist"
+    expertise:
+      - Dockerfiles
+      - Docker Compose
+      - Helm charts
+      - Dapr components
+      - Kafka/Redpanda
+      - Kubernetes deployments
+    phases:
+      - IV
+      - V
+
+  kubernetes-engineer:
+    category: deployment
+    file: kubernetes-engineer.md
+    subagent_type: kubernetes-engineer
+    description: "Kubernetes and container specialist"
+    expertise:
+      - Docker
+      - Kubernetes
+      - Helm charts
+      - Container orchestration
+    phases:
+      - IV
+      - V
+
+  # === Architecture and Leadership ===
+
+  architect:
+    category: specialized
+    file: architect.md
+    subagent_type: architect
+    description: "System architecture and technical planning"
+    expertise:
+      - System architecture
+      - Design patterns
+      - Technology decisions
+      - Implementation strategies
+
+  spec-kit-architect:
+    category: specialized
+    file: spec-kit-architect.md
+    subagent_type: spec-kit-architect
+    description: "Spec-Kit Plus project governance specialist"
+    expertise:
+      - Project constitution (CLAUDE.md)
+      - Feature specifications
+      - Spec-Kit templates
+      - Code review against specs
+      - Architecture updates
+
+  lead-engineer:
+    category: specialized
+    file: lead-engineer.md
+    subagent_type: lead-engineer
+    description: "Technical lead and quality enforcer"
+    expertise:
+      - Development standards
+      - Code quality
+      - Git workflow
+      - Testing strategy
+      - Project governance
+
+  orchestrator:
+    category: specialized
+    file: orchestrator.md
+    subagent_type: orchestrator
+    description: "Project coordination and workflow management"
+    expertise:
+      - Multi-agent coordination
+      - Complex workflows
+      - Task delegation
+      - Project management
+
+# Skills Definition
+skills:
+  # === Architecture and Planning Skills ===
+
+  adr-generator:
+    category: architecture
+    description: "Creates Architecture Decision Records (ADRs)"
+    file: adr-generator
+    use_case: "Documenting architectural decisions with context and tradeoffs"
+
+  architecture-planner:
+    category: architecture
+    description: "Creates comprehensive implementation plans"
+    file: architecture-planner
+    use_case: "Planning feature implementations and system design"
+
+  spec-architect:
+    category: architecture
+    description: "Generates Spec-Kit Plus compliant feature specifications"
+    file: spec-architect
+    use_case: "Creating specs following spec-driven development workflow"
+
+  # === Backend Development Skills ===
+
+  backend-scaffolder:
+    category: backend
+    description: "Scaffolds complete FastAPI vertical slices"
+    file: backend-scaffolder
+    use_case: "Phase II backend implementations with SQLModel and JWT"
+
+  crud-builder:
+    category: backend
+    description: "Generates complete CRUD operations"
+    file: crud-builder
+    use_case: "Scaffolding new resources with database operations"
+
+  fastapi-endpoint-generator:
+    category: backend
+    description: "Generates custom FastAPI endpoints"
+    file: fastapi-endpoint-generator
+    use_case: "Non-CRUD endpoints like analytics and batch operations"
+
+  sqlmodel-schema-builder:
+    category: backend
+    description: "Builds SQLModel schemas with relationships"
+    file: sqlmodel-schema-builder
+    use_case: "Database modeling and schema design"
+
+  db-migration-wizard:
+    category: backend
+    description: "Automates Alembic database migrations"
+    file: db-migration-wizard
+    use_case: "Evolving database schema safely"
+
+  # === Frontend Development Skills ===
+
+  frontend-component:
+    category: frontend
+    description: "Builds Next.js 16+ App Router components"
+    file: frontend-component
+    use_case: "UI implementation in Phase II/III"
+
+  # === AI and MCP Skills ===
+
+  ai-mcp:
+    category: ai
+    description: "Converts slash commands into MCP servers"
+    file: ai-mcp
+    use_case: "Creating reusable spec-driven workflows"
+
+  agent-builder:
+    category: ai
+    description: "Builds AI agents using AsyncOpenAI"
+    file: agent-builder
+    use_case: "Creating task management chatbots"
+
+  agent-orchestrator:
+    category: ai
+    description: "Orchestrates AI agent initialization"
+    file: agent-orchestrator
+    use_case: "Wiring up agents in Phase III"
+
+  mcp-tool-maker:
+    category: ai
+    description: "Creates MCP tools for AI agents"
+    file: mcp-tool-maker
+    use_case: "Phase III OpenAI ChatKit integration"
+
+  chatkit-integrator:
+    category: ai
+    description: "Integrates OpenAI Chatkit with conversation persistence"
+    file: chatkit-integrator
+    use_case: "AI chat interfaces with database backing"
+
+  conversation-history-manager:
+    category: ai
+    description: "Implements conversation history management"
+    file: conversation-history-manager
+    use_case: "Database-backed AI chat with stateless agents"
+
+  stateless-agent-enforcer:
+    category: ai
+    description: "Validates stateless agent architecture"
+    file: stateless-agent-enforcer
+    use_case: "Phase III constitutional compliance"
+
+  # === DevOps and Infrastructure Skills ===
+
+  k8s-deployer:
+    category: devops
+    description: "Generates deployment configurations"
+    file: k8s-deployer
+    use_case: "Phase IV/V deployment tasks"
+
+  infrastructure:
+    category: devops
+    description: "Sets up Kubernetes environment"
+    file: infrastructure
+    use_case: "Minikube and cloud deployment setup"
+
+  cloud-devops:
+    category: devops
+    description: "Deploys to production with event-driven architecture"
+    file: cloud-devops
+    use_case: "Phase V cloud deployment with Kafka and Dapr"
+
+  deployment-validator:
+    category: devops
+    description: "Validates deployment configurations"
+    file: deployment-validator
+    use_case: "Pre/post deployment validation"
+
+  dapr-event-flow:
+    category: devops
+    description: "Automates Dapr event-driven architecture"
+    file: dapr-event-flow
+    use_case: "Phase V microservices communication"
+
+  k8s-troubleshoot:
+    category: devops
+    description: "Diagnoses Kubernetes deployment issues"
+    file: k8s-troubleshoot
+    use_case: "Debugging pods, services, and Dapr"
+
+  # === Development Tools Skills ===
+
+  cli-builder:
+    category: tools
+    description: "Builds CLI applications with Click/Typer"
+    file: cli-builder
+    use_case: "Phase I command-line tools"
+
+  console-ui-builder:
+    category: tools
+    description: "Builds rich console UIs with Rich/Textual"
+    file: console-ui-builder
+    use_case: "Terminal UIs for CLI tools"
+
+  python-uv-setup:
+    category: tools
+    description: "Sets up Python projects with uv"
+    file: python-uv-setup
+    use_case: "Modern Python project initialization"
+
+  git-committer:
+    category: tools
+    description: "Enforces Conventional Commits"
+    file: git-committer
+    use_case: "Standardizing git commit messages"
+
+  cors-fixer:
+    category: tools
+    description: "Diagnoses and fixes CORS errors"
+    file: cors-fixer
+    use_case: "Frontend-backend integration issues"
+
+  api-schema-sync:
+    category: tools
+    description: "Synchronizes API contracts"
+    file: api-schema-sync
+    use_case: "Type alignment between FastAPI and Next.js"
+
+  # === Testing and Quality Skills ===
+
+  development:
+    category: testing
+    description: "Generates comprehensive test suites"
+    file: development
+    use_case: "Unit, integration, and E2E tests"
+
+  test-builder:
+    category: testing
+    description: "Builds custom test suites"
+    file: test-builder
+    use_case: "Specialized testing scenarios"
+
+  integration-tester:
+    category: testing
+    description: "Creates integration tests"
+    file: integration-tester
+    use_case: "Component interaction testing"
+
+  code-reviewer:
+    category: testing
+    description: "Reviews code for quality"
+    file: code-reviewer
+    use_case: "Automated code review"
+
+  performance-analyzer:
+    category: testing
+    description: "Analyzes application performance"
+    file: performance-analyzer
+    use_case: "Performance optimization"
+
+  # === Project Management Skills ===
+
+  monorepo-setup:
+    category: project
+    description: "Sets up monorepo structure"
+    file: monorepo-setup
+    use_case: "Multi-package project management"
+
+  phase-management:
+    category: project
+    description: "Guides architectural phase transitions"
+    file: phase-management
+    use_case: "Phase migration and validation"
+
+  phr-documenter:
+    category: project
+    description: "Creates Prompt History Records"
+    file: phr-documenter
+    use_case: "Documentation for implementation work"
+
+  doc-generator:
+    category: project
+    description: "Generates comprehensive documentation"
+    file: doc-generator
+    use_case: "API docs, architecture diagrams"
+
+  # === Specialized Skills ===
+
+  i18n-bilingual-translator:
+    category: specialized
+    description: "Implements English/Urdu bilingual support"
+    file: i18n-bilingual-translator
+    use_case: "RTL layout and translation management"
+
+  task-breaker:
+    category: specialized
+    description: "Breaks complex tasks into smaller ones"
+    file: task-breaker
+    use_case: "Task decomposition and planning"
+
+  skill-creator:
+    category: specialized
+    description: "Guide for creating new skills"
+    file: skill-creator
+    use_case: "Extending Claude's capabilities"
 
 # Workflow Orchestration
 
@@ -280,21 +724,42 @@ scoring:
         - k8s-engineer
         - cloud-architect
 
-# Agent Invocation Examples
+# Agent and Skill Invocation Examples
 
 examples:
-  via_task_tool: |
+  # Agent Examples
+  agent_via_task_tool: |
     Task(
         subagent_type="architect",
         description="Design architecture",
         prompt="Create implementation plan for specs/001-todo-crud/spec.md"
     )
 
-  via_slash_command: |
+  agent_via_slash_command: |
     /sp.plan
 
-  via_direct_prompt: |
+  agent_via_direct_prompt: |
     @architect: Create the plan for the todo CRUD feature
+
+  # Skill Examples
+  skill_via_skill_tool: |
+    Skill(
+        skill="backend-scaffolder",
+        description="Scaffold FastAPI endpoints",
+        prompt="Create CRUD operations for Task model"
+    )
+
+  skill_via_direct_call: |
+    Use backend-scaffolder to create the user management endpoints
+
+  # Combined Agent and Skill Workflow
+  full_workflow: |
+    # Phase II Implementation
+    1. @architect: Design the task management API
+    2. Skill: backend-scaffolder (create FastAPI routes)
+    3. Skill: crud-builder (generate CRUD operations)
+    4. @frontend-specialist: Implement the UI components
+    5. Skill: api-schema-sync (align frontend/backend types)
 
 # Agent Health Checks
 
@@ -312,8 +777,9 @@ health_checks:
 # Metadata
 
 metadata:
-  total_agents: 10
+  total_agents: 20
   total_workflows: 2
+  total_skills: 44
   supported_phases:
     - I
     - II
@@ -322,3 +788,4 @@ metadata:
     - V
   hackathon: "PIAIC Hackathon II"
   project: "Evolution of TODO"
+  last_updated: "2025-12-19"

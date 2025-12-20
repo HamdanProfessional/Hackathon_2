@@ -4,6 +4,10 @@ from pydantic import Field, validator
 from pydantic_settings import BaseSettings, SettingsError
 from typing import List
 
+# Load .env file manually to ensure it's loaded
+from dotenv import load_dotenv
+load_dotenv()
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -29,15 +33,22 @@ class Settings(BaseSettings):
     # Phase III: AI Agent Configuration (Google Gemini)
     # We'll load this from GEMINI_API_KEY or GOOGLE_API_KEY in __init__
     AI_API_KEY: str = Field(default="", description="Google Gemini API key for AI agent")
-    AI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
-    # Gemini 2.0 is deprecated. Using 2.5 Flash (Dec 2025 Standard).
-    AI_MODEL: str = "gemini-2.5-flash"  # Google Gemini 2.5 Flash
+    AI_BASE_URL: str = Field(default="https://generativelanguage.googleapis.com/v1beta/openai/", description="Base URL for AI API")
+    # Use model name that works with OpenAI-compatible endpoint
+    AI_MODEL: str = "gemini-2.0-flash-exp"  # Google Gemini 2.0 Flash Experimental
     MAX_TOKENS_PER_DAY: int = 50000  # Rate limiting
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Load AI API key from environment variables
         self.AI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+
+        # Override DATABASE_URL if it's the default local one
+        if self.DATABASE_URL == "postgresql+asyncpg://postgres:2763@localhost:5432/postgres":
+            # Try to load from .env file
+            from dotenv import load_dotenv
+            load_dotenv(override=True)
+            self.DATABASE_URL = os.getenv("DATABASE_URL", self.DATABASE_URL)
 
     @validator("DATABASE_URL")
     def validate_database_url(cls, v):

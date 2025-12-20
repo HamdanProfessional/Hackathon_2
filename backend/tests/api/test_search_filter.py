@@ -5,7 +5,7 @@ import pytest
 import uuid
 from httpx import AsyncClient
 
-from app.models.task import TaskPriority
+from app.models.task import Priority
 
 
 async def register_user(client: AsyncClient, email: str, password: str):

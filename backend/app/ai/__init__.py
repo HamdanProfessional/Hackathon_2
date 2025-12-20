@@ -7,7 +7,6 @@ This module contains the AI chatbot implementation using:
 - SQLModel for conversation persistence
 """
 
-from app.ai.agent import TodoAgent
-from app.ai.mcp_server import TodoMCPServer
-
-__all__ = ["TodoAgent", "TodoMCPServer"]
+# Empty __init__ to avoid circular imports
+# Components are imported directly where needed
+__all__ = []

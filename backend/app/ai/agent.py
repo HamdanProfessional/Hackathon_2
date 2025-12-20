@@ -5,11 +5,12 @@ This module implements the stateless AI agent that processes user messages
 and executes tool calls (like creating tasks) through Google Gemini's OpenAI-compatible interface.
 
 Architecture (Stateless Request Cycle):
-1. Load conversation history from DB
+1. Load conversation history from ConversationManager
 2. Build messages array with system prompt + history + new user message
 3. Call Google Gemini API with tool definitions via OpenAI-compatible endpoint
 4. Execute tool loop (if model requests tool calls)
 5. Return final assistant response
+6. Save new messages to ConversationManager
 
 Security: user_id is injected into all tool calls from JWT authentication.
 """
@@ -18,8 +19,12 @@ from typing import Dict, List, Any, Optional
 import json
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+import httpx
 
-from app.ai.tools import AVAILABLE_TOOLS, add_task, list_tasks, complete_task, update_task, delete_task
+from app.ai.tools import add_task, list_tasks, complete_task, update_task, delete_task, AVAILABLE_TOOLS
+from app.ai.mcp_tools import mcp, set_mcp_context, clear_mcp_context
+from app.ai.conversation_manager import ConversationManager
 from app.config import settings
 
 
@@ -39,9 +44,23 @@ class AgentService:
         """
         Initialize AgentService with Google Gemini client via OpenAI-compatible interface.
         """
+        # For Gemini, we need to add the API key to the Authorization header
+        # Create a custom HTTP client that intercepts requests
+        class GeminiAuthenticatedClient(httpx.AsyncClient):
+            def __init__(self, api_key: str, **kwargs):
+                self.api_key = api_key
+                super().__init__(**kwargs)
+
+            async def send(self, request, **kwargs):
+                # Add Authorization header for Gemini API
+                # Gemini expects: Bearer <api_key>
+                request.headers["Authorization"] = f"Bearer {self.api_key}"
+                return await super().send(request, **kwargs)
+
         self.client = AsyncOpenAI(
-            api_key=settings.AI_API_KEY,
-            base_url=settings.AI_BASE_URL
+            api_key=settings.AI_API_KEY,  # Use actual API key
+            base_url=settings.AI_BASE_URL,
+            http_client=GeminiAuthenticatedClient(api_key=settings.AI_API_KEY)
         )
         self.model = settings.AI_MODEL
 
@@ -189,7 +208,7 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
         for iteration in range(max_iterations):
             try:
                 # Call OpenAI API with error handling
-                response = self.client.chat.completions.create(
+                response = await self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     tools=tools,
@@ -198,6 +217,12 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
             except Exception as e:
                 # Handle OpenAI API errors gracefully
                 error_type = type(e).__name__
+
+                # Log the full error for debugging
+                import traceback
+                print(f"OpenAI API Error: {error_type}")
+                print(f"Error details: {str(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
 
                 # Rate limit errors
                 if "RateLimitError" in error_type:
@@ -224,8 +249,10 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                     }
 
                 # Generic error fallback
+                # Try to get more error details
+                error_details = str(e) if e else "Unknown error"
                 return {
-                    "response": "I encountered an unexpected error. Please try again, and if the problem persists, contact support.",
+                    "response": f"I encountered an error: {error_details}. Please try again, and if the problem persists, contact support.",
                     "tool_calls": tool_calls_made,
                     "messages": messages[len(history) + 1:]
                 }
@@ -251,50 +278,54 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                     ]
                 })
 
-                # Execute each tool call
-                for tool_call in assistant_message.tool_calls:
-                    function_name = tool_call.function.name
-                    function_args = json.loads(tool_call.function.arguments)
+                # Set MCP context for tool execution
+                set_mcp_context(db, user_id)
 
-                    # Track tool call
-                    tool_calls_made.append({
-                        "name": function_name,
-                        "arguments": function_args
-                    })
+                try:
+                    # Execute each tool call
+                    for tool_call in assistant_message.tool_calls:
+                        function_name = tool_call.function.name
+                        function_args = json.loads(tool_call.function.arguments)
 
-                    # Execute tool (inject user_id and db)
-                    if function_name == "add_task":
-                        result = await add_task(
-                            db=db,
-                            user_id=user_id,  # Injected from JWT
-                            **function_args
-                        )
-                    elif function_name == "list_tasks":
-                        result = await list_tasks(
-                            db=db,
-                            user_id=user_id,  # Injected from JWT
-                            **function_args
-                        )
-                    elif function_name == "complete_task":
-                        result = await complete_task(
-                            db=db,
-                            user_id=user_id,  # Injected from JWT
-                            **function_args
-                        )
-                    elif function_name == "update_task":
-                        result = await update_task(
-                            db=db,
-                            user_id=user_id,  # Injected from JWT
-                            **function_args
-                        )
-                    elif function_name == "delete_task":
-                        result = await delete_task(
-                            db=db,
-                            user_id=user_id,  # Injected from JWT
-                            **function_args
-                        )
-                    else:
-                        result = {"status": "error", "message": f"Unknown tool: {function_name}"}
+                        # Track tool call
+                        tool_calls_made.append({
+                            "name": function_name,
+                            "arguments": function_args
+                        })
+
+                        # Execute tool (inject user_id and db)
+                        if function_name == "add_task":
+                            result = await add_task(
+                                db=db,
+                                user_id=user_id,  # Injected from JWT
+                                **function_args
+                            )
+                        elif function_name == "list_tasks":
+                            result = await list_tasks(
+                                db=db,
+                                user_id=user_id,  # Injected from JWT
+                                **function_args
+                            )
+                        elif function_name == "complete_task":
+                            result = await complete_task(
+                                db=db,
+                                user_id=user_id,  # Injected from JWT
+                                **function_args
+                            )
+                        elif function_name == "update_task":
+                            result = await update_task(
+                                db=db,
+                                user_id=user_id,  # Injected from JWT
+                                **function_args
+                            )
+                        elif function_name == "delete_task":
+                            result = await delete_task(
+                                db=db,
+                                user_id=user_id,  # Injected from JWT
+                                **function_args
+                            )
+                        else:
+                            result = {"status": "error", "message": f"Unknown tool: {function_name}"}
 
                     # Add tool result to messages
                     messages.append({
@@ -304,11 +335,18 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                         "content": json.dumps(result)
                     })
 
+                finally:
+                    # Clear MCP context
+                    clear_mcp_context()
+
                 # Continue loop to get final response
                 continue
             else:
                 # No tool calls, we have the final response
                 final_response = assistant_message.content or ""
+
+                # Clear MCP context
+                clear_mcp_context()
 
                 # Return result
                 return {
@@ -323,3 +361,70 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
             "tool_calls": tool_calls_made,
             "messages": messages[len(history) + 1:]
         }
+
+    async def process_message(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        user_message: str,
+        conversation_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Process a user message with full conversation management.
+
+        This method:
+        1. Loads conversation history (if conversation_id provided)
+        2. Runs the agent with the message and history
+        3. Saves the new messages to the conversation
+        4. Returns the response with conversation_id
+
+        Args:
+            db: Database session
+            user_id: Authenticated user ID
+            user_message: User's message
+            conversation_id: Optional existing conversation ID
+
+        Returns:
+            Dict with:
+                - response: Assistant's response
+                - conversation_id: The conversation ID (new or existing)
+                - tool_calls: List of tool calls made
+        """
+        # Initialize conversation manager
+        conversation_manager = ConversationManager(db)
+
+        # Create new conversation if needed
+        if not conversation_id:
+            from app.models.user import User
+            # Get user UUID from user_id (int)
+            user_result = await db.execute(select(User).where(User.id == user_id))
+            user = user_result.scalar_one_or_none()
+            if not user:
+                raise ValueError("User not found")
+            conversation_id = await conversation_manager.create_conversation(user.id)
+
+        # Load conversation history
+        history = await conversation_manager.get_history(conversation_id)
+
+        # Run agent with history
+        result = await self.run_agent(db, user_id, user_message, history)
+
+        # Save messages to conversation
+        # Save user message
+        await conversation_manager.save_message(
+            conversation_id=conversation_id,
+            role="user",
+            content=user_message
+        )
+
+        # Save assistant response
+        await conversation_manager.save_message(
+            conversation_id=conversation_id,
+            role="assistant",
+            content=result["response"]
+        )
+
+        # Add conversation_id to result
+        result["conversation_id"] = conversation_id
+
+        return result

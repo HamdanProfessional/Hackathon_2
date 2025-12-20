@@ -14,13 +14,20 @@ class UserCreate(BaseModel):
         max_length=100,
         description="Password must be at least 8 characters long"
     )
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="User's full name"
+    )
 
 
 class UserResponse(BaseModel):
     """Schema for user data in responses."""
 
-    id: int
+    id: str  # UUID as string
     email: str
+    name: str
     created_at: datetime
     preferences: Optional[Dict[str, Any]] = None
 

@@ -1,9 +1,4 @@
 {
-  "env": {
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6"
-  },
   "permissions": {
     "allow": [
       "Bash(\".specify/scripts/bash/create-phr.sh\" --title \"Phase I Constitution Creation\" --stage constitution --json)",
@@ -77,7 +72,28 @@
       "Bash(.specify/scripts/bash/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
       "Bash(python3:*)",
       "Bash(alembic stamp:*)",
-      "Bash(vercel:*)"
+      "Bash(vercel:*)",
+      "Skill(db-migration-wizard)",
+      "Skill(frontend-component)",
+      "Skill(stateless-agent-enforcer)",
+      "Bash(alembic merge:*)",
+      "Bash(.specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
+      "Bash(npm ls:*)",
+      "Bash(npm search:*)",
+      "Bash(npm uninstall:*)",
+      "Skill(spec-architect)",
+      "Skill(architecture-planner)",
+      "WebSearch",
+      "Bash(set:*)",
+      "Bash(kill:*)",
+      "Bash(then mkdir -p specs/plans)",
+      "Bash(alembic history:*)",
+      "Bash(alembic downgrade:*)",
+      "Bash(npx tsc:*)",
+      "Bash(tee:*)",
+      "WebFetch(domain:backend-lac-nu-61.vercel.app)",
+      "WebFetch(domain:frontend-xi-nine-27.vercel.app)",
+      "Bash(printf:*)"
     ],
     "deny": [],
     "ask": []

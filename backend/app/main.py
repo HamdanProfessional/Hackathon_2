@@ -644,11 +644,10 @@ async def test_auth(authorization: str = Header(None)):
 
 
 # Import routers
-from app.api import auth, tasks, users  # Temporarily disabled chat due to AI dependencies
-# from app.api import chat
+from app.api import auth, tasks, users, chat
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
-# app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])  # Temporarily disabled
+app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])

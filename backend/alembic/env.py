@@ -25,7 +25,17 @@ from app.models.message import Message  # Phase III - AI Chatbot
 config = context.config
 
 # Override sqlalchemy.url from environment
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Ensure it uses asyncpg for async migrations
+db_url = settings.DATABASE_URL
+if db_url.startswith("postgresql://"):
+    # asyncpg doesn't accept sslmode in URL, so we'll handle it in the engine config
+    base_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+    # Remove sslmode from URL as asyncpg handles it differently
+    if "?sslmode=require" in base_url:
+        base_url = base_url.replace("?sslmode=require", "")
+    elif "&sslmode=require" in base_url:
+        base_url = base_url.replace("&sslmode=require", "")
+config.set_main_option("sqlalchemy.url", base_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -76,8 +86,12 @@ def run_migrations_online() -> None:
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async engine."""
     # Create async engine
+    configuration = config.get_section(config.config_ini_section, {})
+    # Add SSL configuration for asyncpg
+    configuration["connect_args"] = {"ssl": True}
+
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

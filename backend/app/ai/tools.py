@@ -1,7 +1,7 @@
 """
-AI Agent Tools for Task Management
+AI Agent Tools for Task Management using MCP SDK
 
-This module defines the tools (functions) available to the OpenAI Agent.
+This module defines the tools available to the AI Agent using the Model Context Protocol.
 Each tool integrates with existing CRUD operations while enforcing security
 by requiring user_id injection.
 
@@ -15,10 +15,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import task as task_crud
 from app.schemas.task import TaskCreate
-from app.models.task import TaskPriority
+from app.models.task import Priority
+
+# Store database session and user_id for tool execution
+_db_session: Optional[AsyncSession] = None
+_user_id: Optional[int] = None
+
+def set_tool_context(db: AsyncSession, user_id: int):
+    """Set the database session and user_id for tool execution."""
+    global _db_session, _user_id
+    _db_session = db
+    _user_id = user_id
+
+def clear_tool_context():
+    """Clear the tool context."""
+    global _db_session, _user_id
+    _db_session = None
+    _user_id = None
 
 # Export all tools for agent
-__all__ = ["ADD_TASK_TOOL_SCHEMA", "LIST_TASKS_TOOL_SCHEMA", "COMPLETE_TASK_TOOL_SCHEMA", "UPDATE_TASK_TOOL_SCHEMA", "DELETE_TASK_TOOL_SCHEMA", "add_task", "list_tasks", "complete_task", "update_task", "delete_task", "AVAILABLE_TOOLS"]
+__all__ = ["add_task", "list_tasks", "complete_task", "update_task", "delete_task", "set_tool_context", "clear_tool_context"]
 
 
 # OpenAI Function Calling Tool Schema
@@ -55,34 +71,31 @@ ADD_TASK_TOOL_SCHEMA = {
 
 
 async def add_task(
-    db: AsyncSession,
-    user_id: int,
     title: str,
     description: Optional[str] = None,
     priority: Optional[str] = None,
-    due_date: Optional[str] = None
+    due_date: Optional[str] = None,
+    user_id: Optional[int] = None,  # This will be injected by the agent service
+    db: Optional[AsyncSession] = None  # Optional for direct calls from agent
 ) -> Dict[str, Any]:
     """
-    Tool function: Create a new task for the user.
+    Create a new task for the user.
 
-    SECURITY: This function MUST receive user_id from the authenticated session.
-    The agent cannot specify user_id - it's injected by the endpoint.
+    Use this when the user wants to add a todo item or create a new task.
 
     Args:
-        db: Database session
-        user_id: Authenticated user ID (injected, not from agent)
-        title: Task title (from agent)
-        description: Optional task description (from agent)
-        priority: Optional priority level (from agent)
-        due_date: Optional due date string (from agent)
+        title: The title of the task (required, 1-500 characters)
+        description: Optional description with additional details about the task
+        priority: Priority level (low, medium, high) - default: medium
+        due_date: Optional due date in YYYY-MM-DD format
+        user_id: Internal user ID (automatically injected)
+        db: Optional database session (for direct calls from agent)
 
     Returns:
-        Dictionary with task creation result
+        Dictionary with task creation result including task details
 
     Example:
         result = await add_task(
-            db=session,
-            user_id=current_user.id,  # Injected from JWT
             title="Buy groceries",
             description="Milk, eggs, bread",
             priority="high"
@@ -90,12 +103,15 @@ async def add_task(
     """
     try:
         # Parse priority
-        priority_enum = TaskPriority.MEDIUM
-        if priority:
-            try:
-                priority_enum = TaskPriority[priority.lower()]
-            except KeyError:
-                priority_enum = TaskPriority.MEDIUM
+        # Map priority string to priority_id
+        priority_mapping = {
+            "low": 1,
+            "medium": 2,
+            "high": 3
+        }
+        priority_id = priority_mapping.get(priority.lower(), 2)  # Default to Medium (ID=2)
+        if priority.lower() not in priority_mapping:
+            priority_id = 2
 
         # Parse due date
         due_date_obj = None
@@ -112,14 +128,14 @@ async def add_task(
         task_data = TaskCreate(
             title=title,
             description=description or "",
-            priority=priority_enum,
+            priority_id=priority_id,
             due_date=due_date_obj
         )
 
         task = await task_crud.create_task(
             db=db,
             task_data=task_data,
-            user_id=user_id
+            user_id=str(user_id)
         )
 
         # Return success response for agent
@@ -488,15 +504,19 @@ async def update_task(
         # Store original values for comparison
         original_title = task.title
         original_description = task.description
-        original_priority = task.priority.value if task.priority else None
+        original_priority_id = task.priority_id
         original_due_date = task.due_date.isoformat() if task.due_date else None
 
         # Parse priority if provided
-        priority_enum = None
+        priority_id = None
         if priority:
-            try:
-                priority_enum = TaskPriority[priority.lower()]
-            except KeyError:
+            priority_mapping = {
+                "low": 1,
+                "medium": 2,
+                "high": 3
+            }
+            priority_id = priority_mapping.get(priority.lower())
+            if priority_id is None:
                 return {
                     "status": "error",
                     "message": f"Invalid priority '{priority}'. Must be low, medium, or high."
@@ -521,7 +541,7 @@ async def update_task(
         update_data = TaskUpdate(
             title=title,
             description=description,
-            priority=priority_enum,
+            priority_id=priority_id,
             due_date=due_date_obj
         )
 
@@ -538,8 +558,10 @@ async def update_task(
             changes.append(f"title to '{title}'")
         if description is not None and description != original_description:
             changes.append(f"description")
-        if priority_enum and priority_enum.value != original_priority:
-            changes.append(f"priority to {priority_enum.value}")
+        if priority_id and priority_id != original_priority_id:
+            # Convert priority_id back to name for display
+            priority_names = {1: "low", 2: "medium", 3: "high"}
+            changes.append(f"priority to {priority_names.get(priority_id, 'unknown')}")
         if due_date_obj and (original_due_date is None or due_date_obj.isoformat() != original_due_date):
             changes.append(f"due date to {due_date_obj.isoformat()}")
 

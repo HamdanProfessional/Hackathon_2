@@ -5,6 +5,7 @@ import { sendChatMessage, getConversationMessages, type ChatMessage } from "@/li
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import VoiceInputButton from "@/components/ui/voice-input-button";
+import { ArrowRight, Loader2 } from "lucide-react";
 
 interface ChatInterfaceProps {
   conversationId?: number;
@@ -22,6 +23,11 @@ export default function ChatInterface({
   const [voiceError, setVoiceError] = useState("");
   const [currentConversationId, setCurrentConversationId] = useState<number | undefined>(conversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Version marker
+  useEffect(() => {
+    console.log('🎯 ChatInterface v2.0 - DASHBOARD ARROW BUTTON - Loaded at:', new Date().toISOString());
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -73,8 +79,12 @@ export default function ChatInterface({
     setMessages((prev) => [...prev, userMsg]);
 
     try {
+      console.log('📤 Sending message:', userMessage);
+      console.log('📋 Conversation ID:', currentConversationId);
+
       // Send message to backend
       const response = await sendChatMessage(userMessage, currentConversationId);
+      console.log('✅ Response received:', response);
 
       // Update conversation ID if this was the first message
       if (!currentConversationId && response.conversation_id) {
@@ -89,7 +99,21 @@ export default function ChatInterface({
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to send message");
+      console.error('❌ Chat error:', err);
+      console.error('❌ Error response:', err.response);
+      console.error('❌ Error status:', err.response?.status);
+      console.error('❌ Error data:', err.response?.data);
+
+      let errorMessage = "Failed to send message";
+      if (err.response?.status === 401) {
+        errorMessage = "Please login to use chat";
+      } else if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
       // Remove optimistically added user message on error
       setMessages((prev) => prev.slice(0, -1));
       // Restore input value so user can retry
@@ -221,9 +245,15 @@ export default function ChatInterface({
           <button
             type="submit"
             disabled={!inputValue.trim() || loading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-version="v2-dashboard-arrow"
+            aria-label="Send message"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[44px]"
           >
-            {loading ? "Sending..." : "Send"}
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <ArrowRight className="w-5 h-5" />
+            )}
           </button>
         </form>
       </div>
