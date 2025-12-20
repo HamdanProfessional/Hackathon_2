@@ -1,7 +1,7 @@
-import { CustomChatWidget } from '@/components/chat/custom-chat-widget'
+import ChatInterface from '@/components/chat/chat-interface'
 
 export default function ChatPage() {
-  // UPDATED VERSION - Dec 20, 2025 - 12:50 PM
+  // UPDATED VERSION - Dec 20, 2025 - Voice & Bilingual Support
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       {/* Background effects */}
@@ -14,12 +14,12 @@ export default function ChatPage() {
             AI Task Assistant
           </h1>
           <p className="text-slate-400">
-            Chat naturally to manage your tasks
+            Chat naturally to manage your tasks - Now with Voice Commands & Bilingual Support! 🎤
           </p>
         </header>
 
         <div className="flex-1 min-h-0">
-          <CustomChatWidget />
+          <ChatInterface />
         </div>
       </div>
     </div>
