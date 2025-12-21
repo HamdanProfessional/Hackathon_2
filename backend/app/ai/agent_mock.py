@@ -26,7 +26,7 @@ class MockAgentService:
         """Initialize the mock agent service."""
         pass
 
-    def _build_system_prompt(self, user_id: int) -> str:
+    def _build_system_prompt(self, user_id: UUID) -> str:
         """Build system prompt (not used in mock but keeping interface)."""
         return f"Mock AI agent for user {user_id}"
 
@@ -196,7 +196,7 @@ class MockAgentService:
     async def run_agent(
         self,
         db: AsyncSession,
-        user_id: int,
+        user_id: UUID,
         user_message: str,
         history: List[Dict[str, str]]
     ) -> Dict[str, Any]:
@@ -324,9 +324,9 @@ class MockAgentService:
     async def process_message(
         self,
         db: AsyncSession,
-        user_id: int,
+        user_id: UUID,
         user_message: str,
-        conversation_id: Optional[int] = None
+        conversation_id: Optional[UUID] = None
     ) -> Dict[str, Any]:
         """
         Process a user message with mock conversation management.
