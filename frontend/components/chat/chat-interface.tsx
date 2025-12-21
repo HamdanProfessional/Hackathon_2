@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { sendChatMessage, getConversationMessages, type ChatMessage } from "@/lib/chat-client";
+import { sendChatMessage, getConversationMessages, getConversations, type ChatMessage } from "@/lib/chat-client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -15,7 +15,11 @@ import {
   Check,
   Settings,
   Clock,
-  Waves
+  Waves,
+  History,
+  Plus,
+  MessageSquare,
+  X
 } from "lucide-react";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/use-speech";
 
@@ -41,6 +45,13 @@ export default function ChatInterface({
   const [voicePitch, setVoicePitch] = useState(1);
   const [recordingTime, setRecordingTime] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [conversations, setConversations] = useState<Array<{
+    id: number;
+    created_at: string;
+    updated_at: string;
+    preview?: string;
+  }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -202,6 +213,8 @@ export default function ChatInterface({
       if (!currentConversationId && response.conversation_id) {
         setCurrentConversationId(response.conversation_id);
         onConversationCreated?.(response.conversation_id);
+        // Reload conversations list to show the new conversation
+        loadConversationsList();
       }
 
       // Add assistant response to messages
@@ -269,8 +282,66 @@ export default function ChatInterface({
     }).format(date);
   };
 
+  // Load conversations on mount and when currentConversationId changes
+  useEffect(() => {
+    loadConversationsList();
+
+    // Load from localStorage
+    const savedConvId = localStorage.getItem('chat_conversation_id');
+    if (savedConvId && !currentConversationId) {
+      const convId = parseInt(savedConvId);
+      setCurrentConversationId(convId);
+      loadConversationHistory(convId);
+    }
+  }, []);
+
+  // Save current conversation ID to localStorage
+  useEffect(() => {
+    if (currentConversationId) {
+      localStorage.setItem('chat_conversation_id', currentConversationId.toString());
+    }
+  }, [currentConversationId]);
+
+  const loadConversationsList = async () => {
+    try {
+      const convs = await getConversations();
+      // Load first message for each conversation as preview
+      const convsWithPreviews = await Promise.all(
+        convs.map(async (conv) => {
+          try {
+            const msgs = await getConversationMessages(conv.id);
+            const firstUserMsg = msgs.find(m => m.role === 'user');
+            return {
+              ...conv,
+              preview: firstUserMsg?.content.substring(0, 50) || 'New conversation'
+            };
+          } catch {
+            return { ...conv, preview: 'New conversation' };
+          }
+        })
+      );
+      setConversations(convsWithPreviews);
+    } catch (err) {
+      console.error('Failed to load conversations:', err);
+    }
+  };
+
+  const switchConversation = async (convId: number) => {
+    setCurrentConversationId(convId);
+    await loadConversationHistory(convId);
+    setShowHistory(false);
+    onConversationCreated?.(convId);
+  };
+
+  const startNewConversation = () => {
+    setMessages([]);
+    setCurrentConversationId(undefined);
+    localStorage.removeItem('chat_conversation_id');
+    setShowHistory(false);
+  };
+
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+    <div className="relative flex flex-col h-full bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
       {/* Header with glassmorphism */}
       <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-blue-600/10 border-b border-white/10 backdrop-blur-sm">
         <div className="flex items-center gap-3">
@@ -289,14 +360,89 @@ export default function ChatInterface({
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          title="Voice Settings"
-        >
-          <Settings className="w-5 h-5 text-slate-400" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors relative"
+            title="Conversation History"
+          >
+            <History className="w-5 h-5 text-slate-400" />
+            {conversations.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">
+                {conversations.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            title="Voice Settings"
+          >
+            <Settings className="w-5 h-5 text-slate-400" />
+          </button>
+        </div>
       </div>
+
+      {/* Conversation History Sidebar */}
+      {showHistory && (
+        <div className="absolute top-0 left-0 w-80 h-full bg-slate-900/98 backdrop-blur-xl border-r border-white/10 z-10 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-blue-400" />
+              Conversations
+            </h3>
+            <button
+              onClick={() => setShowHistory(false)}
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+
+          <div className="p-3">
+            <button
+              onClick={startNewConversation}
+              className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
+            >
+              <Plus className="w-4 h-4" />
+              New Conversation
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
+            {conversations.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-sm">
+                <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                No conversations yet
+              </div>
+            ) : (
+              conversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => switchConversation(conv.id)}
+                  className={`w-full px-3 py-3 rounded-lg text-left transition-all ${
+                    currentConversationId === conv.id
+                      ? 'bg-blue-600/20 border border-blue-500/30'
+                      : 'bg-slate-800/50 hover:bg-slate-700/50 border border-white/5'
+                  }`}
+                >
+                  <p className="text-sm text-slate-200 font-medium line-clamp-2 mb-1">
+                    {conv.preview}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {new Date(conv.updated_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Voice Settings Panel */}
       {showSettings && (
