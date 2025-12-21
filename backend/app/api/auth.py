@@ -33,7 +33,7 @@ async def register(
     Register a new user account.
 
     - **email**: Valid email address (must be unique)
-    - **password**: Password (minimum 6 characters)
+    - **password**: Password (minimum 8 characters)
 
     Returns JWT access token for immediate authentication.
     """

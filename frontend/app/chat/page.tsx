@@ -1,4 +1,5 @@
 import ChatInterface from '@/components/chat/chat-interface'
+import ErrorBoundary from '@/components/chat/error-boundary'
 
 export default function ChatPage() {
   // UPDATED VERSION - Dec 20, 2025 - Voice & Bilingual Support
@@ -19,7 +20,9 @@ export default function ChatPage() {
         </header>
 
         <div className="flex-1 min-h-0">
-          <ChatInterface />
+          <ErrorBoundary>
+            <ChatInterface />
+          </ErrorBoundary>
         </div>
       </div>
     </div>

@@ -1,0 +1,155 @@
+{
+  "summary": {
+    "total": 24,
+    "passed": 21,
+    "failed": 1,
+    "warned": 2,
+    "success_rate": 87.5
+  },
+  "results": [
+    {
+      "test": "Backend Health Check",
+      "status": "PASS",
+      "details": "Status: healthy",
+      "timestamp": "2025-12-22 01:05:34"
+    },
+    {
+      "test": "Frontend Connectivity",
+      "status": "PASS",
+      "details": "HTTP 200",
+      "timestamp": "2025-12-22 01:05:35"
+    },
+    {
+      "test": "Chat Interface Present",
+      "status": "FAIL",
+      "details": "No chat UI detected",
+      "timestamp": "2025-12-22 01:05:35"
+    },
+    {
+      "test": "CORS Configuration",
+      "status": "PASS",
+      "details": "Origin allowed: https://frontend-hamdanprofessionals-projects.vercel.app",
+      "timestamp": "2025-12-22 01:05:35"
+    },
+    {
+      "test": "User Registration",
+      "status": "PASS",
+      "details": "User ID: None",
+      "timestamp": "2025-12-22 01:05:37"
+    },
+    {
+      "test": "User Login",
+      "status": "PASS",
+      "details": "Authentication successful",
+      "timestamp": "2025-12-22 01:05:38"
+    },
+    {
+      "test": "Task Creation",
+      "status": "PASS",
+      "details": "Task ID: 51",
+      "timestamp": "2025-12-22 01:05:40"
+    },
+    {
+      "test": "Task Listing",
+      "status": "PASS",
+      "details": "Found 1 tasks",
+      "timestamp": "2025-12-22 01:05:41"
+    },
+    {
+      "test": "Task Update",
+      "status": "PASS",
+      "details": "Task marked as completed",
+      "timestamp": "2025-12-22 01:05:44"
+    },
+    {
+      "test": "Task Deletion",
+      "status": "PASS",
+      "details": "Task deleted successfully",
+      "timestamp": "2025-12-22 01:05:45"
+    },
+    {
+      "test": "Chat Message 1",
+      "status": "PASS",
+      "details": "Response length: 38 chars",
+      "timestamp": "2025-12-22 01:05:47"
+    },
+    {
+      "test": "Chat Intelligence 1",
+      "status": "PASS",
+      "details": "Response seems contextual",
+      "timestamp": "2025-12-22 01:05:47"
+    },
+    {
+      "test": "Chat Message 2",
+      "status": "PASS",
+      "details": "Response length: 66 chars",
+      "timestamp": "2025-12-22 01:05:50"
+    },
+    {
+      "test": "Chat Intelligence 2",
+      "status": "PASS",
+      "details": "Response seems contextual",
+      "timestamp": "2025-12-22 01:05:50"
+    },
+    {
+      "test": "Chat Message 3",
+      "status": "PASS",
+      "details": "Response length: 38 chars",
+      "timestamp": "2025-12-22 01:05:53"
+    },
+    {
+      "test": "Chat Intelligence 3",
+      "status": "PASS",
+      "details": "Response seems contextual",
+      "timestamp": "2025-12-22 01:05:53"
+    },
+    {
+      "test": "Chat Message 4",
+      "status": "PASS",
+      "details": "Response length: 38 chars",
+      "timestamp": "2025-12-22 01:05:56"
+    },
+    {
+      "test": "Chat Intelligence 4",
+      "status": "PASS",
+      "details": "Response seems contextual",
+      "timestamp": "2025-12-22 01:05:56"
+    },
+    {
+      "test": "Chat Message 5",
+      "status": "PASS",
+      "details": "Response length: 15 chars",
+      "timestamp": "2025-12-22 01:05:58"
+    },
+    {
+      "test": "Chat Intelligence 5",
+      "status": "WARN",
+      "details": "Response might be generic",
+      "timestamp": "2025-12-22 01:05:58"
+    },
+    {
+      "test": "Chat Message 6",
+      "status": "PASS",
+      "details": "Response length: 189 chars",
+      "timestamp": "2025-12-22 01:06:01"
+    },
+    {
+      "test": "Chat Intelligence 6",
+      "status": "PASS",
+      "details": "Response seems contextual",
+      "timestamp": "2025-12-22 01:06:01"
+    },
+    {
+      "test": "AI Chat Response",
+      "status": "PASS",
+      "details": "Response received: 38 chars",
+      "timestamp": "2025-12-22 01:06:03"
+    },
+    {
+      "test": "AI Detection",
+      "status": "WARN",
+      "details": "Could not determine AI type from response",
+      "timestamp": "2025-12-22 01:06:03"
+    }
+  ]
+}

@@ -44,23 +44,12 @@ class AgentService:
         """
         Initialize AgentService with Google Gemini client via OpenAI-compatible interface.
         """
-        # For Gemini, we need to add the API key to the Authorization header
-        # Create a custom HTTP client that intercepts requests
-        class GeminiAuthenticatedClient(httpx.AsyncClient):
-            def __init__(self, api_key: str, **kwargs):
-                self.api_key = api_key
-                super().__init__(**kwargs)
-
-            async def send(self, request, **kwargs):
-                # Add Authorization header for Gemini API
-                # Gemini expects: Bearer <api_key>
-                request.headers["Authorization"] = f"Bearer {self.api_key}"
-                return await super().send(request, **kwargs)
-
+          # For Gemini OpenAI-compatible endpoint, Google provides a direct interface
+        # The API key should be passed as the api_key parameter to OpenAI client
+        # No need to modify the base URL
         self.client = AsyncOpenAI(
-            api_key=settings.AI_API_KEY,  # Use actual API key
-            base_url=settings.AI_BASE_URL,
-            http_client=GeminiAuthenticatedClient(api_key=settings.AI_API_KEY)
+            api_key=settings.AI_API_KEY,  # Use the actual Google AI API key
+            base_url=settings.AI_BASE_URL
         )
         self.model = settings.AI_MODEL
 

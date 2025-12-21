@@ -26,17 +26,17 @@ except ImportError as e:
 try:
     from app.ai.conversation_manager import ConversationManager
     from app.ai.agent_mock import MockAgentService
+    from app.ai.agent import AgentService
     CHAT_AVAILABLE = True
 
     # Decide whether to use real or mock service based on API key availability
-    # For now, always use mock AI to avoid API key issues in testing
-    USE_MOCK_AI = True
+    # Check if AI_API_KEY is configured and not empty
+    USE_MOCK_AI = not bool(settings.AI_API_KEY and settings.AI_API_KEY.strip())
 
-    # Create a mock class that will always be used
-    class AgentService:
-        """Mock AgentService that raises error if instantiated."""
-        def __init__(self):
-            raise RuntimeError("ERROR: Real AgentService should not be used! USE_MOCK_AI is True")
+    if USE_MOCK_AI:
+        print("[CONFIG] AI_API_KEY not configured - using mock AI service", file=sys.stderr)
+    else:
+        print(f"[CONFIG] AI_API_KEY configured - using real Gemini AI service", file=sys.stderr)
 except ImportError as e:
     raise ImportError(f"Failed to import chat components: {e}")
     CHAT_AVAILABLE = False

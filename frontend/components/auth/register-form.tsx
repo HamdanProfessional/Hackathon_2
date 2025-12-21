@@ -13,12 +13,20 @@ export default function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // Validate name
+    if (name.trim().length < 1) {
+      setError("Name is required");
+      toast.error("Name is required");
+      return;
+    }
 
     // Validate passwords match
     if (password !== confirmPassword) {
@@ -36,7 +44,7 @@ export default function RegisterForm() {
     setLoading(true);
 
     try {
-      await apiClient.register({ email, password });
+      await apiClient.register({ email, password, name: name.trim() });
       toast.success("Account created successfully!");
       router.push("/dashboard");
     } catch (err: any) {
@@ -66,6 +74,29 @@ export default function RegisterForm() {
         <ErrorMessage message={error} className="mb-6" />
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <label htmlFor="name" className="block text-sm font-semibold text-foreground">
+              Full Name
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <input
+                id="name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full pl-12 pr-4 py-3.5 border-2 border-input rounded-xl bg-background/50 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all duration-200 text-foreground placeholder:text-muted-foreground"
+                placeholder="John Doe"
+                disabled={loading}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label htmlFor="email" className="block text-sm font-semibold text-foreground">
               Email Address

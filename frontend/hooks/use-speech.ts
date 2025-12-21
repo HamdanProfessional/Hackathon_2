@@ -48,13 +48,14 @@ export function useSpeechRecognition(): UseSpeechRecognitionResult {
   useEffect(() => {
     if (!isSupported) return;
 
-    // Initialize Speech Recognition
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionRef.current = new SpeechRecognition();
+    try {
+      // Initialize Speech Recognition
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
 
-    const recognition = recognitionRef.current;
-    recognition.continuous = false; // Stop after one phrase
-    recognition.interimResults = false; // Only get final results
+      const recognition = recognitionRef.current;
+      recognition.continuous = false; // Stop after one phrase
+      recognition.interimResults = false; // Only get final results
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       const current = event.results[event.results.length - 1];
@@ -92,10 +93,18 @@ export function useSpeechRecognition(): UseSpeechRecognitionResult {
     };
 
     return () => {
-      if (recognition) {
-        recognition.abort();
+      try {
+        if (recognition) {
+          recognition.abort();
+        }
+      } catch (err) {
+        console.error('Error cleaning up speech recognition:', err);
       }
     };
+  } catch (err) {
+    console.error('Error initializing speech recognition:', err);
+    setError('Speech recognition initialization failed');
+  }
   }, [isSupported]);
 
   const startListening = useCallback((language = 'en-US') => {

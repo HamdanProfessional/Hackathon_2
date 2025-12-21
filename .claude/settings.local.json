@@ -103,7 +103,10 @@
       "Bash(git pull:*)",
       "WebFetch(domain:frontend-2p6fzbz4t-hamdanprofessionals-projects.vercel.app)",
       "WebFetch(domain:backend-hamdanprofessionals-projects.vercel.app)",
-      "WebFetch(domain:frontend-hamdanprofessionals-projects.vercel.app)"
+      "WebFetch(domain:frontend-hamdanprofessionals-projects.vercel.app)",
+      "Skill(skill-creator)",
+      "Bash(mkdir:*)",
+      "Skill(integration-tester)"
     ],
     "deny": [],
     "ask": []

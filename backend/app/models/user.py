@@ -17,9 +17,9 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)  # Required by database schema
-    name = Column(String(255), nullable=False)  # Required by database schema
     hashed_password = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)  # Required by database schema
+    password_hash = Column(String(255), nullable=True)  # Legacy field for compatibility
     preferences = Column(JSON, nullable=True)  # Store user preferences as JSON
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

@@ -8,9 +8,9 @@ const nextConfig = {
   },
   // Override API URL for production
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NODE_ENV === 'production'
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production'
       ? 'https://backend-m8qs0wvvo-hamdanprofessionals-projects.vercel.app'
-      : 'http://localhost:8000'
+      : 'http://localhost:8000')
   }
 };
 

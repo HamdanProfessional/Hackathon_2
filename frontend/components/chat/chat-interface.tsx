@@ -378,10 +378,23 @@ export default function ChatInterface({
         }
       } catch (err: any) {
         console.error('❌ Failed to initialize chat:', err);
+        // Don't show error to user on initial load, just log it
+      } finally {
+        // Ensure loading is always set to false after initialization
+        setLoading(false);
       }
     };
 
+    // Set a timeout to ensure the interface doesn't stay in loading state forever
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      console.log('⏰ Initialization timeout reached');
+    }, 5000);
+
     initializeChat();
+
+    // Cleanup timeout on unmount
+    return () => clearTimeout(timeoutId);
   }, []);
 
 
@@ -397,6 +410,20 @@ export default function ChatInterface({
     setCurrentConversationId(undefined);
     setShowHistory(false);
   };
+
+  // If component is still in initial loading state, show a minimal loader
+  if (loading && messages.length === 0 && !error) {
+    return (
+      <div className="relative flex flex-col h-full bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-400">Loading chat interface...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-col h-full bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">

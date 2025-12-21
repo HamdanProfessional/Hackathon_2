@@ -1,10 +1,12 @@
 from logging.config import fileConfig
 import asyncio
 import sys
+import logging
 from pathlib import Path
 
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy import create_engine
 
 from alembic import context
 
@@ -77,10 +79,34 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode (sync version, not recommended)."""
-    raise RuntimeError(
-        "This migration environment is configured for async. Use 'run_async_migrations' instead."
+    """Run migrations in 'online' mode (sync version, fallback for async context)."""
+    # Create sync engine
+    configuration = config.get_section(config.config_ini_section, {})
+    # Add SSL configuration for psycopg2
+    configuration["connect_args"] = {"sslmode": "require"}
+
+    # Convert asyncpg URL to psycopg2 URL for sync engine
+    db_url = configuration.get("sqlalchemy.url", "")
+    if "+asyncpg" in db_url:
+        db_url = db_url.replace("+asyncpg", "", 1)
+        configuration["sqlalchemy.url"] = db_url
+
+    connectable = create_engine(
+        configuration,
+        poolclass=pool.NullPool,
     )
+
+    with connectable.connect() as connection:
+        do_run_migrations(connection)
+
+    connectable.dispose()
+
+
+def run_migrations_sync() -> None:
+    """Run migrations in 'online' mode using sync engine (fallback for async context)."""
+    logger = logging.getLogger("alembic.env")
+    logger.info("Running migrations in sync mode (fallback for async context)")
+    run_migrations_online()
 
 
 async def run_async_migrations() -> None:
@@ -103,7 +129,7 @@ async def run_async_migrations() -> None:
 
 
 def do_run_migrations(connection):
-    """Execute migrations with the provided connection."""
+    """Execute migrations with the provided connection (works for both sync and async)."""
     context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():
@@ -113,4 +139,15 @@ def do_run_migrations(connection):
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_async_migrations())
+    # Check if we're already in an event loop
+    try:
+        loop = asyncio.get_running_loop()
+        # If we get here, we're in an async context
+        # We cannot use asyncio.run() inside an existing loop
+        # So we'll run the sync version instead
+        logger = logging.getLogger("alembic.env")
+        logger.warning("Running migrations in sync mode due to existing event loop")
+        run_migrations_sync()
+    except RuntimeError:
+        # No running loop, safe to use asyncio.run()
+        asyncio.run(run_async_migrations())
