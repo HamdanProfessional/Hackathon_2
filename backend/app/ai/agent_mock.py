@@ -347,9 +347,22 @@ class MockAgentService:
             conversation_id = await conversation_manager.create_conversation(user_id)
 
         # Run agent
-        result = await self.run_agent(db, user_id, user_message, [])
+        try:
+            result = await self.run_agent(db, user_id, user_message, [])
+            print(f"[MOCK] Agent run successful", file=sys.stderr)
+        except Exception as e:
+            print(f"[MOCK] ERROR in run_agent: {e}", file=sys.stderr)
+            print(f"[MOCK] ERROR type: {type(e)}", file=sys.stderr)
+            import traceback
+            print(f"[MOCK] TRACEBACK: {traceback.format_exc()}", file=sys.stderr)
+            # Return a simple response even if agent fails
+            result = {
+                "response": "I encountered an error, but I'm still here to help!",
+                "tool_calls": []
+            }
 
         # Add conversation_id to result
         result["conversation_id"] = conversation_id
+        print(f"[MOCK] Returning result with conversation_id: {conversation_id}", file=sys.stderr)
 
         return result
