@@ -15,6 +15,9 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.database import create_tables
+from app.database import engine
+from alembic import command
+from alembic.config import Config
 # Import all models to ensure they're registered with Base.metadata
 from app.models import user, task, conversation, message
 
@@ -30,6 +33,14 @@ async def lifespan(app: FastAPI):
     """Manage application lifespan events."""
     # Startup
     logger.info("Starting up application...")
+
+    # Run Alembic migrations to ensure database schema is up to date
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Database migrations complete")
+    except Exception as e:
+        logger.warning(f"Database migration failed, but continuing: {e}")
 
     # Try to create database tables but don't fail if it doesn't work
     try:
