@@ -226,8 +226,11 @@ export default function ChatInterface({
       if (!currentConversationId && response.conversation_id) {
         setCurrentConversationId(response.conversation_id);
         onConversationCreated?.(response.conversation_id);
-        // Reload conversations list to show the new conversation
-        loadConversationsList();
+        // Reload conversations list after a short delay to ensure DB commit
+        setTimeout(() => {
+          console.log('🔄 Reloading conversations list after new conversation created');
+          loadConversationsList();
+        }, 500);
       }
 
       // Add assistant response to messages
