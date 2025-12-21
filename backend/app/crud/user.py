@@ -23,9 +23,9 @@ async def create_user(db: AsyncSession, user_data: UserCreate) -> User:
 
     db_user = User(
         email=user_data.email,
-        password_hash=hashed_password,  # Set both password fields
         name=user_data.email.split("@")[0],  # Default name from email
-        hashed_password=hashed_password,
+        hashed_password=hashed_password,  # Use hashed_password consistently
+        password_hash=hashed_password,    # Also set password_hash for compatibility
     )
 
     db.add(db_user)

@@ -33,6 +33,15 @@ engine = create_async_engine(
 # Base class for SQLAlchemy models
 Base = declarative_base()
 
+# Create async session factory
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
+
 # Create tables on startup - needed for serverless environments
 async def create_tables():
     """Create all database tables."""
@@ -53,18 +62,6 @@ async def create_tables():
         print(f"Warning: Database table creation failed: {e}")
         # Continue without failing - application might still work
         pass
-
-# Create async session factory
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
-
-# Base class for SQLAlchemy models
-Base = declarative_base()
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
