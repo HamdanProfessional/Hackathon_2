@@ -282,29 +282,13 @@ export default function ChatInterface({
     }).format(date);
   };
 
-  // Load conversations on mount and when currentConversationId changes
-  useEffect(() => {
-    loadConversationsList();
-
-    // Load from localStorage
-    const savedConvId = localStorage.getItem('chat_conversation_id');
-    if (savedConvId && !currentConversationId) {
-      const convId = parseInt(savedConvId);
-      setCurrentConversationId(convId);
-      loadConversationHistory(convId);
-    }
-  }, []);
-
-  // Save current conversation ID to localStorage
-  useEffect(() => {
-    if (currentConversationId) {
-      localStorage.setItem('chat_conversation_id', currentConversationId.toString());
-    }
-  }, [currentConversationId]);
-
+  // Define conversation management functions before useEffects
   const loadConversationsList = async () => {
     try {
+      console.log('📜 Loading conversations list...');
       const convs = await getConversations();
+      console.log('✅ Conversations loaded:', convs.length);
+
       // Load first message for each conversation as preview
       const convsWithPreviews = await Promise.all(
         convs.map(async (conv) => {
@@ -321,10 +305,36 @@ export default function ChatInterface({
         })
       );
       setConversations(convsWithPreviews);
-    } catch (err) {
-      console.error('Failed to load conversations:', err);
+    } catch (err: any) {
+      console.error('❌ Failed to load conversations:', err);
+      console.error('Error details:', err.response?.data);
     }
   };
+
+  // Load conversations on mount
+  useEffect(() => {
+    console.log('🚀 Chat interface mounted, loading conversations...');
+    loadConversationsList();
+
+    // Load from localStorage
+    const savedConvId = localStorage.getItem('chat_conversation_id');
+    console.log('💾 Saved conversation ID from localStorage:', savedConvId);
+
+    if (savedConvId && !currentConversationId) {
+      const convId = parseInt(savedConvId);
+      console.log('🔄 Restoring conversation:', convId);
+      setCurrentConversationId(convId);
+      loadConversationHistory(convId);
+    }
+  }, []);
+
+  // Save current conversation ID to localStorage
+  useEffect(() => {
+    if (currentConversationId) {
+      console.log('💾 Saving conversation ID to localStorage:', currentConversationId);
+      localStorage.setItem('chat_conversation_id', currentConversationId.toString());
+    }
+  }, [currentConversationId]);
 
   const switchConversation = async (convId: number) => {
     setCurrentConversationId(convId);
