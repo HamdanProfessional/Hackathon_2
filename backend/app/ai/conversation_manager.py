@@ -47,7 +47,7 @@ class ConversationManager:
         """
         conversation = Conversation(user_id=user_id)
         self.db.add(conversation)
-        await self.db.commit()
+        await self.db.flush()  # Get the ID without committing
         await self.db.refresh(conversation)
         return conversation.id
 
