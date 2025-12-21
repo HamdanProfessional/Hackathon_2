@@ -326,10 +326,26 @@ export default function ChatInterface({
     }
   };
 
-  // Load conversations on mount
+  // Load conversations on mount with delay for authentication
   useEffect(() => {
-    console.log('🚀 Chat interface mounted, loading conversations from database...');
+    console.log('🚀 Chat interface mounted, waiting for authentication...');
+
+    // Wait for authentication to complete before fetching
     const initializeChat = async () => {
+      // Add delay to allow authentication to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      console.log('⏱️ Delay completed, checking authentication...');
+
+      // Check if user is authenticated
+      const token = localStorage.getItem('todo_access_token');
+      if (!token) {
+        console.log('❌ No authentication token found, skipping conversation load');
+        return;
+      }
+
+      console.log('✅ Token found, loading conversations from database...');
+
       // Load the conversations list from database
       try {
         console.log('📜 Loading conversations list...');
