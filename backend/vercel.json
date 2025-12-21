@@ -74,6 +74,18 @@
     {
       "source": "/openapi.json",
       "destination": "/api/index.py"
+    },
+    {
+      "source": "/force-migration",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/check-conversation-schema",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/test-conversation-creation",
+      "destination": "/api/index.py"
     }
   ]
 }

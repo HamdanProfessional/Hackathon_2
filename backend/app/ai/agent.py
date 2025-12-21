@@ -158,15 +158,17 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
         history: List[Dict[str, str]]
     ) -> Dict[str, Any]:
         """
-        Run the agent with tool calling support.
+        Run the agent with tool calling support and enhanced error handling.
 
-        This is the main entry point for processing user messages.
+        This is the main entry point for processing user messages with improved
+        resilience, retry logic, and graceful degradation.
 
         Flow:
-        1. Build messages array (system + history + user message)
-        2. Call OpenAI with tool definitions
-        3. If tool calls requested, execute them and call again
-        4. Return final response
+        1. Validate input and preprocess message
+        2. Build messages array (system + history + user message)
+        3. Call OpenAI with tool definitions (with retry logic)
+        4. If tool calls requested, execute them with error handling
+        5. Return final response with fallback options
 
         Args:
             db: Database session (for tool execution)
@@ -179,17 +181,36 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                 - response: Final assistant message (str)
                 - tool_calls: List of tool calls made (List[dict])
                 - messages: All new messages to save (List[dict])
+                - error: Error information if applicable (Optional[dict])
         """
-        # Build messages array
+        import asyncio
+        from datetime import datetime
+
+        # Input validation
+        if not user_message or not user_message.strip():
+            return {
+                "response": "Please provide a message. How can I help you manage your tasks today?",
+                "tool_calls": [],
+                "messages": [],
+                "error": {"type": "empty_input", "message": "Empty user message"}
+            }
+
+        # Enhanced language detection for better Urdu/English handling
+        detected_language = self._detect_language(user_message)
+
+        # Build messages array with enhanced context
         messages = [
             {"role": "system", "content": self._build_system_prompt(user_id)}
         ]
 
-        # Add conversation history
-        messages.extend(history)
+        # Add conversation history (limit last 10 messages for context)
+        messages.extend(history[-10:] if len(history) > 10 else history)
 
-        # Add new user message
-        messages.append({"role": "user", "content": user_message})
+        # Add new user message with language context
+        messages.append({
+            "role": "user",
+            "content": f"[Language: {detected_language}] {user_message}"
+        })
 
         # Prepare tool schemas
         tools = [
@@ -200,62 +221,65 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
             AVAILABLE_TOOLS["delete_task"]["schema"]
         ]
 
-        # Track tool calls made
+        # Track tool calls made and execution metadata
         tool_calls_made = []
+        execution_start = datetime.now()
 
-        # Tool execution loop (max 5 iterations to prevent infinite loops)
+        # Tool execution loop with enhanced retry logic
         max_iterations = 5
+        retry_count = 0
+        max_retries = 2
+
         for iteration in range(max_iterations):
             try:
-                # Call OpenAI API with error handling
-                response = await self.client.chat.completions.create(
-                    model=self.model,
+                # Call OpenAI API with enhanced error handling and retry logic
+                response = await self._call_api_with_retry(
                     messages=messages,
                     tools=tools,
-                    tool_choice="auto"
+                    max_retries=max_retries
                 )
+
             except Exception as e:
-                # Handle OpenAI API errors gracefully
-                error_type = type(e).__name__
+                # Enhanced error handling with categorization
+                error_info = self._categorize_error(e)
 
-                # Log the full error for debugging
+                # Log error with context
                 import traceback
-                print(f"OpenAI API Error: {error_type}")
-                print(f"Error details: {str(e)}")
-                print(f"Traceback: {traceback.format_exc()}")
+                print(f"[AGENT ERROR] {error_info['type']}: {error_info['message']}")
+                print(f"[AGENT CONTEXT] User: {user_id}, Iteration: {iteration}")
+                print(f"[AGENT TRACEBACK] {traceback.format_exc()}")
 
-                # Rate limit errors
-                if "RateLimitError" in error_type:
+                # Determine fallback strategy
+                if error_info['type'] == 'rate_limit':
+                    # Implement exponential backoff suggestion
+                    wait_time = min(2 ** retry_count, 10)
                     return {
-                        "response": "I'm currently experiencing high demand. Please try again in a moment.",
+                        "response": f"I'm experiencing high demand. Please wait {wait_time} seconds and try again." if detected_language == 'en'
+                                 else f"مجھے زیادہ طلب ہو رہی ہے۔ براہ کرم {wait_time} سیکنڈ انتظار کریں اور دوبارہ کوشش کریں۔",
                         "tool_calls": tool_calls_made,
-                        "messages": messages[len(history) + 1:]
+                        "messages": messages[len(history) + 1:],
+                        "error": error_info,
+                        "retry_suggested": wait_time
                     }
-
-                # API connection errors
-                if "APIConnectionError" in error_type or "APIError" in error_type:
+                elif error_info['type'] in ['connection', 'timeout']:
                     return {
-                        "response": "I'm having trouble connecting right now. Please check your internet connection and try again.",
+                        "response": "I'm having connection issues. Please check your internet and try again." if detected_language == 'en'
+                                 else "مجھے کنکشن کی مشکلات ہو رہی ہیں۔ براہ کرم اپنے انٹرنیٹ کو چیک کریں اور دوبارہ کوشش کریں۔",
                         "tool_calls": tool_calls_made,
-                        "messages": messages[len(history) + 1:]
+                        "messages": messages[len(history) + 1:],
+                        "error": error_info
                     }
-
-                # Authentication errors
-                if "AuthenticationError" in error_type:
+                elif error_info['type'] == 'authentication':
                     return {
-                        "response": "There's a configuration issue with the AI service. Please contact support.",
+                        "response": "There's a configuration issue with the AI service. This has been logged and will be addressed." if detected_language == 'en'
+                                 else "AI سروس کے ساتھ ترتیب کا مسئلہ ہے۔ اس کو لاگ کر دیا گیا ہے اور اس کا حل کیا جائے گا۔",
                         "tool_calls": tool_calls_made,
-                        "messages": messages[len(history) + 1:]
+                        "messages": messages[len(history) + 1:],
+                        "error": error_info
                     }
-
-                # Generic error fallback
-                # Try to get more error details
-                error_details = str(e) if e else "Unknown error"
-                return {
-                    "response": f"I encountered an error: {error_details}. Please try again, and if the problem persists, contact support.",
-                    "tool_calls": tool_calls_made,
-                    "messages": messages[len(history) + 1:]
-                }
+                else:
+                    # For unknown errors, try graceful degradation
+                    return await self._graceful_degradation(user_message, detected_language, tool_calls_made, error_info)
 
             assistant_message = response.choices[0].message
 
@@ -360,6 +384,136 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
             "response": "I apologize, but I encountered an issue processing your request. Please try again.",
             "tool_calls": tool_calls_made,
             "messages": messages[len(history) + 1:]
+        }
+
+    def _detect_language(self, text: str) -> str:
+        """
+        Enhanced language detection for Urdu and English.
+
+        Uses character analysis and common Urdu/English word detection.
+        """
+        import re
+
+        # Check for Urdu characters (Unicode range for Urdu)
+        urdu_chars = len(re.findall(r'[\u0600-\u06FF]', text))
+        total_chars = len(re.sub(r'\s', '', text))  # Exclude spaces
+
+        # If more than 30% characters are Urdu, classify as Urdu
+        if total_chars > 0 and (urdu_chars / total_chars) > 0.3:
+            return 'ur'
+
+        # Common Urdu indicators
+        urdu_indicators = ['ہے', 'ہیں', 'کے', 'کی', 'کا', 'گے', 'گی', 'ہوں', 'ہو', 'کرنا', 'دینا', 'لینا']
+        for indicator in urdu_indicators:
+            if indicator in text:
+                return 'ur'
+
+        # Default to English
+        return 'en'
+
+    async def _call_api_with_retry(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict],
+        max_retries: int = 2
+    ) -> Any:
+        """
+        Call the OpenAI API with retry logic and exponential backoff.
+        """
+        import asyncio
+
+        for attempt in range(max_retries + 1):
+            try:
+                return await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="auto"
+                )
+            except Exception as e:
+                if attempt == max_retries:
+                    raise  # Re-raise if we've exhausted retries
+
+                # Wait before retry (exponential backoff)
+                wait_time = 2 ** attempt
+                await asyncio.sleep(wait_time)
+
+    def _categorize_error(self, error: Exception) -> Dict[str, Any]:
+        """
+        Categorize errors for better handling and user messaging.
+        """
+        error_type = type(error).__name__
+        error_message = str(error)
+
+        if "RateLimitError" in error_type or "rate limit" in error_message.lower():
+            return {
+                "type": "rate_limit",
+                "message": "API rate limit exceeded",
+                "retryable": True
+            }
+        elif "APIConnectionError" in error_type or "connection" in error_message.lower():
+            return {
+                "type": "connection",
+                "message": "API connection failed",
+                "retryable": True
+            }
+        elif "TimeoutError" in error_type or "timeout" in error_message.lower():
+            return {
+                "type": "timeout",
+                "message": "API request timeout",
+                "retryable": True
+            }
+        elif "AuthenticationError" in error_type or "auth" in error_message.lower():
+            return {
+                "type": "authentication",
+                "message": "API authentication failed",
+                "retryable": False
+            }
+        else:
+            return {
+                "type": "unknown",
+                "message": error_message,
+                "retryable": False
+            }
+
+    async def _graceful_degradation(
+        self,
+        user_message: str,
+        language: str,
+        tool_calls_made: List[Dict],
+        error_info: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Provide a fallback response when the AI service fails.
+
+        This method uses pattern matching to provide basic task management
+        functionality even when the main AI service is unavailable.
+        """
+        message_lower = user_message.lower()
+
+        # Simple pattern matching for basic responses
+        if any(word in message_lower for word in ['hello', 'hi', 'ہیلو', 'سلام']):
+            response = "Hello! I'm here to help you manage your tasks. You can ask me to create, list, complete, update, or delete tasks." if language == 'en' \
+                      else "سلام! میں آپ کے ٹاسکس منیج کرنے میں آپ کی مدد کرنے کے لیے ہاں۔ آپ مجھ سے ٹاسکس بنانے، فہرست دکھانے، مکمل کرنے، اپ ڈیٹ کرنے، یا حذف کرنے کے لیے پوچھ سکتے ہیں۔"
+
+        elif any(word in message_lower for word in ['help', 'مدد']):
+            response = "I can help you with task management. Try saying things like:\n- 'Create a task called Finish project'\n- 'Show my tasks'\n- 'Mark task as complete'\n- 'Delete a task'" if language == 'en' \
+                      else "میں آپ کی ٹاسک مینجمنٹ میں مدد کر سکتا ہوں۔ ایسی باتیں کہنے کی کوشش کریں:\n- 'فنش پروجیکٹ نام کا ٹاسک بنائیں'\n- 'میرے ٹاسکس دکھائیں'\n- 'ٹاسک کو مکمل کے طور پر مارک کریں'\n- 'ٹاسک حذف کریں'"
+
+        elif any(word in message_lower for word in ['task', 'ٹاسک', 'create', 'add', 'بنائیں', 'شامل کریں']):
+            response = "I understand you want to manage a task. Due to technical difficulties, please use the web interface to create or modify tasks for now." if language == 'en' \
+                      else "میں سمجھتا ہوں کہ آپ ٹاسک منیج کرنا چاہتے ہیں۔ تکنیکی مشکلات کی وجہ سے، براہ کرم ابھی کے لیے ٹاسکس بنانے یا تبدیل کرنے کے لیے ویب انٹرفیس استعمال کریں۔"
+
+        else:
+            response = "I'm experiencing technical difficulties right now. Please try again later or use the web interface to manage your tasks." if language == 'en' \
+                      else "میں ابھی تکنیکی مشکلات کا سامنا کر رہا ہوں۔ براہ کرم بعد میں دوبارہ کوشش کریں یا اپنے ٹاسکس منیج کرنے کے لیے ویب انٹرفیس استعمال کریں۔"
+
+        return {
+            "response": response,
+            "tool_calls": tool_calls_made,
+            "messages": [{"role": "assistant", "content": response}],
+            "error": error_info,
+            "fallback_mode": True
         }
 
     async def process_message(

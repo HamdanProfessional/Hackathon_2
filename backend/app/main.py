@@ -20,6 +20,8 @@ from alembic import command
 from alembic.config import Config
 # Import all models to ensure they're registered with Base.metadata
 from app.models import user, task, conversation, message
+from app.api.deps import get_db
+from sqlalchemy import text
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
