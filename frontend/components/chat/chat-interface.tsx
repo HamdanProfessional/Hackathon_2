@@ -179,10 +179,9 @@ export default function ChatInterface({
     } catch (err: any) {
       console.error("❌ Failed to load conversation history:", err);
 
-      // If conversation not found (404), clear it from localStorage
+      // If conversation not found (404), reset the chat state
       if (err.response?.status === 404) {
-        console.warn('🗑️ Conversation not found, clearing from localStorage');
-        localStorage.removeItem('chat_conversation_id');
+        console.warn('🗑️ Conversation not found in database, resetting chat');
         setCurrentConversationId(undefined);
         setMessages([]);
         setError("Conversation not found. Starting fresh.");
@@ -329,36 +328,46 @@ export default function ChatInterface({
 
   // Load conversations on mount
   useEffect(() => {
-    console.log('🚀 Chat interface mounted, loading conversations...');
+    console.log('🚀 Chat interface mounted, loading conversations from database...');
     const initializeChat = async () => {
-      // First load the conversations list
-      await loadConversationsList();
+      // Load the conversations list from database
+      try {
+        console.log('📜 Loading conversations list...');
+        const convs = await getConversations();
+        console.log('✅ Conversations loaded:', convs.length);
 
-      // Then try to load from localStorage
-      const savedConvId = localStorage.getItem('chat_conversation_id');
-      console.log('💾 Saved conversation ID from localStorage:', savedConvId);
+        // Load previews for conversations
+        const convsWithPreviews = await Promise.all(
+          convs.map(async (conv) => {
+            try {
+              const msgs = await getConversationMessages(conv.id);
+              const firstUserMsg = msgs.find(m => m.role === 'user');
+              return {
+                ...conv,
+                preview: firstUserMsg?.content.substring(0, 50) || 'New conversation'
+              };
+            } catch {
+              return { ...conv, preview: 'New conversation' };
+            }
+          })
+        );
+        setConversations(convsWithPreviews);
 
-      if (savedConvId && !currentConversationId) {
-        const convId = parseInt(savedConvId);
-        console.log('🔄 Attempting to restore conversation:', convId);
-
-        // Try to load the conversation history
-        // If it fails (404), it will be handled in loadConversationHistory
-        setCurrentConversationId(convId);
-        await loadConversationHistory(convId);
+        // If there are conversations and no current conversation is set, load the most recent one
+        if (convsWithPreviews.length > 0 && !currentConversationId) {
+          const mostRecent = convsWithPreviews[0]; // Conversations are ordered by updated_at DESC
+          console.log('📖 Loading most recent conversation:', mostRecent.id);
+          setCurrentConversationId(mostRecent.id);
+          await loadConversationHistory(mostRecent.id);
+        }
+      } catch (err: any) {
+        console.error('❌ Failed to initialize chat:', err);
       }
     };
 
     initializeChat();
   }, []);
 
-  // Save current conversation ID to localStorage
-  useEffect(() => {
-    if (currentConversationId) {
-      console.log('💾 Saving conversation ID to localStorage:', currentConversationId);
-      localStorage.setItem('chat_conversation_id', currentConversationId.toString());
-    }
-  }, [currentConversationId]);
 
   const switchConversation = async (convId: number) => {
     setCurrentConversationId(convId);
@@ -370,7 +379,6 @@ export default function ChatInterface({
   const startNewConversation = () => {
     setMessages([]);
     setCurrentConversationId(undefined);
-    localStorage.removeItem('chat_conversation_id');
     setShowHistory(false);
   };
 
