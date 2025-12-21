@@ -542,69 +542,82 @@ export default function ChatInterface({
           </div>
         )}
 
-        <form onSubmit={handleSendMessage} className="flex gap-2">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder={isListening ? "Listening..." : "Type or press Space to speak..."}
-            className="flex-1 px-4 py-3 bg-slate-800/50 border border-white/10 text-slate-100 placeholder:text-slate-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-            disabled={loading}
-          />
-
-          {/* Language Toggle Button */}
-          <button
-            type="button"
-            onClick={() => setLanguage(lang => lang === 'en-US' ? 'ur-PK' : 'en-US')}
-            className="px-4 py-3 bg-gradient-to-br from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 border border-white/10 rounded-xl transition-all shadow-lg text-sm font-medium backdrop-blur-sm"
-            title={`Switch to ${language === 'en-US' ? 'Urdu' : 'English'}`}
-          >
-            <span className="text-lg">{language === 'en-US' ? '🇬🇧' : '🇵🇰'}</span>
-          </button>
-
-          {/* Microphone Button with Recording Animation */}
-          {isRecognitionSupported && (
-            <button
-              type="button"
-              onClick={() => {
-                if (isListening) {
-                  stopListening();
-                } else {
-                  startListening(language);
-                }
-              }}
-              className={`relative px-4 py-3 rounded-xl transition-all flex items-center justify-center min-w-[52px] shadow-lg backdrop-blur-sm ${
-                isListening
-                  ? 'bg-gradient-to-br from-red-600 to-red-500 hover:from-red-700 hover:to-red-600'
-                  : 'bg-gradient-to-br from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600'
-              }`}
-              title={isListening ? 'Stop recording (Esc)' : 'Start voice input (Space)'}
+        <form onSubmit={handleSendMessage} className="flex flex-col gap-2">
+          {/* Main input row */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder={isListening ? "Listening..." : "Type or speak..."}
+              className="flex-1 px-3 py-2.5 bg-slate-800/50 border border-white/10 text-slate-100 placeholder:text-slate-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm"
               disabled={loading}
+            />
+
+            <button
+              type="submit"
+              disabled={!inputValue.trim() || loading}
+              data-version="v4-enhanced-voice"
+              aria-label="Send message"
+              className="px-3 py-2.5 bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-xl hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg flex items-center justify-center min-w-[44px] backdrop-blur-sm"
             >
-              {isListening && (
-                <div className="absolute inset-0 rounded-xl bg-red-400 animate-ping opacity-25"></div>
-              )}
-              {isListening ? (
-                <MicOff className="w-5 h-5 text-white animate-pulse relative z-10" />
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Mic className="w-5 h-5 text-white relative z-10" />
+                <ArrowRight className="w-4 h-4" />
               )}
             </button>
-          )}
+          </div>
 
-          <button
-            type="submit"
-            disabled={!inputValue.trim() || loading}
-            data-version="v4-enhanced-voice"
-            aria-label="Send message"
-            className="px-4 py-3 bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-xl hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg flex items-center justify-center min-w-[52px] backdrop-blur-sm"
-          >
-            {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <ArrowRight className="w-5 h-5" />
+          {/* Voice controls row - stacked for narrow views */}
+          <div className="flex gap-2">
+            {/* Language Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setLanguage(lang => lang === 'en-US' ? 'ur-PK' : 'en-US')}
+              className="flex-1 px-3 py-2 bg-gradient-to-br from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 border border-white/10 rounded-lg transition-all shadow-lg text-xs font-medium backdrop-blur-sm flex items-center justify-center gap-1.5"
+              title={`Switch to ${language === 'en-US' ? 'Urdu' : 'English'}`}
+            >
+              <span className="text-base">{language === 'en-US' ? '🇬🇧' : '🇵🇰'}</span>
+              <span className="text-slate-300">{language === 'en-US' ? 'EN' : 'UR'}</span>
+            </button>
+
+            {/* Microphone Button with Recording Animation */}
+            {isRecognitionSupported && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isListening) {
+                    stopListening();
+                  } else {
+                    startListening(language);
+                  }
+                }}
+                className={`flex-1 relative px-3 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-lg backdrop-blur-sm ${
+                  isListening
+                    ? 'bg-gradient-to-br from-red-600 to-red-500 hover:from-red-700 hover:to-red-600'
+                    : 'bg-gradient-to-br from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600'
+                }`}
+                title={isListening ? 'Stop recording (Esc)' : 'Start voice input (Space)'}
+                disabled={loading}
+              >
+                {isListening && (
+                  <div className="absolute inset-0 rounded-lg bg-red-400 animate-ping opacity-25"></div>
+                )}
+                {isListening ? (
+                  <>
+                    <MicOff className="w-4 h-4 text-white animate-pulse relative z-10" />
+                    <span className="text-xs text-white relative z-10">Stop</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-4 h-4 text-white relative z-10" />
+                    <span className="text-xs text-white relative z-10">Voice</span>
+                  </>
+                )}
+              </button>
             )}
-          </button>
+          </div>
         </form>
       </div>
 
