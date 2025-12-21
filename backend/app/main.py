@@ -40,7 +40,15 @@ async def lifespan(app: FastAPI):
         command.upgrade(alembic_cfg, "head")
         logger.info("Database migrations complete")
     except Exception as e:
-        logger.warning(f"Database migration failed, but continuing: {e}")
+        error_msg = f"Database migration failed: {e}"
+        if os.getenv("ENVIRONMENT") == "production":
+            # In production, fail loudly - don't start the app with broken migrations
+            logger.error(f"CRITICAL: {error_msg}")
+            logger.error("Application cannot start with failed migrations in production!")
+            raise RuntimeError(error_msg)
+        else:
+            # In development, warn but continue
+            logger.warning(f"{error_msg} - continuing in development mode")
 
     # Try to create database tables but don't fail if it doesn't work
     try:
@@ -652,6 +660,254 @@ async def test_auth(authorization: str = Header(None)):
         "has_auth": authorization is not None,
         "auth_length": len(authorization) if authorization else 0
     }
+
+
+@app.post("/force-migration", tags=["Emergency"])
+async def force_migration():
+    """EMERGENCY: Force run the UUID migration for conversations and messages tables."""
+    try:
+        from app.database import engine
+        from sqlalchemy import text
+        import logging
+
+        # Set up detailed logging
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.INFO)
+
+        async with engine.begin() as conn:
+            # Check current migration state
+            result = await conn.execute(text("""
+                SELECT version_num FROM alembic_version
+            """))
+            current_version = result.scalar()
+
+            logger.info(f"Current Alembic version: {current_version}")
+
+            # Check if conversations table exists and what type its id column is
+            result = await conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables
+                    WHERE table_name = 'conversations'
+                )
+            """))
+            conversations_exist = result.scalar()
+
+            if conversations_exist:
+                result = await conn.execute(text("""
+                    SELECT data_type
+                    FROM information_schema.columns
+                    WHERE table_name = 'conversations' AND column_name = 'id'
+                """))
+                id_type = result.scalar()
+                logger.info(f"Conversations table exists with id type: {id_type}")
+
+                # If it's still integer, we need to run the migration
+                if id_type == 'integer':
+                    logger.info("Running UUID migration for conversations and messages...")
+
+                    # Drop the tables and recreate with UUID columns
+                    await conn.execute(text('DROP TABLE IF EXISTS messages CASCADE'))
+                    await conn.execute(text('DROP TABLE IF EXISTS conversations CASCADE'))
+
+                    # Recreate conversations table with UUID columns
+                    await conn.execute(text("""
+                        CREATE TABLE conversations (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                            title VARCHAR(200) NOT NULL DEFAULT 'New Conversation',
+                            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+                        )
+                    """))
+
+                    # Create index for performance
+                    await conn.execute(text("""
+                        CREATE INDEX idx_conversations_created_at_desc
+                        ON conversations (created_at DESC)
+                    """))
+
+                    # Recreate messages table with UUID columns
+                    await conn.execute(text("""
+                        CREATE TABLE messages (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                            role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+                            content TEXT NOT NULL,
+                            tool_calls JSONB,
+                            tool_call_id VARCHAR(100),
+                            name VARCHAR(100),
+                            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                        )
+                    """))
+
+                    # Create index for performance
+                    await conn.execute(text("""
+                        CREATE INDEX idx_messages_conversation_created
+                        ON messages (conversation_id, created_at)
+                    """))
+
+                    # Update alembic version to mark this migration as applied
+                    await conn.execute(text("""
+                        UPDATE alembic_version SET version_num = 'e940f362bb65'
+                    """))
+
+                    await conn.commit()
+
+                    logger.info("UUID migration completed successfully!")
+
+                    return {
+                        "status": "success",
+                        "message": "UUID migration applied successfully",
+                        "previous_version": current_version,
+                        "new_version": "e940f362bb65",
+                        "action": "Tables recreated with UUID columns"
+                    }
+                else:
+                    logger.info("Conversations table already has UUID columns")
+                    return {
+                        "status": "success",
+                        "message": "UUID columns already exist",
+                        "current_version": current_version,
+                        "id_type": id_type
+                    }
+            else:
+                # Tables don't exist, mark migration as applied
+                await conn.execute(text("""
+                    UPDATE alembic_version SET version_num = 'e940f362bb65'
+                """))
+                await conn.commit()
+
+                return {
+                    "status": "success",
+                    "message": "Tables don't exist, migration marked as applied",
+                    "current_version": current_version
+                }
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Migration failed: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
+@app.post("/check-conversation-schema", tags=["Test"])
+async def check_conversation_schema():
+    """Check if conversations and messages tables have correct UUID schema."""
+    try:
+        from app.database import engine
+        from sqlalchemy import text
+
+        async with engine.begin() as conn:
+            # Check conversations table
+            result = await conn.execute(text("""
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns
+                WHERE table_name = 'conversations'
+                ORDER BY ordinal_position
+            """))
+            conv_columns = result.fetchall()
+
+            # Check messages table
+            result = await conn.execute(text("""
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns
+                WHERE table_name = 'messages'
+                ORDER BY ordinal_position
+            """))
+            msg_columns = result.fetchall()
+
+            # Check alembic version
+            result = await conn.execute(text("""
+                SELECT version_num FROM alembic_version
+            """))
+            alembic_version = result.scalar()
+
+            return {
+                "status": "success",
+                "alembic_version": alembic_version,
+                "conversations_table": [
+                    {
+                        "name": col[0],
+                        "type": col[1],
+                        "nullable": col[2],
+                        "default": col[3]
+                    }
+                    for col in conv_columns
+                ],
+                "messages_table": [
+                    {
+                        "name": col[0],
+                        "type": col[1],
+                        "nullable": col[2],
+                        "default": col[3]
+                    }
+                    for col in msg_columns
+                ]
+            }
+
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
+@app.post("/test-conversation-creation", tags=["Test"])
+async def test_conversation_creation():
+    """Test creating a conversation to verify UUID schema works."""
+    try:
+        from app.database import engine
+        from sqlalchemy import text
+        import uuid
+
+        async with engine.begin() as conn:
+            # Get a user ID
+            result = await conn.execute(text("""
+                SELECT id FROM users LIMIT 1
+            """))
+            user_row = result.scalar_one_or_none()
+
+            if not user_row:
+                return {"status": "error", "message": "No users found"}
+
+            user_id = str(user_row)
+            conversation_id = str(uuid.uuid4())
+
+            # Try to insert a conversation with UUID
+            result = await conn.execute(text("""
+                INSERT INTO conversations (id, user_id, title, created_at, updated_at)
+                VALUES (:id, :user_id, :title, NOW(), NOW())
+                RETURNING id
+            """), {
+                "id": conversation_id,
+                "user_id": user_id,
+                "title": "Test Conversation"
+            })
+
+            inserted_id = result.scalar()
+
+            await conn.commit()
+
+            return {
+                "status": "success",
+                "message": "Conversation created successfully with UUID",
+                "conversation_id": inserted_id,
+                "user_id": user_id
+            }
+
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
 
 
 # Import routers
