@@ -202,7 +202,7 @@ async def get_conversations(
     description="Retrieve all messages for a specific conversation",
 )
 async def get_conversation_messages(
-    conversation_id: int,
+    conversation_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -268,7 +268,7 @@ async def get_conversation_messages(
     description="Permanently delete a conversation and all its messages",
 )
 async def delete_conversation(
-    conversation_id: int,
+    conversation_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

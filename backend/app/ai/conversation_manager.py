@@ -35,7 +35,7 @@ class ConversationManager:
         """
         self.db = db
 
-    async def create_conversation(self, user_id: UUID) -> int:
+    async def create_conversation(self, user_id: UUID) -> UUID:
         """
         Create a new conversation for a user.
 
@@ -43,7 +43,7 @@ class ConversationManager:
             user_id: The user's UUID
 
         Returns:
-            The ID of the new conversation
+            The UUID of the new conversation
         """
         conversation = Conversation(user_id=user_id)
         self.db.add(conversation)
@@ -53,7 +53,7 @@ class ConversationManager:
 
     async def get_history(
         self,
-        conversation_id: int,
+        conversation_id: UUID,
         limit: int = 50
     ) -> List[Dict[str, str]]:
         """
@@ -83,7 +83,7 @@ class ConversationManager:
 
     async def save_message(
         self,
-        conversation_id: int,
+        conversation_id: UUID,
         role: str,
         content: str
     ) -> None:
@@ -171,7 +171,7 @@ class ConversationManager:
 
     async def verify_conversation_ownership(
         self,
-        conversation_id: int,
+        conversation_id: UUID,
         user_id: UUID
     ) -> bool:
         """
@@ -195,7 +195,7 @@ class ConversationManager:
 
     async def delete_conversation(
         self,
-        conversation_id: int,
+        conversation_id: UUID,
         user_id: UUID
     ) -> bool:
         """

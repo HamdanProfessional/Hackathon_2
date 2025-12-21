@@ -1,4 +1,9 @@
 {
+  "env": {
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6"
+  },
   "permissions": {
     "allow": [
       "Bash(\".specify/scripts/bash/create-phr.sh\" --title \"Phase I Constitution Creation\" --stage constitution --json)",
@@ -94,7 +99,11 @@
       "WebFetch(domain:backend-lac-nu-61.vercel.app)",
       "WebFetch(domain:frontend-xi-nine-27.vercel.app)",
       "Bash(printf:*)",
-      "Bash(git remote set-url:*)"
+      "Bash(git remote set-url:*)",
+      "Bash(git pull:*)",
+      "WebFetch(domain:frontend-2p6fzbz4t-hamdanprofessionals-projects.vercel.app)",
+      "WebFetch(domain:backend-hamdanprofessionals-projects.vercel.app)",
+      "WebFetch(domain:frontend-hamdanprofessionals-projects.vercel.app)"
     ],
     "deny": [],
     "ask": []

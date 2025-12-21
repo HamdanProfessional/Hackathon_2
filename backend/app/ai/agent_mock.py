@@ -8,8 +8,10 @@ It follows the same interface as the real AgentService but returns predefined re
 from typing import Dict, List, Any, Optional
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.ai.tools import add_task, list_tasks, complete_task, update_task, delete_task
+from app.ai.conversation_manager import ConversationManager
 
 
 class MockAgentService:
@@ -338,12 +340,11 @@ class MockAgentService:
         Returns:
             Dict with response and conversation_id
         """
-        # For mock AI, we don't need actual conversation persistence
-        # Just return a mock conversation ID
+        # For mock AI, create actual conversation in database
+        conversation_manager = ConversationManager(db)
         if not conversation_id:
-            # Use timestamp to create unique conversation ID
-            import time
-            conversation_id = int(time.time() * 1000) % 1000000
+            # Create new conversation and return its UUID
+            conversation_id = await conversation_manager.create_conversation(user_id)
 
         # Run agent
         result = await self.run_agent(db, user_id, user_message, [])
