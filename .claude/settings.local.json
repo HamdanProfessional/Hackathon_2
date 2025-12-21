@@ -93,7 +93,8 @@
       "Bash(tee:*)",
       "WebFetch(domain:backend-lac-nu-61.vercel.app)",
       "WebFetch(domain:frontend-xi-nine-27.vercel.app)",
-      "Bash(printf:*)"
+      "Bash(printf:*)",
+      "Bash(git remote set-url:*)"
     ],
     "deny": [],
     "ask": []

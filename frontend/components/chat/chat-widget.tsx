@@ -16,7 +16,7 @@ import ChatInterface from "./chat-interface";
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [conversationId, setConversationId] = useState<number | undefined>();
+  const [conversationId, setConversationId] = useState<string | undefined>();
 
   const handleToggle = () => {
     if (isOpen && !isMinimized) {

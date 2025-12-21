@@ -1,5 +1,6 @@
 """Chat API endpoints for AI-powered task management."""
 from typing import List, Optional
+from uuid import UUID
 from fastapi import APIRouter, Depends, status, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -79,12 +80,12 @@ def check_rate_limit(user_id: int):
 class ChatRequest(BaseModel):
     """Request schema for chat endpoint."""
     message: str
-    conversation_id: Optional[int] = None
+    conversation_id: Optional[UUID] = None
 
 
 class ChatResponse(BaseModel):
     """Response schema for chat endpoint."""
-    conversation_id: int
+    conversation_id: UUID
     response: str
     tool_calls: List[dict] = []
 

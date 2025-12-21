@@ -27,11 +27,11 @@
 **Goal**: Install dependencies and configure development environment
 
 ### Tasks
-- [ ] T001 Install Python dependencies: openai, mcp in backend/requirements.txt
-- [ ] T002 [P] Install frontend dependency: @openai/chatkit in frontend/package.json
-- [ ] T003 Add OpenAI API key configuration to backend/.env.example
-- [ ] T004 [P] Create AI module directory structure: backend/app/ai/
-- [ ] T005 Verify MCP SDK installation and basic connectivity
+- [X] T001 Install Python dependencies: openai, mcp in backend/requirements.txt
+- [X] T002 [P] Install frontend dependency: @openai/chatkit in frontend/package.json
+- [X] T003 Add OpenAI API key configuration to backend/.env.example
+- [X] T004 [P] Create AI module directory structure: backend/app/ai/
+- [X] T005 Verify MCP SDK installation and basic connectivity
 
 **Definition of Done**:
 - All dependencies installed without errors

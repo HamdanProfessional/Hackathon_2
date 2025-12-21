@@ -1,13 +1,14 @@
 """Conversation Pydantic schemas for request/response validation."""
 from datetime import datetime
+from uuid import UUID
 from pydantic import BaseModel
 
 
 class ConversationResponse(BaseModel):
     """Schema for conversation data in responses."""
 
-    id: int
-    user_id: int
+    id: UUID
+    user_id: UUID
     created_at: datetime
     updated_at: datetime
 

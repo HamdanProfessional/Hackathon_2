@@ -11,8 +11,8 @@ interface Message {
 }
 
 interface SimpleChatProps {
-  conversationId?: number;
-  onConversationCreated?: (id: number) => void;
+  conversationId?: string;
+  onConversationCreated?: (id: string) => void;
 }
 
 export default function SimpleChat({
@@ -22,7 +22,7 @@ export default function SimpleChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<number | undefined>(initialConversationId);
+  const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {

@@ -24,8 +24,8 @@ import {
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/use-speech";
 
 interface ChatInterfaceProps {
-  conversationId?: number;
-  onConversationCreated?: (id: number) => void;
+  conversationId?: string;
+  onConversationCreated?: (id: string) => void;
 }
 
 export default function ChatInterface({
@@ -37,7 +37,7 @@ export default function ChatInterface({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [voiceError, setVoiceError] = useState("");
-  const [currentConversationId, setCurrentConversationId] = useState<number | undefined>(conversationId);
+  const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(conversationId);
   const [language, setLanguage] = useState<'en-US' | 'ur-PK'>('en-US');
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -47,7 +47,7 @@ export default function ChatInterface({
   const [autoPlay, setAutoPlay] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [conversations, setConversations] = useState<Array<{
-    id: number;
+    id: string;
     created_at: string;
     updated_at: string;
     preview?: string;
@@ -169,7 +169,7 @@ export default function ChatInterface({
     }
   }, [conversationId]);
 
-  const loadConversationHistory = async (convId: number) => {
+  const loadConversationHistory = async (convId: string) => {
     try {
       setLoading(true);
       console.log('📖 Loading conversation history for ID:', convId);
@@ -369,7 +369,7 @@ export default function ChatInterface({
   }, []);
 
 
-  const switchConversation = async (convId: number) => {
+  const switchConversation = async (convId: string) => {
     setCurrentConversationId(convId);
     await loadConversationHistory(convId);
     setShowHistory(false);
