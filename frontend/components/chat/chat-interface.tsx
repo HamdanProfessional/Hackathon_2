@@ -172,11 +172,24 @@ export default function ChatInterface({
   const loadConversationHistory = async (convId: number) => {
     try {
       setLoading(true);
+      console.log('📖 Loading conversation history for ID:', convId);
       const history = await getConversationMessages(convId);
+      console.log('✅ History loaded:', history.length, 'messages');
       setMessages(history.map(msg => ({ role: msg.role, content: msg.content })));
-    } catch (err) {
-      console.error("Failed to load conversation history:", err);
-      setError("Failed to load conversation history");
+    } catch (err: any) {
+      console.error("❌ Failed to load conversation history:", err);
+
+      // If conversation not found (404), clear it from localStorage
+      if (err.response?.status === 404) {
+        console.warn('🗑️ Conversation not found, clearing from localStorage');
+        localStorage.removeItem('chat_conversation_id');
+        setCurrentConversationId(undefined);
+        setMessages([]);
+        setError("Conversation not found. Starting fresh.");
+        setTimeout(() => setError(""), 3000);
+      } else {
+        setError("Failed to load conversation history");
+      }
     } finally {
       setLoading(false);
     }
@@ -314,18 +327,26 @@ export default function ChatInterface({
   // Load conversations on mount
   useEffect(() => {
     console.log('🚀 Chat interface mounted, loading conversations...');
-    loadConversationsList();
+    const initializeChat = async () => {
+      // First load the conversations list
+      await loadConversationsList();
 
-    // Load from localStorage
-    const savedConvId = localStorage.getItem('chat_conversation_id');
-    console.log('💾 Saved conversation ID from localStorage:', savedConvId);
+      // Then try to load from localStorage
+      const savedConvId = localStorage.getItem('chat_conversation_id');
+      console.log('💾 Saved conversation ID from localStorage:', savedConvId);
 
-    if (savedConvId && !currentConversationId) {
-      const convId = parseInt(savedConvId);
-      console.log('🔄 Restoring conversation:', convId);
-      setCurrentConversationId(convId);
-      loadConversationHistory(convId);
-    }
+      if (savedConvId && !currentConversationId) {
+        const convId = parseInt(savedConvId);
+        console.log('🔄 Attempting to restore conversation:', convId);
+
+        // Try to load the conversation history
+        // If it fails (404), it will be handled in loadConversationHistory
+        setCurrentConversationId(convId);
+        await loadConversationHistory(convId);
+      }
+    };
+
+    initializeChat();
   }, []);
 
   // Save current conversation ID to localStorage
