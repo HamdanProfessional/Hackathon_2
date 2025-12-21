@@ -340,11 +340,26 @@ class MockAgentService:
         Returns:
             Dict with response and conversation_id
         """
+        import sys
         # For mock AI, create actual conversation in database
         conversation_manager = ConversationManager(db)
         if not conversation_id:
             # Create new conversation and return its UUID
             conversation_id = await conversation_manager.create_conversation(user_id)
+            print(f"[MOCK] Created new conversation: {conversation_id}", file=sys.stderr)
+
+        # Save the user message to the conversation
+        try:
+            await conversation_manager.save_message(
+                conversation_id=conversation_id,
+                role="user",
+                content=user_message
+            )
+            print(f"[MOCK] Saved user message to conversation", file=sys.stderr)
+        except Exception as e:
+            print(f"[MOCK] ERROR saving user message: {e}", file=sys.stderr)
+            import traceback
+            print(f"[MOCK] TRACEBACK: {traceback.format_exc()}", file=sys.stderr)
 
         # Run agent
         try:
@@ -360,6 +375,20 @@ class MockAgentService:
                 "response": "I encountered an error, but I'm still here to help!",
                 "tool_calls": []
             }
+
+        # Save the assistant response to the conversation
+        try:
+            if "response" in result:
+                await conversation_manager.save_message(
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=result["response"]
+                )
+                print(f"[MOCK] Saved assistant response to conversation", file=sys.stderr)
+        except Exception as e:
+            print(f"[MOCK] ERROR saving assistant message: {e}", file=sys.stderr)
+            import traceback
+            print(f"[MOCK] TRACEBACK: {traceback.format_exc()}", file=sys.stderr)
 
         # Add conversation_id to result
         result["conversation_id"] = conversation_id

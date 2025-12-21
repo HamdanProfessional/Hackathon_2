@@ -146,26 +146,37 @@ async def send_chat_message(
     import sys
     print(f"[DEBUG] USE_MOCK_AI = {USE_MOCK_AI}", file=sys.stderr)
 
-    if USE_MOCK_AI:
-        agent = MockAgentService()
-        print("[MOCK] Using mock AI service for testing", file=sys.stderr)
-    else:
-        agent = AgentService()
-        print("[AI] Using real Gemini AI service", file=sys.stderr)
+    try:
+        if USE_MOCK_AI:
+            agent = MockAgentService()
+            print("[MOCK] Using mock AI service for testing", file=sys.stderr)
+        else:
+            agent = AgentService()
+            print("[AI] Using real Gemini AI service", file=sys.stderr)
 
-    result = await agent.process_message(
-        db=db,
-        user_id=current_user.id,
-        user_message=request.message,
-        conversation_id=request.conversation_id
-    )
+        result = await agent.process_message(
+            db=db,
+            user_id=current_user.id,
+            user_message=request.message,
+            conversation_id=request.conversation_id
+        )
 
-    # Step 4: Return response
-    return ChatResponse(
-        conversation_id=result["conversation_id"],
-        response=result["response"],
-        tool_calls=result.get("tool_calls", []),
-    )
+        print(f"[DEBUG] Agent processing completed successfully", file=sys.stderr)
+
+        # Step 4: Return response
+        return ChatResponse(
+            conversation_id=result["conversation_id"],
+            response=result["response"],
+            tool_calls=result.get("tool_calls", []),
+        )
+    except Exception as e:
+        print(f"[ERROR] Chat processing failed: {e}", file=sys.stderr)
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}", file=sys.stderr)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to process message. Please try again."
+        )
 
 
 @router.get(

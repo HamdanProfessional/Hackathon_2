@@ -103,17 +103,16 @@ class ConversationManager:
         self.db.add(message)
 
         # Update the conversation's updated_at timestamp
-        await self.db.execute(
+        conversation_result = await self.db.execute(
             select(Conversation).where(Conversation.id == conversation_id)
         )
-        conversation = (await self.db.execute(
-            select(Conversation).where(Conversation.id == conversation_id)
-        )).scalar_one_or_none()
+        conversation = conversation_result.scalar_one_or_none()
 
         if conversation:
             conversation.updated_at = datetime.utcnow()
 
-        await self.db.commit()
+        # Don't commit here - let the main transaction handle it
+        await self.db.flush()
 
     async def get_user_conversations(
         self,
@@ -223,6 +222,6 @@ class ConversationManager:
 
         # Delete conversation (messages will cascade delete due to FK constraint)
         await self.db.delete(conversation)
-        await self.db.commit()
+        await self.db.flush()
 
         return True
