@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { sendChatMessage, getConversationMessages, getConversations, type ChatMessage } from "@/lib/chat-client";
+import { apiClient } from "@/lib/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -19,7 +20,8 @@ import {
   History,
   Plus,
   MessageSquare,
-  X
+  X,
+  Trash2
 } from "lucide-react";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/use-speech";
 
@@ -297,6 +299,28 @@ export default function ChatInterface({
     }).format(date);
   };
 
+  // Delete conversation handler
+  const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering switchConversation
+    try {
+      console.log('🗑️ Deleting conversation:', convId);
+      await apiClient.deleteConversation(convId);
+
+      // Remove from local state
+      setConversations(prev => prev.filter(c => c.id !== convId));
+
+      // If deleted conversation was current, start new conversation
+      if (currentConversationId === convId) {
+        startNewConversation();
+      }
+
+      console.log('✅ Conversation deleted');
+    } catch (err: any) {
+      console.error('❌ Failed to delete conversation:', err);
+      console.error('Error details:', err.response?.data);
+    }
+  };
+
   // Define conversation management functions before useEffects
   const loadConversationsList = async () => {
     try {
@@ -427,43 +451,72 @@ export default function ChatInterface({
 
   return (
     <div className="relative flex flex-col h-full bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
-      {/* Header with glassmorphism */}
-      <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-blue-600/10 border-b border-white/10 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 animate-pulse"></div>
-            <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-400 animate-ping opacity-75"></div>
+      {/* Enhanced Header with improved design */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-violet-600/20 to-purple-600/20 border-b border-zinc-800/50 backdrop-blur-sm relative overflow-hidden">
+        {/* Animated background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-600/5 to-purple-600/5 animate-pulse"></div>
+
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-600/25 relative">
+            <Waves className="w-4 h-4 text-white" />
+            {/* Animated glow effect */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 animate-ping opacity-20"></div>
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+            <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
               AI Task Assistant
-            </h2>
-            <p className="text-xs text-slate-400 flex items-center gap-1">
-              <span>Voice-Enabled</span>
-              <span className="text-slate-600">•</span>
-              <span>{language === 'en-US' ? 'English' : 'اردو'}</span>
-            </p>
+              {/* Status indicator */}
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+            </h3>
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <span className="flex items-center gap-1">
+                <span className={`h-2 w-2 rounded-full ${isSpeaking ? 'bg-purple-500 animate-pulse' : 'bg-zinc-600'}`}></span>
+                {isSpeaking ? 'Speaking' : 'Powered by Gemini AI'}
+              </span>
+              <span className="text-zinc-600">•</span>
+              <span className="px-1.5 py-0.5 bg-zinc-700/50 rounded-xs text-zinc-300">
+                {language === 'en-US' ? 'EN' : 'UR'}
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-1 relative z-10">
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors relative"
+            className={`p-2 hover:bg-white/10 rounded-lg transition-all duration-200 group relative ${showHistory ? 'bg-white/10 text-white' : 'text-zinc-400'}`}
             title="Conversation History"
           >
-            <History className="w-5 h-5 text-slate-400" />
+            <History className="w-4 h-4 group-hover:scale-110 transition-transform" />
             {conversations.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-violet-600 text-white text-xs rounded-full flex items-center justify-center font-semibold shadow-lg">
                 {conversations.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className={`p-2 hover:bg-white/10 rounded-lg transition-all duration-200 group ${showSettings ? 'bg-white/10 text-white' : 'text-zinc-400'}`}
             title="Voice Settings"
           >
-            <Settings className="w-5 h-5 text-slate-400" />
+            <Settings className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          </button>
+          <button
+            className="p-2 hover:bg-white/10 rounded-lg transition-all duration-200 group text-zinc-400"
+            title="Minimize"
+          >
+            <svg className="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
+          <button
+            className="p-2 hover:bg-red-500/20 rounded-lg transition-all duration-200 group text-zinc-400 hover:text-red-400"
+            title="Close Chat"
+          >
+            <X className="w-4 h-4 group-hover:scale-110 transition-transform" />
           </button>
         </div>
       </div>
@@ -517,27 +570,38 @@ export default function ChatInterface({
               </div>
             ) : (
               conversations.map((conv) => (
-                <button
+                <div
                   key={conv.id}
-                  onClick={() => switchConversation(conv.id)}
-                  className={`w-full px-3 py-3 rounded-lg text-left transition-all ${
+                  className={`w-full px-3 py-3 rounded-lg text-left transition-all group relative ${
                     currentConversationId === conv.id
                       ? 'bg-blue-600/20 border border-blue-500/30'
                       : 'bg-slate-800/50 hover:bg-slate-700/50 border border-white/5'
                   }`}
                 >
-                  <p className="text-sm text-slate-200 font-medium line-clamp-2 mb-1">
-                    {conv.preview}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {new Date(conv.updated_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
-                </button>
+                  <button
+                    onClick={() => switchConversation(conv.id)}
+                    className="w-full text-left pr-8"
+                  >
+                    <p className="text-sm text-slate-200 font-medium line-clamp-2 mb-1">
+                      {conv.preview}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {new Date(conv.updated_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteConversation(conv.id, e)}
+                    className="absolute top-2 right-2 p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200"
+                    title="Delete conversation"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ))
             )}
           </div>
