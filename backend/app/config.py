@@ -106,6 +106,7 @@ try:
     settings = Settings()
     print(f"DEBUG: JWT_SECRET loaded: {settings.JWT_SECRET_KEY[:5]}...")
     print(f"DEBUG: JWT_ALGORITHM: {settings.JWT_ALGORITHM}")
+    print(f"🤖 AI_MODEL configured: {settings.AI_MODEL}")
 except SettingsError as e:
     import sys
     print(f"❌ Configuration Error: {e}", file=sys.stderr)

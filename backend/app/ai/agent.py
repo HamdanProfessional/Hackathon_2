@@ -51,6 +51,7 @@ class AgentService:
             base_url=settings.AI_BASE_URL
         )
         self.model = settings.AI_MODEL
+        print(f"🤖 Agent initialized with model: {self.model}")  # Debug logging
 
     def _build_system_prompt(self, user_id: str) -> str:
         """
