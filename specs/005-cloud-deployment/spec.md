@@ -1,0 +1,408 @@
+# Feature Specification: Cloud Deployment with Event-Driven Architecture
+
+**Feature Branch**: `005-cloud-deployment`
+**Created**: 2025-12-23
+**Updated**: 2025-12-23
+**Status**: 📋 Planned
+**Input**: Phase V: Cloud Deployment with Event-Driven Architecture using Dapr, Kafka/Redpanda, and CI/CD automation
+
+---
+
+## 📋 Implementation Summary
+
+### 🎯 Goal
+Deploy the Todo application to a production cloud Kubernetes cluster with event-driven architecture using Dapr, Kafka/Redpanda, and CI/CD automation. Transform the monolithic architecture into microservices with event streaming.
+
+### ✅ Planned Features
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Cloud Kubernetes Deployment | P0 | 📋 Planned |
+| Dapr Integration | P0 | 📋 Planned |
+| Redpanda (Kafka) Cluster | P0 | 📋 Planned |
+| Recurring Tasks | P1 | 📋 Planned |
+| Task Due Dates | P1 | 📋 Planned |
+| Notification Service | P1 | 📋 Planned |
+| Event Publishing/Subscription | P0 | 📋 Planned |
+| CI/CD Pipeline | P1 | 📋 Planned |
+| Prometheus Monitoring | P2 | 📋 Planned |
+| Grafana Dashboards | P2 | 📋 Planned |
+| kubectl-ai Integration | P2 | 📋 Planned |
+| kagent Integration | P2 | 📋 Planned |
+
+---
+
+## User Scenarios & Testing
+
+### User Story 1 - Recurring Tasks
+
+Users can create tasks that repeat on a schedule (daily, weekly, monthly, yearly) without manually creating each occurrence.
+
+**Acceptance Scenarios**:
+
+1. **Given** user wants a daily reminder, **When** they create recurring task for "Take medication" with daily recurrence, **Then** system creates new task each day automatically
+2. **Given** user sets weekly team meeting, **When** they create recurring task for "Weekly Standup" every Monday, **Then** task appears every Monday at specified time
+3. **Given** user sets end date, **When** creating recurring task with end date, **Then** tasks stop creating after end date
+
+### User Story 2 - Task Due Dates
+
+Users can set due dates on tasks and receive notifications when tasks are due.
+
+**Acceptance Scenarios**:
+
+1. **Given** user creates task with due date, **When** task becomes due, **Then** user receives notification
+2. **Given** task is due within 24 hours, **When** checking dashboard, **Then** task is highlighted as due soon
+3. **Given** task is overdue, **When** viewing tasks, **Then** it shows as overdue
+
+### User Story 3 - Event-Driven Architecture
+
+Services communicate asynchronously via events, enabling loose coupling and scalability.
+
+**Acceptance Scenarios**:
+
+1. **Given** task is created, **When** creation event is published, **Then** notification service receives event
+2. **Given** task is completed, **When** completion event is published, **Then** analytics service can process it
+3. **Given** service crashes, **When** it restarts, **Then** it processes missed events from Kafka
+
+---
+
+## Technical Specification
+
+### Microservices Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Production Cloud Kubernetes                          │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                          Ingress Controller (NGINX)                    │  │
+│  │  ┌────────────────┐  ┌─────────────────┐  ┌──────────────────────┐   │  │
+│  │  │  Frontend SVC   │  │   Backend SVC    │  │  Notification SVC    │   │  │
+│  │  │  (LoadBalancer) │  │  (LoadBalancer)  │  │  (LoadBalancer)      │   │  │
+│  │  └────────┬───────┘  └────────┬────────┘  └──────────┬───────────┘   │  │
+│  │           │                    │                       │             │  │
+│  │  ┌────────▼────────┐  ┌───────▼──────────┐  ┌────────▼───────────┐  │  │
+│  │  │ Frontend Pod    │  │  Backend Pod     │  │  Notification Pod   │  │  │
+│  │  │ (Next.js 14)    │  │  (FastAPI)       │  │  (FastAPI Worker)   │  │  │
+│  │  │ + Dapr Sidecar  │  │  + Dapr Sidecar  │  │  + Dapr Sidecar     │  │  │
+│  │  │ Port: 3000      │  │  Port: 8000      │  │  Port: 8001         │  │  │
+│  │  └─────────────────┘  └──────────────────┘  └─────────────────────┘  │  │
+│  │                                                                        │  │
+│  │  ┌────────────────────────────────────────────────────────────────┐   │  │
+│  │  │              Dapr Components (Pub/Sub, State Store)              │   │  │
+│  │  │  ┌────────────────┐  ┌─────────────────┐  ┌──────────────────┐ │   │  │
+│  │  │  │   Redpanda     │  │   Redis         │  │   PostgreSQL     │ │   │  │
+│  │  │  │   Cluster      │  │   (State)       │  │   (External)     │ │   │  │
+│  │  │  └────────────────┘  └─────────────────┘  └──────────────────┘ │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Components
+
+#### 1. Frontend Microservice
+- **Image**: `todo-frontend:latest`
+- **Replicas**: 2-3 (HPA)
+- **Dapr Sidecar**: Enabled
+- **Port**: 3000
+
+#### 2. Backend Microservice (API Gateway)
+- **Image**: `todo-backend:latest`
+- **Replicas**: 2-3 (HPA)
+- **Dapr Sidecar**: Enabled
+- **Port**: 8000
+
+#### 3. Notification Microservice (New)
+- **Image**: `todo-notifications:latest`
+- **Replicas**: 1-2 (HPA)
+- **Dapr Sidecar**: Enabled
+- **Port**: 8001
+- **Purpose**: Process due date events and recurring tasks
+
+#### 4. Redpanda Cluster
+- **Replicas**: 3
+- **Topics**: task-created, task-updated, task-completed, task-due-soon, recurring-task-due
+- **Replication Factor**: 3
+
+#### 5. Dapr Components
+- **Pub/Sub**: Redpanda for event streaming
+- **State Store**: Redis for caching (optional)
+
+---
+
+## Data Model
+
+### New Tables
+
+#### RecurringTask Model
+```python
+class RecurringTask(SQLModel, table=True):
+    id: UUID
+    user_id: UUID  # FK to users
+    title: str
+    description: Optional[str]
+    priority: int  # 1=high, 2=medium, 3=low
+    recurrence_type: str  # daily, weekly, monthly, yearly
+    recurrence_interval: int  # Every N days/weeks/months
+    start_date: datetime
+    end_date: Optional[datetime]
+    last_created_at: Optional[datetime]
+    next_due_at: datetime
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+```
+
+#### Task Model (Updated)
+```python
+class Task(SQLModel, table=True):
+    # ... existing fields ...
+    due_date: Optional[datetime]  # NEW
+    notified: bool = False  # NEW
+    recurring_task_id: Optional[UUID]  # NEW - FK to recurring_tasks
+```
+
+#### TaskEventLog (New)
+```python
+class TaskEventLog(SQLModel, table=True):
+    id: UUID
+    task_id: UUID  # FK to tasks
+    event_type: str  # created, updated, completed, deleted, due
+    event_data: dict  # JSON
+    created_at: datetime
+```
+
+---
+
+## API Contract
+
+### Recurring Tasks Endpoints
+
+#### POST /api/recurring-tasks
+Create a new recurring task.
+
+**Request**:
+```json
+{
+  "title": "Weekly Team Meeting",
+  "description": "Standup with the team",
+  "priority": 2,
+  "recurrence_type": "weekly",
+  "recurrence_interval": 1,
+  "start_date": "2025-01-01T09:00:00Z",
+  "end_date": "2025-12-31T09:00:00Z"
+}
+```
+
+**Response**: 201 Created
+```json
+{
+  "id": "uuid",
+  "title": "Weekly Team Meeting",
+  "recurrence_type": "weekly",
+  "next_due_at": "2025-01-08T09:00:00Z",
+  "is_active": true
+}
+```
+
+#### GET /api/recurring-tasks
+List all recurring tasks for user.
+
+**Response**: 200 OK
+```json
+{
+  "items": [...],
+  "total": 5,
+  "page": 1,
+  "page_size": 20
+}
+```
+
+#### PUT /api/recurring-tasks/{id}
+Update recurring task.
+
+#### DELETE /api/recurring-tasks/{id}
+Delete recurring task.
+
+### Task Endpoints (Updated)
+
+#### POST /api/tasks
+Supports `due_date` field.
+
+**Request**:
+```json
+{
+  "title": "Complete report",
+  "due_date": "2025-01-15T17:00:00Z"
+}
+```
+
+---
+
+## Dapr Configuration
+
+### Pub/Sub Component
+
+```yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: todo-pubsub
+spec:
+  type: pubsub.redpanda
+  metadata:
+  - name: brokers
+    value: "redpanda-0.redpanda.default.svc.cluster.local:9092"
+  - name: allowedTopics
+    value: "task-created,task-updated,task-completed,task-due-soon,recurring-task-due"
+```
+
+### Event Topics
+
+| Topic | Purpose | Publisher | Subscriber |
+|-------|---------|-----------|------------|
+| task-created | New task created | Backend | Notification |
+| task-updated | Task modified | Backend | Analytics |
+| task-completed | Task done | Backend | Notification |
+| task-due-soon | Task due within 24h | Worker | Notification |
+| recurring-task-due | Recurring task due | Worker | Notification |
+
+---
+
+## CI/CD Pipeline
+
+### GitHub Actions Workflow
+
+```yaml
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-push:
+    # Build and push Docker images
+
+  deploy:
+    # Deploy to Kubernetes
+    # Run health checks
+```
+
+---
+
+## Dependencies
+
+### External Services
+- **Neon PostgreSQL**: External database (existing)
+- **Redpanda**: Event streaming (new)
+- **Redis**: State store (new, optional)
+
+### Tools Required
+- **kubectl**: 1.25+
+- **Helm**: 3.0+
+- **Dapr CLI**: 1.12+
+- **kubectl-ai**: Latest
+- **kagent**: Latest
+
+---
+
+## Non-Functional Requirements
+
+### Performance
+- **Event Latency**: <100ms
+- **Notification Delivery**: <5 seconds
+- **API Response**: <500ms
+
+### Scalability
+- **Throughput**: 1000 events/second
+- **Concurrent Users**: 1000+
+- **Horizontal Scaling**: HPA enabled
+
+### Reliability
+- **Event Delivery**: At-least-once
+- **Pod Replicas**: Minimum 2
+- **Multi-AZ**: Required
+
+### Security
+- **mTLS**: Dapr communication
+- **RBAC**: Kubernetes roles
+- **Secrets**: Encrypted at rest
+
+---
+
+## Validation Criteria
+
+### Database
+- [ ] Migration for recurring tasks applied
+- [ ] Migration for task due dates applied
+- [ ] Foreign keys correct
+
+### API Endpoints
+- [ ] POST /api/recurring-tasks works
+- [ ] GET /api/recurring-tasks works
+- [ ] PUT /api/recurring-tasks/{id} works
+- [ ] DELETE /api/recurring-tasks/{id} works
+- [ ] Task endpoints support due_date
+
+### Event Publishing
+- [ ] Events published on task creation
+- [ ] Events published on task update
+- [ ] Events published on task completion
+- [ ] Event payload correct
+
+### Event Subscription
+- [ ] Notification service subscribes
+- [ ] Events received and processed
+- [ ] Notifications sent for due tasks
+- [ ] Recurring tasks create occurrences
+
+### Cloud Deployment
+- [ ] Kubernetes cluster created
+- [ ] Dapr installed and running
+- [ ] Redpanda installed with 3 replicas
+- [ ] All services deployed
+- [ ] Services accessible via LoadBalancer
+
+### CI/CD
+- [ ] Pipeline runs on push
+- [ ] Images build and push
+- [ ] Automatic deployment works
+- [ ] Health checks pass
+
+### Monitoring
+- [ ] Prometheus scraping metrics
+- [ ] Grafana dashboards visible
+- [ ] Alert rules configured
+
+---
+
+## Success Metrics
+
+- All services running with 2+ replicas
+- Event latency <100ms
+- Notification delivery within 5 seconds
+- Zero data loss in event streaming
+- CI/CD deploys in <10 minutes
+- Uptime >99.9%
+
+---
+
+## Out of Scope
+
+- Real-time WebSocket notifications
+- Multi-tenant architecture
+- Service mesh (Istio, Linkerd)
+- Distributed tracing
+- Database sharding
+- Global multi-region deployment
+
+---
+
+## References
+
+- [Dapr Documentation](https://dapr.io/docs/)
+- [Redpanda Documentation](https://docs.redpanda.com/)
+- [DigitalOcean Kubernetes](https://docs.digitalocean.com/products/kubernetes/)
+- [Prometheus](https://prometheus.io/docs/)
+- [Grafana](https://grafana.com/docs/)
