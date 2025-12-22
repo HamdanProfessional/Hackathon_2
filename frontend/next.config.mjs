@@ -3,6 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   compress: true,
   poweredByHeader: false,
+  output: 'standalone', // Enable standalone output for Docker deployment
   experimental: {
     optimizePackageImports: ['lucide-react']
   },
