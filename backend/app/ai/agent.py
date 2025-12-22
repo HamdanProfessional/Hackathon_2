@@ -308,34 +308,43 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                         # Execute tool (inject user_id and db)
                         if function_name == "add_task":
                             result = await add_task(
+                                title=function_args.get("title"),
+                                description=function_args.get("description"),
+                                priority=function_args.get("priority"),
+                                due_date=function_args.get("due_date"),
                                 db=db,
-                                user_id=user_id,  # Injected from JWT
-                                **function_args
+                                user_id=user_id  # Injected from JWT
                             )
                         elif function_name == "list_tasks":
                             result = await list_tasks(
                                 db=db,
                                 user_id=user_id,  # Injected from JWT
-                                **function_args
+                                status=function_args.get("status"),
+                                priority=function_args.get("priority"),
+                                date_filter=function_args.get("date_filter")
                             )
                         elif function_name == "complete_task":
                             # complete_task has task_id as first parameter
                             result = await complete_task(
-                                **function_args,
+                                task_id=function_args.get("task_id"),
                                 db=db,
                                 user_id=user_id  # Injected from JWT
                             )
                         elif function_name == "update_task":
                             # update_task has task_id as first parameter
                             result = await update_task(
-                                **function_args,
+                                task_id=function_args.get("task_id"),
+                                title=function_args.get("title"),
+                                description=function_args.get("description"),
+                                priority=function_args.get("priority"),
+                                due_date=function_args.get("due_date"),
                                 db=db,
                                 user_id=user_id  # Injected from JWT
                             )
                         elif function_name == "delete_task":
                             # delete_task has task_id as first parameter
                             result = await delete_task(
-                                **function_args,
+                                task_id=function_args.get("task_id"),
                                 db=db,
                                 user_id=user_id  # Injected from JWT
                             )
