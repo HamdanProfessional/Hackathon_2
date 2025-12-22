@@ -2,7 +2,12 @@
   "env": {
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6"
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6",
+    "FRONTEND_URL": "https://frontend-l0e30jmlq-hamdanprofessionals-projects.vercel.app",
+    "BACKEND_URL": "https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app",
+    "AI_PROVIDER": "groq",
+    "AI_MODEL": "llama-3.1-8b-instant",
+    "PROJECT_STATUS": "production"
   },
   "permissions": {
     "allow": [

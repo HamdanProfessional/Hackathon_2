@@ -1,4 +1,4 @@
-import ChatInterface from '@/components/chat/chat-interface'
+import EnhancedChatInterface from '@/components/chat/enhanced-chat-interface'
 import ErrorBoundary from '@/components/chat/error-boundary'
 
 export default function ChatPage() {
@@ -21,7 +21,7 @@ export default function ChatPage() {
 
         <div className="flex-1 min-h-0">
           <ErrorBoundary>
-            <ChatInterface />
+            <EnhancedChatInterface />
           </ErrorBoundary>
         </div>
       </div>

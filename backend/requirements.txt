@@ -31,9 +31,10 @@ python-dotenv==1.0.0
 # Rate limiting
 slowapi==0.1.9
 
-# Phase III: AI Agent Integration (Google Gemini via OpenAI-compatible API)
+# Phase III: AI Agent Integration (Google Gemini + OpenAI)
 openai>=1.0.0
+google-generativeai>=0.8.0  # Native Gemini SDK for better support
 mcp>=1.0.0
-# Note: Using OpenAI client with Gemini's OpenAI-compatible endpoint for LLM access
-# The agent orchestration and conversation management will be implemented manually
-# using the OpenAI library since specialized SDKs are not yet available
+# Note: Supports both OpenAI and Google Gemini models
+# Using OpenAI client with Gemini's OpenAI-compatible endpoint for tool calling
+# Native Gemini SDK available as backup/alternative

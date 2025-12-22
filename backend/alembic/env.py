@@ -32,11 +32,15 @@ db_url = settings.DATABASE_URL
 if db_url.startswith("postgresql://"):
     # asyncpg doesn't accept sslmode in URL, so we'll handle it in the engine config
     base_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
-    # Remove sslmode from URL as asyncpg handles it differently
-    if "?sslmode=require" in base_url:
-        base_url = base_url.replace("?sslmode=require", "")
-    elif "&sslmode=require" in base_url:
-        base_url = base_url.replace("&sslmode=require", "")
+    # Remove query parameters that asyncpg doesn't support
+    # Split URL at '?' to handle query string
+    if "?" in base_url:
+        base_url = base_url.split("?")[0] + "?ssl=require"
+elif db_url.startswith("postgresql+asyncpg://"):
+    base_url = db_url
+else:
+    base_url = db_url
+
 config.set_main_option("sqlalchemy.url", base_url)
 
 # Interpret the config file for Python logging.

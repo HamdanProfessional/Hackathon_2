@@ -1,10 +1,32 @@
-# The Evolution of Todo - Phase II (Completed)
+# Evolution of TODO - AI-Powered Task Management
 
-A modern, full-stack web application showcasing the evolution from a simple CLI todo list to a feature-rich task management system with authentication, persistence, and the "Nebula 2025" design aesthetic.
+A modern, full-stack web application showcasing the evolution from a simple CLI todo list to a feature-rich AI-powered task management system with the "Nebula 2025" design aesthetic.
 
-> **Status**: Phase II is complete. See [PHASE_2_REPORT.md](./PHASE_2_REPORT.md) for detailed completion summary.
+> **Current Status**: Phase III - Production Deployed
 >
-> **Current Phase**: [Phase III - AI-Powered Chatbot](./specs/003-ai-chatbot/) - In Progress
+> **Live Application**: [Frontend](https://frontend-l0e30jmlq-hamdanprofessionals-projects.vercel.app) | [Backend API](https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app/docs)
+
+## Features
+
+### Core Task Management
+- 🔐 JWT-based user authentication
+- 📝 Full CRUD operations for tasks
+- 🔍 Real-time search and filtering
+- ⚡ Optimistic updates for instant feedback
+- 📱 Responsive design (mobile-first)
+
+### AI-Powered Assistant (Phase III)
+- 🤖 **AI Chat Interface** - Conversational task management
+- 🛠️ **MCP Tools** - AI can perform actions on your behalf:
+  - Add tasks
+  - List and filter tasks
+  - Complete tasks
+  - Update task details
+  - Delete tasks
+- 💬 **Conversation History** - Persistent chat history
+- 🗑️ **Delete Conversations** - Manage your chat history
+- 🧠 **Stateless Agent** - Scalable architecture with database-backed context
+- 🎨 **Dashboard Widget** - Floating AI assistant on dashboard
 
 ## Tech Stack
 
@@ -23,16 +45,15 @@ A modern, full-stack web application showcasing the evolution from a simple CLI 
 - **Neon PostgreSQL** for serverless database
 - **JWT** for stateless authentication
 - **Alembic** for database migrations
+- **Groq API** for AI (llama-3.1-8b-instant model)
 
-## Features
+## Production URLs
 
-- 🔐 User authentication with JWT
-- 📝 Full CRUD operations for tasks
-- 🎨 "Nebula 2025" dark mode UI with glassmorphism
-- 📱 Responsive design (mobile-first)
-- 🔍 Real-time search and filtering
-- ⚡ Optimistic updates for instant feedback
-- 🐳 Docker support for local development
+| Service | URL | Docs |
+|---------|-----|------|
+| Frontend | https://frontend-l0e30jmlq-hamdanprofessionals-projects.vercel.app | - |
+| Backend | https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app | /docs |
+| API Docs | https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app/docs | Swagger |
 
 ## Quick Start
 
@@ -45,39 +66,26 @@ cd hackathon-2
 
 ### 2. Environment Configuration
 
-Copy the environment template and fill in your values:
-
+**Backend (.env)**:
 ```bash
-cp .env.example .env
+DATABASE_URL=postgresql://...
+JWT_SECRET=your-secret-key
+GROQ_API_KEY=your-groq-key  # Optional - has fallbacks
 ```
 
-Required environment variables:
-
-- `DATABASE_URL` - Get from your Neon console (Connection string)
-- `JWT_SECRET` - Generate a secure random string: `openssl rand -base64 32`
-- `BETTER_AUTH_SECRET` - Use the same value as JWT_SECRET
-- `BETTER_AUTH_URL` - Your app URL (http://localhost:3000 for development)
-- `NEXT_PUBLIC_API_URL` - Backend API URL (http://localhost:8000 for development)
+**Frontend (.env.local)**:
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC BETTER_AUTH_URL=http://localhost:3000
+```
 
 ### 3. Start Development
-
-Using Docker Compose (recommended):
-
-```bash
-docker-compose up --build
-```
-
-The application will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
-
-### Manual Setup (Alternative)
 
 **Backend:**
 ```bash
 cd backend
 pip install -r requirements.txt
+alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -87,6 +95,11 @@ cd frontend
 npm install
 npm run dev
 ```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/docs
 
 ## Project Structure
 
@@ -98,24 +111,73 @@ npm run dev
 │   └── types/        # TypeScript types
 ├── backend/           # FastAPI application
 │   ├── app/          # Application modules
+│   │   ├── ai/       # AI agent and MCP tools
+│   │   ├── api/      # API endpoints
+│   │   ├── config.py # Configuration
+│   │   └── models/   # SQLModel database models
 │   ├── alembic/      # Database migrations
-│   └── tests/        # Test files
+│   └── requirements.txt
+├── tests/            # Shared test files
 ├── specs/            # Feature specifications
-├── history/          # Prompt history and ADRs
-├── docker-compose.yml
+├── .claude/          # Claude AI configuration
 └── README.md
 ```
 
-## Development Workflow
+## API Documentation
 
-This project follows **Spec-Driven Development (SDD)**:
+### Authentication
+All API endpoints (except register and login) require JWT authentication:
+```
+Authorization: Bearer <jwt_token>
+```
 
-1. **Specify** - Define feature requirements
-2. **Plan** - Architecture and design decisions
-3. **Tasks** - Break down into atomic tasks
-4. **Implement** - Code following the specifications
+### Key Endpoints
 
-All documentation is kept in the `specs/` directory with full traceability from user stories to implementation.
+#### Authentication
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - Login user
+
+#### Tasks
+- `GET /api/tasks` - Get all tasks (with filtering/sorting)
+- `POST /api/tasks` - Create a new task
+- `GET /api/tasks/{task_id}` - Get a specific task
+- `PUT /api/tasks/{task_id}` - Update a task
+- `PATCH /api/tasks/{task_id}/complete` - Toggle task completion
+- `DELETE /api/tasks/{task_id}` - Delete a task
+
+#### AI Chat (Phase III)
+- `GET /api/conversations` - List all conversations
+- `POST /api/conversations` - Create new conversation
+- `GET /api/conversations/{id}/messages` - Get conversation history
+- `POST /api/chat` - Send message to AI assistant
+- `DELETE /api/conversations/{id}` - Delete conversation
+
+### MCP Tools Available
+
+The AI assistant can perform these actions on your behalf:
+
+| Tool | Description |
+|------|-------------|
+| `add_task` | Create a new task |
+| `list_tasks` | List all user tasks |
+| `complete_task` | Mark task as complete |
+| `update_task` | Update task details |
+| `delete_task` | Delete a task |
+
+## AI Configuration
+
+The application uses **Groq API** as the primary AI provider:
+
+- **Model**: llama-3.1-8b-instant
+- **Free Tier**: 14,400 requests/day
+- **Fallback Chain**: Groq → Gemini → OpenAI → Grok
+
+To configure your own AI provider, set environment variables in `backend/.env`:
+```bash
+GROQ_API_KEY=gsk_...        # Primary (recommended)
+GEMINI_API_KEY=...          # Fallback 1
+OPENAI_API_KEY=...          # Fallback 2
+```
 
 ## The "Nebula 2025" Design System
 
@@ -126,128 +188,16 @@ A dark-mode first aesthetic featuring:
 - **Effects**: Glassmorphism with backdrop blur
 - **Animations**: Smooth transitions with Framer Motion
 
-## API Documentation
+## Development Workflow
 
-### Base URL
-- Development: `http://localhost:8000`
-- Production: `https://your-app-domain.com`
+This project follows **Spec-Driven Development (SDD)**:
 
-### Authentication
-All API endpoints (except register and login) require JWT authentication in the header:
-```
-Authorization: Bearer <jwt_token>
-```
+1. **Specify** - Define feature requirements in `specs/`
+2. **Plan** - Architecture and design decisions
+3. **Tasks** - Break down into atomic tasks
+4. **Implement** - Code following the specifications
 
-### API Endpoints
-
-#### Authentication
-- `POST /api/auth/register` - Register a new user
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "password123"
-  }
-  ```
-  Response: `201 Created` with JWT token
-
-- `POST /api/auth/login` - Login user
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "password123"
-  }
-  ```
-  Response: `200 OK` with JWT token
-
-#### Tasks
-- `GET /api/tasks` - Get all tasks for authenticated user
-  - Query Parameters:
-    - `search`: Filter by title or description
-    - `status`: Filter by status ("completed" or "pending")
-    - `priority`: Filter by priority ("low", "medium", or "high")
-    - `sort_by`: Sort field ("created_at", "due_date", "priority", "title")
-    - `sort_order`: Sort direction ("asc" or "desc")
-    - `limit`: Number of tasks to return (default: 20, max: 100)
-    - `offset`: Number of tasks to skip (for pagination)
-
-- `POST /api/tasks` - Create a new task
-  ```json
-  {
-    "title": "Task title",
-    "description": "Optional description",
-    "priority": "low|medium|high",
-    "due_date": "2024-12-31"
-  }
-  ```
-  Response: `201 Created`
-
-- `GET /api/tasks/{task_id}` - Get a specific task
-  Response: `200 OK`
-
-- `PUT /api/tasks/{task_id}` - Update a task
-  ```json
-  {
-    "title": "Updated title",
-    "description": "Updated description",
-    "priority": "low|medium|high",
-    "due_date": "2024-12-31"
-  }
-  ```
-  Response: `200 OK`
-
-- `PATCH /api/tasks/{task_id}/complete` - Toggle task completion
-  Response: `200 OK`
-
-- `DELETE /api/tasks/{task_id}` - Delete a task
-  Response: `204 No Content`
-
-#### User Management
-- `GET /api/users/me` - Get current user profile
-  Response: `200 OK` with user data and preferences
-
-- `PATCH /api/users/me/preferences` - Update user preferences
-  ```json
-  {
-    "preferences": {
-      "showCompleted": true,
-      "compactView": false
-    }
-  }
-  ```
-  Response: `200 OK`
-
-- `GET /api/users/me/export` - Export all user data
-  Response: JSON file download with all tasks and preferences
-
-#### Chat (Phase III)
-- `POST /api/chat` - Send message to AI assistant
-  ```json
-  {
-    "message": "Help me organize my tasks"
-  }
-  ```
-  Response: `200 OK` with AI response
-
-### Response Format
-All responses follow consistent format:
-- Success: Returns data with appropriate HTTP status
-- Error: Returns JSON with error details
-  ```json
-  {
-    "detail": "Error message description"
-  }
-  ```
-
-### Rate Limiting
-- Authentication endpoints: 5 requests per minute
-- Other endpoints: No current limit (may be added for production)
-
-### CORS Configuration
-The API supports CORS for these origins in development:
-- `http://localhost:3000`
-- `http://127.0.0.1:3000`
-
-For interactive API documentation, visit `/docs` when the backend is running.
+See `specs/003-ai-chatbot/spec.md` for Phase III implementation details.
 
 ## Testing
 
@@ -259,6 +209,20 @@ pytest
 # Frontend tests
 cd frontend
 npm test
+```
+
+## Deployment
+
+Both frontend and backend are deployed on Vercel:
+
+```bash
+# Deploy backend
+cd backend
+vercel --prod
+
+# Deploy frontend
+cd frontend
+vercel --prod
 ```
 
 ## Contributing
@@ -275,4 +239,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Phase II of Evolution of Todo - PIAIC Hackathon II**
+**Phase III of Evolution of TODO - PIAIC Hackathon II**

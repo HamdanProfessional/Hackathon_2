@@ -165,6 +165,19 @@ async def health_check():
     """Health check endpoint for monitoring."""
     return {"status": "healthy"}
 
+@app.get("/debug/ai-config", tags=["Debug"])
+async def debug_ai_config():
+    """Debug endpoint to check AI configuration."""
+    import os
+    return {
+        "groq_key_set": bool(os.getenv("GROQ_API_KEY")),
+        "gemini_key_set": bool(os.getenv("GEMINI_API_KEY")),
+        "openai_key_set": bool(os.getenv("OPENAI_API_KEY")),
+        "configured_model": settings.AI_MODEL,
+        "configured_base_url": settings.AI_BASE_URL,
+        "ai_api_key_first_chars": settings.AI_API_KEY[:10] if settings.AI_API_KEY else "NOT SET"
+    }
+
 @app.get("/test-db", tags=["Test"])
 async def test_database():
     """Test database connection."""

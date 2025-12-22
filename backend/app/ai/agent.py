@@ -175,6 +175,13 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
         import asyncio
         from datetime import datetime
 
+        print(f"\n[AGENT START] run_agent called")
+        print(f"[AGENT START] User ID: {user_id}")
+        print(f"[AGENT START] Message: {user_message[:50]}...")
+        print(f"[AGENT START] History length: {len(history)}")
+        print(f"[AGENT START] Client model: {self.model}")
+        print(f"[AGENT START] Client base URL: {self.client.base_url}")
+
         # Input validation
         if not user_message or not user_message.strip():
             return {
@@ -232,11 +239,18 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                 # Enhanced error handling with categorization
                 error_info = self._categorize_error(e)
 
-                # Log error with context
+                # Log error with FULL DETAILS for debugging
                 import traceback
-                print(f"[AGENT ERROR] {error_info['type']}: {error_info['message']}")
+                print(f"\n{'='*80}")
+                print(f"[AGENT ERROR] Type: {type(e).__name__}")
+                print(f"[AGENT ERROR] Error String: {str(e)}")
+                print(f"[AGENT ERROR] Categorized As: {error_info['type']}")
+                print(f"[AGENT ERROR] Message: {error_info['message']}")
                 print(f"[AGENT CONTEXT] User: {user_id}, Iteration: {iteration}")
-                print(f"[AGENT TRACEBACK] {traceback.format_exc()}")
+                print(f"[AGENT CONTEXT] Model: {self.model}, Base URL: {self.client.base_url}")
+                print(f"[AGENT TRACEBACK]:")
+                print(traceback.format_exc())
+                print(f"{'='*80}\n")
 
                 # Determine fallback strategy
                 if error_info['type'] == 'rate_limit':
@@ -425,56 +439,71 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
 
         for attempt in range(max_retries + 1):
             try:
-                return await self.client.chat.completions.create(
+                print(f"[API CALL] Attempt {attempt + 1}/{max_retries + 1} - Model: {self.model}, Base URL: {self.client.base_url}")
+                response = await self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     tools=tools,
                     tool_choice="auto"
                 )
+                print(f"[API SUCCESS] Response received successfully")
+                return response
             except Exception as e:
+                print(f"[API RETRY] Attempt {attempt + 1} failed: {type(e).__name__}: {str(e)}")
                 if attempt == max_retries:
                     raise  # Re-raise if we've exhausted retries
 
                 # Wait before retry (exponential backoff)
                 wait_time = 2 ** attempt
+                print(f"[API RETRY] Waiting {wait_time}s before retry...")
                 await asyncio.sleep(wait_time)
 
     def _categorize_error(self, error: Exception) -> Dict[str, Any]:
         """
         Categorize errors for better handling and user messaging.
+
+        IMPORTANT: Be specific in error detection to avoid false positives.
         """
         error_type = type(error).__name__
-        error_message = str(error)
+        error_message = str(error).lower()
 
-        if "RateLimitError" in error_type or "rate limit" in error_message.lower():
+        # Check for specific OpenAI/Groq error types first (most reliable)
+        if "RateLimitError" in error_type or "429" in str(error):
             return {
                 "type": "rate_limit",
                 "message": "API rate limit exceeded",
-                "retryable": True
+                "retryable": True,
+                "original_error": str(error)
             }
-        elif "APIConnectionError" in error_type or "connection" in error_message.lower():
+        elif "APIConnectionError" in error_type or "ConnectionError" in error_type:
             return {
                 "type": "connection",
                 "message": "API connection failed",
-                "retryable": True
+                "retryable": True,
+                "original_error": str(error)
             }
-        elif "TimeoutError" in error_type or "timeout" in error_message.lower():
+        elif "TimeoutError" in error_type or "timeout" in error_type.lower():
             return {
                 "type": "timeout",
                 "message": "API request timeout",
-                "retryable": True
+                "retryable": True,
+                "original_error": str(error)
             }
-        elif "AuthenticationError" in error_type or "auth" in error_message.lower():
+        elif "AuthenticationError" in error_type or "401" in str(error) or "403" in str(error):
             return {
                 "type": "authentication",
                 "message": "API authentication failed",
-                "retryable": False
+                "retryable": False,
+                "original_error": str(error)
             }
+        # REMOVED: Vague string matching like "rate limit" in error_message
+        # This was causing false positives
         else:
             return {
                 "type": "unknown",
-                "message": error_message,
-                "retryable": False
+                "message": str(error),
+                "retryable": False,
+                "original_error": str(error)
             }
 
     async def _graceful_degradation(

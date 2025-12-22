@@ -101,3 +101,11 @@ htmlcov/
 *.swo
 .cache/
 .parcel-cache/
+nul
+
+# Test files (keep test/ directory but ignore individual test runs)
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/

@@ -11,15 +11,22 @@ from app.database import Base
 
 
 class User(Base):
-    """User model for authentication and data ownership."""
+    """User model for authentication and data ownership.
+
+    Note: This model has two password fields for historical reasons:
+    - hashed_password: Primary field used for authentication (NOT NULL)
+    - password_hash: Legacy field from schema migration, kept for compatibility (nullable)
+
+    When creating users, only set hashed_password. The password_hash field can be NULL.
+    """
 
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
-    name = Column(String(255), nullable=False)  # Required by database schema
-    password_hash = Column(String(255), nullable=True)  # Legacy field for compatibility
+    hashed_password = Column(String(255), nullable=False)  # Primary password field
+    name = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)  # Legacy field, can be NULL
     preferences = Column(JSON, nullable=True)  # Store user preferences as JSON
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

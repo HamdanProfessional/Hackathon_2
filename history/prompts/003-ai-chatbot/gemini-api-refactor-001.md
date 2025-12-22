@@ -47,7 +47,7 @@ INSTRUCTIONS:
    - Add/Update settings:
      - `AI_API_KEY`: Load from `GEMINI_API_KEY` (or `GOOGLE_API_KEY`).
      - `AI_BASE_URL`: Set default to `"https://generativelanguage.googleapis.com/v1beta/openai/"`.
-     - `AI_MODEL`: Set default to `"gemini-2.0-flash-exp"` (or `"gemini-1.5-flash"`).
+     - `AI_MODEL`: Set default to `"gemini-2.5-flash"`.
    - Update `.env.example` to reflect these new variables.
 
 2. **Refactor `backend/app/ai/agent.py`**:
