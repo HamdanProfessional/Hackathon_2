@@ -303,13 +303,25 @@ async def list_tasks(
         date_range_start = query_params.pop("due_date_start", None)
         date_range_end = query_params.pop("due_date_end", None)
 
-        # Fetch tasks from database
-        tasks = await task_crud.get_tasks_by_user(
-            db=db,
-            user_id=user_id,  # Already a UUID string
-            limit=100,  # Get more tasks for filtering
-            **query_params
-        )
+        # Fetch tasks from database - try without relationship loading first
+        try:
+            tasks = await task_crud.get_tasks_by_user(
+                db=db,
+                user_id=user_id,  # Already a UUID string
+                limit=100,  # Get more tasks for filtering
+                **query_params
+            )
+        except Exception as e:
+            # If the above fails, try a simpler query without any filters
+            print(f"Error fetching tasks with filters: {e}")
+            try:
+                from sqlalchemy import select
+                simple_query = select(Task).where(Task.user_id == user_id).limit(100)
+                result = await db.execute(simple_query)
+                tasks = result.scalars().all()
+            except Exception as e2:
+                print(f"Error with simple query too: {e2}")
+                raise e2
 
         # Apply date filtering if needed (post-fetch)
         if date_filter:
@@ -332,16 +344,47 @@ async def list_tasks(
         # Format tasks for agent
         task_list = []
         for task in tasks:
-            task_info = {
-                "id": task.id,
-                "title": task.title,
-                "description": task.description,
-                "priority": task.priority.value,
-                "completed": task.completed,
-                "due_date": task.due_date.isoformat() if task.due_date else None,
-                "created_at": task.created_at.isoformat() if hasattr(task, 'created_at') else None
-            }
-            task_list.append(task_info)
+            try:
+                # Get priority name from priority_obj relationship with safe access
+                priority_name = "medium"  # Default fallback
+
+                # Try to access priority safely
+                if hasattr(task, 'priority_id') and task.priority_id:
+                    # Use direct priority_id mapping (most reliable)
+                    priority_mapping = {1: "low", 2: "medium", 3: "high"}
+                    priority_name = priority_mapping.get(task.priority_id, "medium")
+
+                # Handle task creation date safely
+                created_at_str = None
+                if hasattr(task, 'created_at') and task.created_at:
+                    try:
+                        created_at_str = task.created_at.isoformat()
+                    except Exception:
+                        pass
+
+                # Handle due date safely
+                due_date_str = None
+                if hasattr(task, 'due_date') and task.due_date:
+                    try:
+                        due_date_str = task.due_date.isoformat()
+                    except Exception:
+                        pass
+
+                task_info = {
+                    "id": task.id,
+                    "title": task.title,
+                    "description": task.description,
+                    "priority": priority_name,
+                    "completed": task.completed,
+                    "due_date": due_date_str,
+                    "created_at": created_at_str
+                }
+                task_list.append(task_info)
+
+            except Exception as task_error:
+                # If individual task fails, log it and continue with next task
+                print(f"Error formatting task {task.id if hasattr(task, 'id') else 'unknown'}: {task_error}")
+                continue
 
         # Return formatted response
         return {
