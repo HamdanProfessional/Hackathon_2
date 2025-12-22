@@ -1,5 +1,6 @@
 """Authentication Pydantic schemas."""
 from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, Dict, Any
 
 
 class LoginRequest(BaseModel):
@@ -15,7 +16,8 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """Schema for token response after login/register."""
+    """Schema for token response after login/register (Better Auth compatible)."""
 
     access_token: str = Field(..., description="JWT access token")
     token_type: str = Field(default="bearer", description="Token type")
+    user: Optional[Dict[str, Any]] = Field(None, description="User information for Better Auth")

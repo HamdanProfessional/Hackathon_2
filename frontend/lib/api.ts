@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { toast } from 'sonner';
+import { getSession } from '@/lib/auth-client';
 
 // API base URL - hardcoded for production
 const API_BASE_URL = 'https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app';
@@ -120,17 +121,23 @@ class ApiClient {
     );
   }
 
-  // Token management
+  // Token management - Integrated with Better Auth
   private getToken(): string | null {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('todo_access_token');
+      // Check for Better Auth token first, then fallback to legacy token
+      return (
+        localStorage.getItem('access_token') ||  // Better Auth token
+        localStorage.getItem('todo_access_token')     // Legacy token
+      );
     }
     return null;
   }
 
   private setToken(token: string): void {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('todo_access_token', token);
+      // Store in both keys for compatibility
+      localStorage.setItem('access_token', token);     // Better Auth
+      localStorage.setItem('todo_access_token', token);  // Legacy
       // Also set cookie for middleware
       document.cookie = `todo_access_token=${token}; path=/; max-age=86400; sameSite=strict`;
     }
@@ -139,6 +146,7 @@ class ApiClient {
   private clearToken(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('todo_access_token');
+      localStorage.removeItem('access_token');  // Better Auth
       // Also remove cookie
       document.cookie = 'todo_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
@@ -161,6 +169,25 @@ class ApiClient {
     this.clearToken();
     if (typeof window !== 'undefined') {
       window.location.href = '/login';
+    }
+  }
+
+  // Better Auth integration: Get current user from session
+  async getCurrentUserFromAuth(): Promise<User | null> {
+    try {
+      const session = await getSession();
+      if (session.data?.session?.user) {
+        // Convert Better Auth user format to our User type
+        const authUser = session.data.session.user;
+        return {
+          id: parseInt(authUser.id) || 0,
+          email: authUser.email,
+          created_at: authUser.createdAt || new Date().toISOString()
+        };
+      }
+      return null;
+    } catch {
+      return null;
     }
   }
 

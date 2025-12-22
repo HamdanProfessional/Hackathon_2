@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
 
+    # Better Auth Integration
+    # For Better Auth JWT plugin compatibility, BETTER_AUTH_SECRET should match JWT_SECRET_KEY
+    # We use a computed property instead of a separate field to avoid circular dependency
+
+    @property
+    def BETTER_AUTH_SECRET(self) -> str:
+        """Better Auth JWT secret - uses same value as JWT_SECRET_KEY for compatibility."""
+        return self.JWT_SECRET_KEY
+
     # CORS
     CORS_ORIGINS: str = Field(
         default="http://localhost:3000,https://frontend-hamdanprofessionals-projects.vercel.app,https://backend-hamdanprofessionals-projects.vercel.app",
