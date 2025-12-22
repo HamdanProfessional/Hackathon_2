@@ -153,38 +153,55 @@ class ConversationManager:
         else:
             user_uuid = user_id
 
+        # Optimized query: Get conversations with their first message in a single query
+        from sqlalchemy import func, and_
+        from sqlalchemy.orm import aliased
+
+        # Subquery to get the first message ID for each conversation
+        first_msg_subq = (
+            select(
+                Message.conversation_id,
+                func.min(Message.created_at).label('first_created_at')
+            )
+            .where(Message.role == "user")
+            .group_by(Message.conversation_id)
+            .subquery()
+        )
+
+        # Main query with left join to get conversation and its first message
         result = await self.db.execute(
-            select(Conversation)
+            select(Conversation, Message.content)
+            .outerjoin(
+                first_msg_subq,
+                Conversation.id == first_msg_subq.c.conversation_id
+            )
+            .outerjoin(
+                Message,
+                and_(
+                    Message.conversation_id == first_msg_subq.c.conversation_id,
+                    Message.created_at == first_msg_subq.c.first_created_at,
+                    Message.role == "user"
+                )
+            )
             .where(Conversation.user_id == user_uuid)
             .order_by(desc(Conversation.updated_at))
             .limit(limit)
         )
-        conversations = result.scalars().all()
 
-        # Get first message for each conversation as title
+        rows = result.all()
+
+        # Build the response list
         conversations_with_titles = []
-        for conv in conversations:
-            # Get the first user message as a title
-            title_result = await self.db.execute(
-                select(Message)
-                .where(
-                    Message.conversation_id == conv.id,
-                    Message.role == "user"
-                )
-                .order_by(Message.created_at)
-                .limit(1)
-            )
-            first_message = title_result.scalar_one_or_none()
-
+        for conv, first_message_content in rows:
             title = "New Chat"
-            if first_message:
+            if first_message_content:
                 # Truncate long titles
-                title = first_message.content[:50]
-                if len(first_message.content) > 50:
+                title = first_message_content[:50]
+                if len(first_message_content) > 50:
                     title += "..."
 
             conversations_with_titles.append({
-                "id": conv.id,
+                "id": str(conv.id),
                 "created_at": conv.created_at.isoformat(),
                 "updated_at": conv.updated_at.isoformat(),
                 "title": title

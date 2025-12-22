@@ -860,6 +860,120 @@ async def check_conversation_schema():
         }
 
 
+@app.get("/check-messages-columns", tags=["Migration"])
+async def check_messages_columns():
+    """Check what columns exist in the messages table."""
+    try:
+        from app.database import engine
+        from sqlalchemy import text
+
+        async with engine.begin() as conn:
+            result = await conn.execute(text("""
+                SELECT column_name, data_type, character_maximum_length
+                FROM information_schema.columns
+                WHERE table_name = 'messages'
+                ORDER BY ordinal_position
+            """))
+            columns = [
+                {
+                    "name": row[0],
+                    "type": row[1],
+                    "max_length": row[2]
+                }
+                for row in result.fetchall()
+            ]
+
+            has_tool_call_id = any(col["name"] == "tool_call_id" for col in columns)
+            has_name = any(col["name"] == "name" for col in columns)
+
+            return {
+                "status": "success",
+                "columns": columns,
+                "has_tool_call_id": has_tool_call_id,
+                "has_name": has_name,
+                "ready_for_chat": has_tool_call_id and has_name
+            }
+
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
+@app.post("/add-tool-columns", tags=["Migration"])
+async def add_tool_columns():
+    """Add missing tool_call_id and name columns to messages table."""
+    try:
+        from app.database import engine
+        from sqlalchemy import text
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.INFO)
+
+        async with engine.begin() as conn:
+            # Check if columns exist
+            result = await conn.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'messages'
+                AND column_name IN ('tool_call_id', 'name')
+            """))
+            existing_columns = [row[0] for row in result.fetchall()]
+
+            columns_added = []
+
+            # Add tool_call_id if it doesn't exist
+            if 'tool_call_id' not in existing_columns:
+                await conn.execute(text("""
+                    ALTER TABLE messages
+                    ADD COLUMN tool_call_id VARCHAR(100)
+                """))
+                columns_added.append('tool_call_id')
+                logger.info("Added column 'tool_call_id' to messages table")
+            else:
+                logger.info("Column 'tool_call_id' already exists")
+
+            # Add name if it doesn't exist
+            if 'name' not in existing_columns:
+                await conn.execute(text("""
+                    ALTER TABLE messages
+                    ADD COLUMN name VARCHAR(100)
+                """))
+                columns_added.append('name')
+                logger.info("Added column 'name' to messages table")
+            else:
+                logger.info("Column 'name' already exists")
+
+            await conn.commit()
+
+            if columns_added:
+                return {
+                    "status": "success",
+                    "message": f"Added columns: {', '.join(columns_added)}",
+                    "columns_added": columns_added
+                }
+            else:
+                return {
+                    "status": "success",
+                    "message": "All columns already exist",
+                    "columns_added": []
+                }
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Failed to add columns: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 @app.post("/test-conversation-creation", tags=["Test"])
 async def test_conversation_creation():
     """Test creating a conversation to verify UUID schema works."""

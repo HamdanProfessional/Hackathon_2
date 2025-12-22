@@ -45,13 +45,13 @@ class Settings(BaseSettings):
 
         # Auto-switch to Gemini if OpenAI key not available
         if not self.AI_API_KEY:
-            print("⚠️  No API key found - AI features will be disabled")
+            print("[WARNING] No API key found - AI features will be disabled")
         elif os.getenv("OPENAI_API_KEY"):
-            print("✅ Using OpenAI API")
+            print("[OK] Using OpenAI API")
             self.AI_BASE_URL = "https://api.openai.com/v1"
             self.AI_MODEL = "gpt-4o-mini"
         elif os.getenv("GEMINI_API_KEY"):
-            print("✅ Using Gemini API as fallback")
+            print("[OK] Using Gemini API as fallback")
             self.AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
             self.AI_MODEL = "gemini-2.5-flash"
 
@@ -118,10 +118,10 @@ try:
     settings = Settings()
     print(f"DEBUG: JWT_SECRET loaded: {settings.JWT_SECRET_KEY[:5]}...")
     print(f"DEBUG: JWT_ALGORITHM: {settings.JWT_ALGORITHM}")
-    print(f"🤖 AI_MODEL configured: {settings.AI_MODEL}")
+    print(f"[AI] AI_MODEL configured: {settings.AI_MODEL}")
 except SettingsError as e:
     import sys
-    print(f"❌ Configuration Error: {e}", file=sys.stderr)
+    print(f"[ERROR] Configuration Error: {e}", file=sys.stderr)
     print("\nPlease check your .env file and ensure all required environment variables are set.", file=sys.stderr)
     print("\nRequired variables:", file=sys.stderr)
     print("- DATABASE_URL: PostgreSQL database connection string", file=sys.stderr)
