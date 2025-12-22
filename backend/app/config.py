@@ -40,20 +40,29 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Load AI API key from environment variables (prioritize OpenAI)
-        self.AI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+        # Load AI API key from environment variables (priority: Groq -> Gemini -> OpenAI -> Grok)
+        self.AI_API_KEY = os.getenv("GROQ_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GROK_API_KEY") or ""
 
-        # Auto-switch to Gemini if OpenAI key not available
+        # Auto-detect and configure AI provider
         if not self.AI_API_KEY:
             print("[WARNING] No API key found - AI features will be disabled")
-        elif os.getenv("OPENAI_API_KEY"):
-            print("[OK] Using OpenAI API")
-            self.AI_BASE_URL = "https://api.openai.com/v1"
-            self.AI_MODEL = "gpt-4o-mini"
+        elif os.getenv("GROQ_API_KEY"):
+            print("[OK] Using Groq API (FREE - 14,400 req/day)")
+            self.AI_BASE_URL = "https://api.groq.com/openai/v1"
+            # Try llama-3.1-8b-instant which is faster and more reliable
+            self.AI_MODEL = "llama-3.1-8b-instant"
         elif os.getenv("GEMINI_API_KEY"):
-            print("[OK] Using Gemini API as fallback")
+            print("[OK] Using Gemini API (FREE - 1,500 req/day)")
             self.AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
             self.AI_MODEL = "gemini-2.5-flash"
+        elif os.getenv("OPENAI_API_KEY"):
+            print("[OK] Using OpenAI API (Pay-as-you-go)")
+            self.AI_BASE_URL = "https://api.openai.com/v1"
+            self.AI_MODEL = "gpt-4o-mini"
+        elif os.getenv("GROK_API_KEY"):
+            print("[OK] Using Grok API (xAI - Requires credits)")
+            self.AI_BASE_URL = "https://api.x.ai/v1"
+            self.AI_MODEL = "grok-beta"
 
         # Override DATABASE_URL if it's the default local one
         if self.DATABASE_URL == "postgresql+asyncpg://postgres:2763@localhost:5432/postgres":
