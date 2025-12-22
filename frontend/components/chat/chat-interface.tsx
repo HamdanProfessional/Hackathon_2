@@ -28,11 +28,13 @@ import { useSpeechRecognition, useSpeechSynthesis } from "@/hooks/use-speech";
 interface ChatInterfaceProps {
   conversationId?: string;
   onConversationCreated?: (id: string) => void;
+  showHeader?: boolean; // New prop to control header visibility
 }
 
 export default function ChatInterface({
   conversationId,
   onConversationCreated,
+  showHeader = true, // Default to true for backwards compatibility
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -451,7 +453,8 @@ export default function ChatInterface({
 
   return (
     <div className="relative flex flex-col h-full bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
-      {/* Enhanced Header with improved design */}
+      {/* Enhanced Header with improved design - only show if showHeader is true */}
+      {showHeader && (
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-violet-600/20 to-purple-600/20 border-b border-zinc-800/50 backdrop-blur-sm relative overflow-hidden">
         {/* Animated background gradient */}
         <div className="absolute inset-0 bg-gradient-to-r from-violet-600/5 to-purple-600/5 animate-pulse"></div>
@@ -520,6 +523,7 @@ export default function ChatInterface({
           </button>
         </div>
       </div>
+      )}
 
       {/* Conversation History Sidebar */}
       {showHistory && (

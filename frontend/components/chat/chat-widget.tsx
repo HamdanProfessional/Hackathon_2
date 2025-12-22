@@ -177,6 +177,7 @@ export default function ChatWidget() {
               <ChatInterface
                 conversationId={conversationId}
                 onConversationCreated={setConversationId}
+                showHeader={false}
               />
             </div>
           </div>
