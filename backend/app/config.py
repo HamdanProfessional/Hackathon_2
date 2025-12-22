@@ -30,18 +30,30 @@ class Settings(BaseSettings):
     APP_NAME: str = "Todo CRUD API"
     DEBUG: bool = True
 
-    # Phase III: AI Agent Configuration (Google Gemini)
-    # We'll load this from GEMINI_API_KEY or GOOGLE_API_KEY in __init__
-    AI_API_KEY: str = Field(default="", description="Google Gemini API key for AI agent")
-    AI_BASE_URL: str = Field(default="https://generativelanguage.googleapis.com/v1beta/openai/", description="Base URL for AI API")
-    # Use model name that works with OpenAI-compatible endpoint
-    AI_MODEL: str = "gemini-2.5-flash"  # Google Gemini 2.5 Flash
+    # Phase III: AI Agent Configuration (OpenAI primary, Gemini backup)
+    # We'll load this from OPENAI_API_KEY first, then GEMINI_API_KEY as fallback
+    AI_API_KEY: str = Field(default="", description="OpenAI or Google Gemini API key for AI agent")
+    AI_BASE_URL: str = Field(default="https://api.openai.com/v1", description="Base URL for AI API")
+    # Use OpenAI model as primary (more reliable)
+    AI_MODEL: str = "gpt-4o-mini"  # OpenAI GPT-4o Mini (affordable and fast)
     MAX_TOKENS_PER_DAY: int = 50000  # Rate limiting
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Load AI API key from environment variables
-        self.AI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+        # Load AI API key from environment variables (prioritize OpenAI)
+        self.AI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+
+        # Auto-switch to Gemini if OpenAI key not available
+        if not self.AI_API_KEY:
+            print("⚠️  No API key found - AI features will be disabled")
+        elif os.getenv("OPENAI_API_KEY"):
+            print("✅ Using OpenAI API")
+            self.AI_BASE_URL = "https://api.openai.com/v1"
+            self.AI_MODEL = "gpt-4o-mini"
+        elif os.getenv("GEMINI_API_KEY"):
+            print("✅ Using Gemini API as fallback")
+            self.AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+            self.AI_MODEL = "gemini-2.5-flash"
 
         # Override DATABASE_URL if it's the default local one
         if self.DATABASE_URL == "postgresql+asyncpg://postgres:2763@localhost:5432/postgres":
