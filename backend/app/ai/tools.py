@@ -19,9 +19,9 @@ from app.models.task import Priority
 
 # Store database session and user_id for tool execution
 _db_session: Optional[AsyncSession] = None
-_user_id: Optional[int] = None
+_user_id: Optional[str] = None
 
-def set_tool_context(db: AsyncSession, user_id: int):
+def set_tool_context(db: AsyncSession, user_id: str):
     """Set the database session and user_id for tool execution."""
     global _db_session, _user_id
     _db_session = db
@@ -75,7 +75,7 @@ async def add_task(
     description: Optional[str] = None,
     priority: Optional[str] = None,
     due_date: Optional[str] = None,
-    user_id: Optional[int] = None,  # This will be injected by the agent service
+    user_id: Optional[str] = None,  # This will be injected by the agent service (UUID string)
     db: Optional[AsyncSession] = None  # Optional for direct calls from agent
 ) -> Dict[str, Any]:
     """
@@ -89,7 +89,7 @@ async def add_task(
         priority: Priority level (low, medium, high) - default: medium
         due_date: Optional due date in YYYY-MM-DD format
         user_id: Internal user ID (automatically injected)
-        db: Optional database session (for direct calls from agent)
+        db: Database session (provided by agent)
 
     Returns:
         Dictionary with task creation result including task details
@@ -101,7 +101,23 @@ async def add_task(
             priority="high"
         )
     """
+    # Use global context if parameters not provided (for MCP compatibility)
+    global _db_session, _user_id
+    if db is None:
+        db = _db_session
+    if user_id is None:
+        user_id = _user_id
+
+    if not db or not user_id:
+        return {
+            "status": "error",
+            "message": "Database session and user_id are required"
+        }
+
     try:
+        # user_id is already a UUID string from the JWT token
+        user_uuid = user_id
+
         # Parse priority
         # Map priority string to priority_id
         priority_mapping = {
@@ -109,9 +125,10 @@ async def add_task(
             "medium": 2,
             "high": 3
         }
-        priority_id = priority_mapping.get(priority.lower(), 2)  # Default to Medium (ID=2)
-        if priority.lower() not in priority_mapping:
-            priority_id = 2
+        # Default to Medium (ID=2) if priority is None or invalid
+        priority_id = 2
+        if priority and priority.lower() in priority_mapping:
+            priority_id = priority_mapping[priority.lower()]
 
         # Parse due date
         due_date_obj = None
@@ -135,15 +152,20 @@ async def add_task(
         task = await task_crud.create_task(
             db=db,
             task_data=task_data,
-            user_id=str(user_id)
+            user_id=user_uuid
         )
+
+        # Get priority name from priority_obj
+        priority_name = "medium"
+        if hasattr(task, 'priority_obj') and task.priority_obj:
+            priority_name = task.priority_obj.name
 
         # Return success response for agent
         return {
             "status": "success",
             "task_id": task.id,
             "title": task.title,
-            "priority": task.priority.value,
+            "priority": priority_name,
             "message": f"Task '{task.title}' created successfully!"
         }
 
@@ -187,8 +209,8 @@ LIST_TASKS_TOOL_SCHEMA = {
 
 
 async def list_tasks(
-    db: AsyncSession,
-    user_id: int,
+    db: Optional[AsyncSession] = None,
+    user_id: Optional[str] = None,  # Changed from int to str (UUID)
     status: Optional[str] = None,
     priority: Optional[str] = None,
     date_filter: Optional[str] = None
@@ -200,7 +222,7 @@ async def list_tasks(
     The agent cannot specify user_id - it's injected by the endpoint.
 
     Args:
-        db: Database session
+        db: Database session (provided by agent)
         user_id: Authenticated user ID (injected, not from agent)
         status: Filter by status - "all", "pending", "completed"
         priority: Filter by priority - "low", "medium", "high"
@@ -218,6 +240,21 @@ async def list_tasks(
             date_filter="today"
         )
     """
+    # Use global context if parameters not provided (for MCP compatibility)
+    global _db_session, _user_id
+    if db is None:
+        db = _db_session
+    if user_id is None:
+        user_id = _user_id
+
+    if not db or not user_id:
+        return {
+            "status": "error",
+            "message": "Database session and user_id are required",
+            "count": 0,
+            "tasks": []
+        }
+
     try:
         from datetime import date, datetime, timedelta
 
@@ -228,9 +265,16 @@ async def list_tasks(
         if status and status != "all":
             query_params["status"] = status
 
-        # Priority filter
+        # Priority filter - convert string to priority_id
         if priority:
-            query_params["priority"] = priority.lower()
+            priority_mapping = {
+                "low": 1,
+                "medium": 2,
+                "high": 3
+            }
+            priority_id = priority_mapping.get(priority.lower())
+            if priority_id:
+                query_params["priority"] = priority_id
 
         # Date filter logic
         if date_filter:
@@ -262,7 +306,7 @@ async def list_tasks(
         # Fetch tasks from database
         tasks = await task_crud.get_tasks_by_user(
             db=db,
-            user_id=user_id,
+            user_id=user_id,  # Already a UUID string
             limit=100,  # Get more tasks for filtering
             **query_params
         )
@@ -342,9 +386,9 @@ COMPLETE_TASK_TOOL_SCHEMA = {
 
 
 async def complete_task(
-    db: AsyncSession,
-    user_id: int,
-    task_id: int
+    task_id: int,
+    db: Optional[AsyncSession] = None,
+    user_id: Optional[str] = None  # UUID string
 ) -> Dict[str, Any]:
     """
     Tool function: Mark a task as complete.
@@ -353,20 +397,33 @@ async def complete_task(
     The agent cannot specify user_id - it's injected by the endpoint.
 
     Args:
-        db: Database session
-        user_id: Authenticated user ID (injected, not from agent)
         task_id: ID of the task to complete (from agent)
+        db: Database session (provided by agent)
+        user_id: Authenticated user ID (injected, not from agent)
 
     Returns:
         Dictionary with completion result
 
     Example:
         result = await complete_task(
+            task_id=42,
             db=session,
-            user_id=current_user.id,  # Injected from JWT
-            task_id=42
+            user_id=current_user.id  # Injected from JWT
         )
     """
+    # Use global context if parameters not provided (for MCP compatibility)
+    global _db_session, _user_id
+    if db is None:
+        db = _db_session
+    if user_id is None:
+        user_id = _user_id
+
+    if not db or not user_id:
+        return {
+            "status": "error",
+            "message": "Database session and user_id are required"
+        }
+
     try:
         # Verify task exists and belongs to user
         task = await task_crud.get_task_by_id(
@@ -452,13 +509,13 @@ UPDATE_TASK_TOOL_SCHEMA = {
 
 
 async def update_task(
-    db: AsyncSession,
-    user_id: int,
     task_id: int,
     title: Optional[str] = None,
     description: Optional[str] = None,
     priority: Optional[str] = None,
-    due_date: Optional[str] = None
+    due_date: Optional[str] = None,
+    db: Optional[AsyncSession] = None,
+    user_id: Optional[str] = None  # UUID string
 ) -> Dict[str, Any]:
     """
     Tool function: Update task details.
@@ -467,26 +524,39 @@ async def update_task(
     The agent cannot specify user_id - it's injected by the endpoint.
 
     Args:
-        db: Database session
-        user_id: Authenticated user ID (injected, not from agent)
         task_id: ID of the task to update (from agent)
         title: New title (optional, from agent)
         description: New description (optional, from agent)
         priority: New priority level (optional, from agent)
         due_date: New due date string (optional, from agent)
+        db: Database session (provided by agent)
+        user_id: Authenticated user ID (injected, not from agent)
 
     Returns:
         Dictionary with update result
 
     Example:
         result = await update_task(
-            db=session,
-            user_id=current_user.id,  # Injected from JWT
             task_id=42,
             title="Buy Groceries",
-            due_date="2025-12-20"
+            due_date="2025-12-20",
+            db=session,
+            user_id=current_user.id  # Injected from JWT
         )
     """
+    # Use global context if parameters not provided (for MCP compatibility)
+    global _db_session, _user_id
+    if db is None:
+        db = _db_session
+    if user_id is None:
+        user_id = _user_id
+
+    if not db or not user_id:
+        return {
+            "status": "error",
+            "message": "Database session and user_id are required"
+        }
+
     try:
         # Verify task exists and belongs to user
         task = await task_crud.get_task_by_id(
@@ -610,9 +680,9 @@ DELETE_TASK_TOOL_SCHEMA = {
 
 
 async def delete_task(
-    db: AsyncSession,
-    user_id: int,
-    task_id: int
+    task_id: int,
+    db: Optional[AsyncSession] = None,
+    user_id: Optional[str] = None  # UUID string
 ) -> Dict[str, Any]:
     """
     Tool function: Delete a task permanently.
@@ -624,20 +694,33 @@ async def delete_task(
     before calling this function.
 
     Args:
-        db: Database session
-        user_id: Authenticated user ID (injected, not from agent)
         task_id: ID of the task to delete (from agent)
+        db: Database session (provided by agent)
+        user_id: Authenticated user ID (injected, not from agent)
 
     Returns:
         Dictionary with deletion result
 
     Example:
         result = await delete_task(
+            task_id=42,
             db=session,
-            user_id=current_user.id,  # Injected from JWT
-            task_id=42
+            user_id=current_user.id  # Injected from JWT
         )
     """
+    # Use global context if parameters not provided (for MCP compatibility)
+    global _db_session, _user_id
+    if db is None:
+        db = _db_session
+    if user_id is None:
+        user_id = _user_id
+
+    if not db or not user_id:
+        return {
+            "status": "error",
+            "message": "Database session and user_id are required"
+        }
+
     try:
         # Verify task exists and belongs to user
         task = await task_crud.get_task_by_id(

@@ -35,16 +35,21 @@ class ConversationManager:
         """
         self.db = db
 
-    async def create_conversation(self, user_id: UUID) -> UUID:
+    async def create_conversation(self, user_id: str) -> UUID:
         """
         Create a new conversation for a user.
 
         Args:
-            user_id: The user's UUID
+            user_id: The user's UUID (as string)
 
         Returns:
             The UUID of the new conversation
         """
+        # Convert string to UUID if needed
+        if isinstance(user_id, str):
+            from uuid import UUID
+            user_id = UUID(user_id)
+
         conversation = Conversation(user_id=user_id)
         self.db.add(conversation)
         await self.db.flush()  # Get the ID without committing
@@ -53,7 +58,7 @@ class ConversationManager:
 
     async def get_history(
         self,
-        conversation_id: UUID,
+        conversation_id: str,  # Accept string UUID
         limit: int = 50
     ) -> List[Dict[str, str]]:
         """
@@ -66,6 +71,11 @@ class ConversationManager:
         Returns:
             List of messages in format [{"role": "user|assistant", "content": "..."}]
         """
+        # Convert string to UUID if needed
+        if isinstance(conversation_id, str):
+            from uuid import UUID
+            conversation_id = UUID(conversation_id)
+
         # Query messages for this conversation
         result = await self.db.execute(
             select(Message)
@@ -83,7 +93,7 @@ class ConversationManager:
 
     async def save_message(
         self,
-        conversation_id: UUID,
+        conversation_id: str,  # Accept string UUID
         role: str,
         content: str
     ) -> None:
@@ -95,8 +105,15 @@ class ConversationManager:
             role: Either "user" or "assistant"
             content: The message content
         """
+        # Convert string to UUID if needed
+        if isinstance(conversation_id, str):
+            from uuid import UUID
+            conversation_uuid = UUID(conversation_id)
+        else:
+            conversation_uuid = conversation_id
+
         message = Message(
-            conversation_id=conversation_id,
+            conversation_id=conversation_uuid,
             role=role,
             content=content
         )
@@ -104,7 +121,7 @@ class ConversationManager:
 
         # Update the conversation's updated_at timestamp
         conversation_result = await self.db.execute(
-            select(Conversation).where(Conversation.id == conversation_id)
+            select(Conversation).where(Conversation.id == conversation_uuid)
         )
         conversation = conversation_result.scalar_one_or_none()
 
@@ -116,7 +133,7 @@ class ConversationManager:
 
     async def get_user_conversations(
         self,
-        user_id: UUID,
+        user_id: str,  # Accept string UUID
         limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
@@ -129,9 +146,16 @@ class ConversationManager:
         Returns:
             List of conversations with metadata
         """
+        # Convert string to UUID if needed
+        if isinstance(user_id, str):
+            from uuid import UUID
+            user_uuid = UUID(user_id)
+        else:
+            user_uuid = user_id
+
         result = await self.db.execute(
             select(Conversation)
-            .where(Conversation.user_id == user_id)
+            .where(Conversation.user_id == user_uuid)
             .order_by(desc(Conversation.updated_at))
             .limit(limit)
         )
@@ -170,8 +194,8 @@ class ConversationManager:
 
     async def verify_conversation_ownership(
         self,
-        conversation_id: UUID,
-        user_id: UUID
+        conversation_id: str,  # Accept string UUID
+        user_id: str  # Accept string UUID
     ) -> bool:
         """
         Verify that a user owns a conversation.
@@ -183,19 +207,32 @@ class ConversationManager:
         Returns:
             True if the user owns the conversation, False otherwise
         """
+        # Convert strings to UUIDs if needed
+        from uuid import UUID
+
+        if isinstance(conversation_id, str):
+            conversation_uuid = UUID(conversation_id)
+        else:
+            conversation_uuid = conversation_id
+
+        if isinstance(user_id, str):
+            user_uuid = UUID(user_id)
+        else:
+            user_uuid = user_id
+
         result = await self.db.execute(
             select(Conversation)
             .where(
-                Conversation.id == conversation_id,
-                Conversation.user_id == user_id
+                Conversation.id == conversation_uuid,
+                Conversation.user_id == user_uuid
             )
         )
         return result.scalar_one_or_none() is not None
 
     async def delete_conversation(
         self,
-        conversation_id: UUID,
-        user_id: UUID
+        conversation_id: str,  # Accept string UUID
+        user_id: str  # Accept string UUID
     ) -> bool:
         """
         Delete a conversation and all its messages.
@@ -207,12 +244,25 @@ class ConversationManager:
         Returns:
             True if deleted successfully, False if not found or unauthorized
         """
+        # Convert strings to UUIDs if needed
+        from uuid import UUID
+
+        if isinstance(conversation_id, str):
+            conversation_uuid = UUID(conversation_id)
+        else:
+            conversation_uuid = conversation_id
+
+        if isinstance(user_id, str):
+            user_uuid = UUID(user_id)
+        else:
+            user_uuid = user_id
+
         # Verify ownership
         result = await self.db.execute(
             select(Conversation)
             .where(
-                Conversation.id == conversation_id,
-                Conversation.user_id == user_id
+                Conversation.id == conversation_uuid,
+                Conversation.user_id == user_uuid
             )
         )
         conversation = result.scalar_one_or_none()

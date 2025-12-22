@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 import time
+import sys
 from collections import defaultdict
 
 from app.database import get_db
@@ -50,7 +51,7 @@ RATE_LIMIT_WINDOW = 60  # 60 seconds
 RATE_LIMIT_MAX_REQUESTS = 10  # 10 requests per minute
 
 
-def check_rate_limit(user_id: int):
+def check_rate_limit(user_id: str):
     """
     Check if user has exceeded rate limit.
 
@@ -127,7 +128,8 @@ async def send_chat_message(
         )
 
     # Step 1: Check rate limit (T050)
-    check_rate_limit(current_user.id)
+    # current_user.id is a UUID object, convert to string for rate limiting
+    check_rate_limit(str(current_user.id))
 
     # Step 2: Verify conversation ownership if conversation_id provided (skip for mock AI)
     if request.conversation_id and not USE_MOCK_AI:
@@ -156,7 +158,7 @@ async def send_chat_message(
 
         result = await agent.process_message(
             db=db,
-            user_id=current_user.id,
+            user_id=str(current_user.id),  # Convert UUID to string
             user_message=request.message,
             conversation_id=request.conversation_id
         )
@@ -201,7 +203,7 @@ async def get_conversations(
 
     conversation_manager = ConversationManager(db)
     conversations = await conversation_manager.get_user_conversations(
-        user_id=current_user.id,
+        user_id=current_user.id,  # Pass UUID object directly
         limit=50
     )
     return conversations
@@ -305,7 +307,7 @@ async def delete_conversation(
     conversation_manager = ConversationManager(db)
     deleted = await conversation_manager.delete_conversation(
         conversation_id=conversation_id,
-        user_id=current_user.id
+        user_id=current_user.id  # Pass UUID object directly
     )
 
     if not deleted:

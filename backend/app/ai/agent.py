@@ -22,8 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import httpx
 
-from app.ai.tools import add_task, list_tasks, complete_task, update_task, delete_task, AVAILABLE_TOOLS
-from app.ai.mcp_tools import mcp, set_mcp_context, clear_mcp_context
+from app.ai.tools import add_task, list_tasks, complete_task, update_task, delete_task, AVAILABLE_TOOLS, set_tool_context, clear_tool_context
 from app.ai.conversation_manager import ConversationManager
 from app.config import settings
 
@@ -53,12 +52,12 @@ class AgentService:
         )
         self.model = settings.AI_MODEL
 
-    def _build_system_prompt(self, user_id: int) -> str:
+    def _build_system_prompt(self, user_id: str) -> str:
         """
         Build system prompt for the agent.
 
         Args:
-            user_id: Current user ID (included for context)
+            user_id: Current user ID (UUID string, included for context)
 
         Returns:
             System prompt string
@@ -142,7 +141,7 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
     async def run_agent(
         self,
         db: AsyncSession,
-        user_id: int,
+        user_id: str,  # Changed from int to str to handle UUID
         user_message: str,
         history: List[Dict[str, str]]
     ) -> Dict[str, Any]:
@@ -291,8 +290,8 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                     ]
                 })
 
-                # Set MCP context for tool execution
-                set_mcp_context(db, user_id)
+                # Set tool context for tool execution
+                set_tool_context(db, user_id)
 
                 try:
                     # Execute each tool call
@@ -320,22 +319,25 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                                 **function_args
                             )
                         elif function_name == "complete_task":
+                            # complete_task has task_id as first parameter
                             result = await complete_task(
+                                **function_args,
                                 db=db,
-                                user_id=user_id,  # Injected from JWT
-                                **function_args
+                                user_id=user_id  # Injected from JWT
                             )
                         elif function_name == "update_task":
+                            # update_task has task_id as first parameter
                             result = await update_task(
+                                **function_args,
                                 db=db,
-                                user_id=user_id,  # Injected from JWT
-                                **function_args
+                                user_id=user_id  # Injected from JWT
                             )
                         elif function_name == "delete_task":
+                            # delete_task has task_id as first parameter
                             result = await delete_task(
+                                **function_args,
                                 db=db,
-                                user_id=user_id,  # Injected from JWT
-                                **function_args
+                                user_id=user_id  # Injected from JWT
                             )
                         else:
                             result = {"status": "error", "message": f"Unknown tool: {function_name}"}
@@ -349,8 +351,8 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                     })
 
                 finally:
-                    # Clear MCP context
-                    clear_mcp_context()
+                    # Clear tool context
+                    clear_tool_context()
 
                 # Continue loop to get final response
                 continue
@@ -358,8 +360,8 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                 # No tool calls, we have the final response
                 final_response = assistant_message.content or ""
 
-                # Clear MCP context
-                clear_mcp_context()
+                # Clear tool context
+                clear_tool_context()
 
                 # Return result
                 return {
@@ -508,7 +510,7 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
     async def process_message(
         self,
         db: AsyncSession,
-        user_id: int,
+        user_id: str,  # Changed from int to str to handle UUID
         user_message: str,
         conversation_id: Optional[int] = None
     ) -> Dict[str, Any]:
@@ -538,13 +540,8 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
 
         # Create new conversation if needed
         if not conversation_id:
-            from app.models.user import User
-            # Get user UUID from user_id (int)
-            user_result = await db.execute(select(User).where(User.id == user_id))
-            user = user_result.scalar_one_or_none()
-            if not user:
-                raise ValueError("User not found")
-            conversation_id = await conversation_manager.create_conversation(user.id)
+            # user_id is already a UUID string, no need to convert
+            conversation_id = await conversation_manager.create_conversation(user_id)
 
         # Load conversation history
         history = await conversation_manager.get_history(conversation_id)

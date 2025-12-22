@@ -42,7 +42,7 @@ async def create_task(db: AsyncSession, task_data: TaskCreate, user_id: str) -> 
 
 async def get_tasks_by_user(
     db: AsyncSession,
-    user_id: str,
+    user_id: str,  # UUID string
     search: Optional[str] = None,
     status: Optional[str] = None,
     priority: Optional[int] = None,

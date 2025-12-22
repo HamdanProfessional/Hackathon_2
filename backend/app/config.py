@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     AI_API_KEY: str = Field(default="", description="Google Gemini API key for AI agent")
     AI_BASE_URL: str = Field(default="https://generativelanguage.googleapis.com/v1beta/openai/", description="Base URL for AI API")
     # Use model name that works with OpenAI-compatible endpoint
-    AI_MODEL: str = "gemini-2.0-flash-exp"  # Google Gemini 2.0 Flash Experimental
+    AI_MODEL: str = "gemini-2.5-flash"  # Google Gemini 2.0 Flash Experimental
     MAX_TOKENS_PER_DAY: int = 50000  # Rate limiting
 
     def __init__(self, **kwargs):
