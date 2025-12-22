@@ -1,0 +1,22 @@
+[project]
+name = "todo-console"
+version = "1.0.0"
+description = "Evolution of TODO - Phase I: In-Memory Console Application"
+authors = [
+    {name = "Hackathon Participant"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "rich>=13.7.0",
+]
+
+[project.scripts]
+todo = "src.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = []

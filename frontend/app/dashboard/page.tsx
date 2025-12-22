@@ -17,6 +17,7 @@ import { Plus, CheckCircle2, Circle, ListTodo, Download, ClipboardList } from "l
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SettingsModal } from "@/components/settings/settings-modal";
 import ChatWidget from "@/components/chat/chat-widget";
+import LanguageSwitcher from "@/components/language-switcher";
 
 export default function DashboardPage() {
   console.log("Dashboard Rendered");
@@ -267,6 +268,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
+            <LanguageSwitcher />
             <SettingsModal />
             <Button
               onClick={() => {
