@@ -39,6 +39,60 @@ Agent skills are specialized, reusable capabilities that Claude Code can invoke 
 
 ---
 
+### Deployment
+
+#### `deploy-vercel/SKILL.md` ✨ NEW
+**Purpose**: Deploy Next.js and FastAPI apps to Vercel
+
+**Usage**:
+```
+/skill deploy-vercel app=frontend
+/skill deploy-vercel app=backend
+```
+
+**What it does**:
+- Automated deployment with `vercel --prod`
+- Environment variable configuration
+- Build optimization
+- Health check verification
+- Post-deployment validation
+
+**Scripts**:
+- `scripts/deploy-frontend.sh` - Frontend deployment
+- `scripts/deploy-backend.sh` - Backend deployment
+
+**References**:
+- `references/vercel-issues.md` - Common issues and solutions
+
+**Phases**: II+
+
+---
+
+### Testing
+
+#### `console-app-tester/SKILL.md` ✨ NEW
+**Purpose**: Test Python console applications
+
+**Usage**:
+```
+/skill console-app-tester path=src
+```
+
+**What it does**:
+- Validates file structure
+- Checks model implementation
+- Verifies CLI commands
+- Tests input validation
+- Runs automated tests
+
+**Scripts**:
+- `scripts/validate_spec.py` - Spec validation
+- `scripts/test_interactive.sh` - Interactive test runner
+
+**Phases**: I
+
+---
+
 ### Infrastructure
 
 #### `infrastructure/SKILL.md`
@@ -360,7 +414,7 @@ User Request
 
 **Last Updated**: 2025-12-22
 **Project**: Evolution of TODO - PIAIC Hackathon II
-**Total Skills**: 40+
+**Total Skills**: 42+
 
 ---
 
