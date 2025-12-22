@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { toast } from 'sonner';
 
 // API base URL - hardcoded for production
-const API_BASE_URL = 'https://backend-k4t2o36f2-hamdanprofessionals-projects.vercel.app';
+const API_BASE_URL = 'https://backend-dcjzw1gov-hamdanprofessionals-projects.vercel.app';
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Type definitions
