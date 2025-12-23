@@ -13,7 +13,7 @@ import TaskCard from "@/components/task/task-card";
 import TaskForm from "@/components/task/task-form";
 import { SearchBar } from "@/components/search/search-bar";
 import { TaskToolbar } from "@/components/search/task-toolbar";
-import { Plus, CheckCircle2, Circle, ListTodo, Download, ClipboardList } from "lucide-react";
+import { Plus, CheckCircle2, Circle, ListTodo, Download, ClipboardList, LayoutGrid, List } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SettingsModal } from "@/components/settings/settings-modal";
 import ChatWidget from "@/components/chat/chat-widget";
@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [submittingTask, setSubmittingTask] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Extract primitive values from searchParams to prevent infinite loops
   const searchQuery = searchParams.get("search");
@@ -60,11 +61,25 @@ export default function DashboardPage() {
 
   // Load user data on mount (after auth guard has validated token)
   useEffect(() => {
-    // Get user from token
-    const currentUser = apiClient.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-    }
+    const loadUserData = async () => {
+      // Get user from token
+      const currentUser = apiClient.getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+
+        // Load user preferences including viewMode
+        try {
+          const prefs = await apiClient.getUserPreferences();
+          if (prefs?.preferences?.viewMode) {
+            setViewMode(prefs.preferences.viewMode);
+          }
+        } catch (error) {
+          console.error("Failed to load preferences:", error);
+        }
+      }
+    };
+
+    loadUserData();
   }, []);
 
   // Memoized loadTasks function to prevent infinite loops
@@ -96,6 +111,19 @@ export default function DashboardPage() {
   const handleLogout = () => {
     apiClient.logout();
     toast.info("Logged out successfully");
+  };
+
+  // Handle view mode change
+  const handleViewModeChange = async (newViewMode: 'grid' | 'list') => {
+    setViewMode(newViewMode);
+    // Also update in user preferences
+    try {
+      const prefs = await apiClient.getUserPreferences();
+      const updatedPrefs = { ...(prefs?.preferences || {}), viewMode: newViewMode };
+      await apiClient.updateUserPreferences(updatedPrefs);
+    } catch (error) {
+      console.error("Failed to update view mode preference:", error);
+    }
   };
 
   // Handle export to JSON
@@ -153,6 +181,8 @@ export default function DashboardPage() {
     description?: string;
     priority: "low" | "medium" | "high";
     due_date?: string;
+    is_recurring?: boolean;
+    recurrence_pattern?: "daily" | "weekly" | "monthly" | "yearly";
   }) => {
     setSubmittingTask(true);
     try {
@@ -173,6 +203,8 @@ export default function DashboardPage() {
     description?: string;
     priority: "low" | "medium" | "high";
     due_date?: string;
+    is_recurring?: boolean;
+    recurrence_pattern?: "daily" | "weekly" | "monthly" | "yearly";
   }) => {
     if (!editingTask) return;
 
@@ -319,7 +351,7 @@ export default function DashboardPage() {
                   <SearchBar placeholder="Search tasks by title or description..." />
                 </div>
               </div>
-              <TaskToolbar />
+              <TaskToolbar viewMode={viewMode} onViewModeChange={handleViewModeChange} />
             </div>
 
             {/* Stats Cards */}
@@ -410,7 +442,10 @@ export default function DashboardPage() {
                 <AnimatePresence>
                   <motion.div
                     layout
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                    className={viewMode === 'grid'
+                      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                      : "flex flex-col gap-3"
+                    }
                   >
                     {tasks.map((task) => (
                       <motion.div
@@ -425,6 +460,7 @@ export default function DashboardPage() {
                       >
                         <TaskCard
                           task={task}
+                          viewMode={viewMode}
                           isCompleting={deletingTaskId === task.id}
                           onEdit={(task) => {
                             setEditingTask(task);

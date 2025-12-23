@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, CalendarDays, X } from "lucide-react";
+import { Calendar, CalendarDays, X, Repeat2 } from "lucide-react";
 import { Task } from "@/types";
+import type { RecurrencePattern } from "@/types";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ErrorMessage } from "@/components/ui/error-message";
 
@@ -22,6 +24,8 @@ interface TaskFormProps {
     description?: string;
     priority: "low" | "medium" | "high";
     due_date?: string;
+    is_recurring?: boolean;
+    recurrence_pattern?: RecurrencePattern;
   }) => Promise<void>;
   isSubmitting?: boolean;
 }
@@ -31,6 +35,8 @@ const defaultFormData = {
   description: "",
   priority: "medium" as "low" | "medium" | "high",
   due_date: "",
+  is_recurring: false,
+  recurrence_pattern: undefined as RecurrencePattern | undefined,
 };
 
 export default function TaskForm({
@@ -45,6 +51,8 @@ export default function TaskForm({
     description: string;
     priority: "low" | "medium" | "high";
     due_date: string;
+    is_recurring: boolean;
+    recurrence_pattern: RecurrencePattern | undefined;
   }>(defaultFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -56,6 +64,8 @@ export default function TaskForm({
         description: task.description || "",
         priority: (task.priority as "low" | "medium" | "high") || "medium",
         due_date: task.due_date || "",
+        is_recurring: task.is_recurring || false,
+        recurrence_pattern: task.recurrence_pattern,
       });
     } else {
       setFormData(defaultFormData);
@@ -104,6 +114,8 @@ export default function TaskForm({
       ...formData,
       description: formData.description || "",
       due_date: formData.due_date || undefined,
+      is_recurring: formData.is_recurring,
+      recurrence_pattern: formData.is_recurring ? formData.recurrence_pattern : undefined,
     };
 
     await onSubmit(submitData);
@@ -112,7 +124,7 @@ export default function TaskForm({
 
   const handleInputChange = (
     field: keyof typeof formData,
-    value: string
+    value: string | boolean
   ) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
@@ -224,6 +236,57 @@ export default function TaskForm({
               />
               <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 pointer-events-none" />
             </div>
+          </div>
+
+          {/* Recurring Task */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Repeat2 className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="is_recurring" className="text-sm font-medium text-foreground">
+                    Make this a recurring task
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground ml-6">
+                  Tasks will repeat automatically based on the selected pattern
+                </p>
+              </div>
+              <Switch
+                id="is_recurring"
+                checked={formData.is_recurring}
+                onCheckedChange={(checked) => handleInputChange("is_recurring", checked)}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            {formData.is_recurring && (
+              <div className="space-y-2 ml-6">
+                <Label htmlFor="recurrence_pattern" className="text-sm font-medium text-foreground">
+                  Recurrence Pattern
+                </Label>
+                <Select
+                  value={formData.recurrence_pattern}
+                  onValueChange={(value: RecurrencePattern) =>
+                    handleInputChange("recurrence_pattern", value)
+                  }
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700 focus:border-primary">
+                    <SelectValue placeholder="Select frequency" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700">
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.recurrence_pattern && (
+                  <p className="text-xs text-destructive">{errors.recurrence_pattern}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Actions */}

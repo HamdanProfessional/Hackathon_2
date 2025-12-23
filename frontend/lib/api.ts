@@ -13,6 +13,13 @@ export interface User {
   created_at: string;
 }
 
+export interface UserPreferences {
+  showCompleted?: boolean;
+  compactView?: boolean;
+  darkMode?: boolean;
+  viewMode?: 'grid' | 'list';
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -23,6 +30,8 @@ export interface Task {
   created_at: string;
   updated_at: string;
   user_id: number;
+  is_recurring?: boolean;
+  recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly';
 }
 
 export interface CreateTaskRequest {
@@ -30,6 +39,8 @@ export interface CreateTaskRequest {
   description?: string | null;
   priority?: 'low' | 'medium' | 'high';
   due_date?: string | null;
+  is_recurring?: boolean;
+  recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly';
 }
 
 export interface UpdateTaskRequest {
@@ -38,6 +49,8 @@ export interface UpdateTaskRequest {
   priority?: 'low' | 'medium' | 'high';
   due_date?: string | null;
   completed?: boolean;
+  is_recurring?: boolean;
+  recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly';
 }
 
 export interface LoginRequest {

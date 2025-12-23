@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Filter, ArrowUpDown, X } from "lucide-react";
+import { Search, Filter, ArrowUpDown, X, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -14,9 +14,11 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 interface TaskToolbarProps {
   className?: string;
+  viewMode?: 'grid' | 'list';
+  onViewModeChange?: (viewMode: 'grid' | 'list') => void;
 }
 
-export function TaskToolbar({ className }: TaskToolbarProps) {
+export function TaskToolbar({ className, viewMode = 'grid', onViewModeChange }: TaskToolbarProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -115,6 +117,28 @@ export function TaskToolbar({ className }: TaskToolbarProps) {
             <X className="mr-2 h-4 w-4" />
             Clear
           </Button>
+        )}
+
+        {/* View Mode Toggle */}
+        {onViewModeChange && (
+          <div className="flex bg-zinc-900/50 border border-zinc-800 rounded-lg p-0.5">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => onViewModeChange('grid')}
+              className="h-8 w-8 p-0"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => onViewModeChange('list')}
+              className="h-8 w-8 p-0"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         )}
       </div>
     </div>

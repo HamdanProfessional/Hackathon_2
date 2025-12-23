@@ -33,6 +33,7 @@ export interface TokenResponse {
 
 // Task types
 export type TaskPriority = 'low' | 'medium' | 'high';
+export type RecurrencePattern = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface Task {
   id: number;
@@ -42,6 +43,8 @@ export interface Task {
   completed: boolean;
   priority: TaskPriority;
   due_date?: string | null;
+  is_recurring?: boolean;
+  recurrence_pattern?: RecurrencePattern;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +54,8 @@ export interface TaskCreate {
   description?: string;
   priority?: TaskPriority;
   due_date?: string | null;
+  is_recurring?: boolean;
+  recurrence_pattern?: RecurrencePattern;
 }
 
 export interface TaskUpdate {
@@ -59,6 +64,8 @@ export interface TaskUpdate {
   priority?: TaskPriority;
   due_date?: string | null;
   completed?: boolean;
+  is_recurring?: boolean;
+  recurrence_pattern?: RecurrencePattern;
 }
 
 export interface TaskResponse {
@@ -69,6 +76,8 @@ export interface TaskResponse {
   completed: boolean;
   priority: TaskPriority;
   due_date?: string | null;
+  is_recurring?: boolean;
+  recurrence_pattern?: RecurrencePattern;
   created_at: string;
   updated_at: string;
 }
@@ -95,4 +104,6 @@ export interface TaskFormData {
   description: string;
   priority: TaskPriority;
   due_date?: string;
+  is_recurring?: boolean;
+  recurrence_pattern?: RecurrencePattern;
 }

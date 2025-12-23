@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, Download, Eye, EyeOff } from "lucide-react";
+import { Settings, Download, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,14 +14,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { apiClient } from "@/lib/api";
+import { apiClient, type UserPreferences } from "@/lib/api";
 import { toast } from "sonner";
-
-interface UserPreferences {
-  showCompleted?: boolean;
-  compactView?: boolean;
-  darkMode?: boolean;
-}
 
 export function SettingsModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -138,6 +132,35 @@ export function SettingsModal() {
                   updatePreference("compactView", checked)
                 }
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>View Mode</Label>
+              <p className="text-xs text-muted-foreground">
+                Choose how tasks are displayed
+              </p>
+              <div className="flex gap-2 p-1 bg-muted rounded-lg">
+                <Button
+                  type="button"
+                  variant={preferences.viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => updatePreference("viewMode", "grid")}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  Grid
+                </Button>
+                <Button
+                  type="button"
+                  variant={preferences.viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => updatePreference("viewMode", "list")}
+                >
+                  <List className="h-4 w-4 mr-2" />
+                  List
+                </Button>
+              </div>
             </div>
           </div>
 

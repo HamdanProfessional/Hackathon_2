@@ -8,6 +8,13 @@ export interface User {
   created_at: string;
 }
 
+export interface UserPreferences {
+  showCompleted?: boolean;
+  compactView?: boolean;
+  darkMode?: boolean;
+  viewMode?: 'grid' | 'list';
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
