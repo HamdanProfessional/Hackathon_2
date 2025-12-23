@@ -27,7 +27,8 @@ async def create_task(db: AsyncSession, task_data: TaskCreate, user_id: str) -> 
         priority_id=task_data.priority_id,
         due_date=task_data.due_date,
         completed=False,
-        is_recurring=False,
+        is_recurring=task_data.is_recurring if task_data.is_recurring is not None else False,
+        recurrence_pattern=task_data.recurrence_pattern,
     )
 
     db.add(db_task)
@@ -161,6 +162,10 @@ async def update_task(
         task.due_date = task_data.due_date
     if task_data.completed is not None:
         task.completed = task_data.completed
+    if task_data.is_recurring is not None:
+        task.is_recurring = task_data.is_recurring
+    if task_data.recurrence_pattern is not None:
+        task.recurrence_pattern = task_data.recurrence_pattern
 
     await db.commit()
     await db.refresh(task)

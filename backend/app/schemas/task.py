@@ -27,6 +27,14 @@ class TaskCreate(BaseModel):
         None,
         description="Task due date (optional, format: YYYY-MM-DD)"
     )
+    is_recurring: Optional[bool] = Field(
+        default=False,
+        description="Whether the task is recurring"
+    )
+    recurrence_pattern: Optional[str] = Field(
+        None,
+        description="Recurrence pattern: daily, weekly, monthly, or yearly"
+    )
 
 
 class TaskUpdate(BaseModel):
@@ -37,6 +45,8 @@ class TaskUpdate(BaseModel):
     priority_id: Optional[int] = Field(None, description="Updated task priority ID")
     due_date: Optional[date] = Field(None, description="Updated task due date")
     completed: Optional[bool] = Field(None, description="Mark task as completed")
+    is_recurring: Optional[bool] = Field(None, description="Whether the task is recurring")
+    recurrence_pattern: Optional[str] = Field(None, description="Recurrence pattern: daily, weekly, monthly, or yearly")
 
 
 class PriorityResponse(BaseModel):
@@ -63,6 +73,8 @@ class TaskResponse(BaseModel):
     due_date: Optional[date]
     created_at: datetime
     updated_at: datetime
+    is_recurring: bool
+    recurrence_pattern: Optional[str]
     priority_obj: Optional[PriorityResponse] = None
 
     class Config:
