@@ -107,9 +107,10 @@ def test_chat_with_mcp_tools(token: str) -> Dict[str, Any]:
     tool_calls = data.get("tool_calls", [])
     ai_response = data.get("response", "")
 
-    has_create_tool = any(tc.get("function") == "create_task" for tc in tool_calls)
+    # Fixed: Use 'name' instead of 'function', and 'add_task' instead of 'create_task'
+    has_create_tool = any(tc and tc.get("name") == "add_task" for tc in tool_calls)
     print_result("Chat: Create Task Tool Called", has_create_tool,
-                f"Tools: {[tc.get('function') for tc in tool_calls]}")
+                f"Tools: {[tc.get('name') for tc in tool_calls if tc]}")
 
     results.append(("Create Task MCP", has_create_tool))
 
@@ -126,9 +127,10 @@ def test_chat_with_mcp_tools(token: str) -> Dict[str, Any]:
 
     data = response.json()
     tool_calls = data.get("tool_calls", [])
-    has_list_tool = any(tc.get("function") == "get_tasks" for tc in tool_calls)
+    # Fixed: Use 'name' instead of 'function', and 'list_tasks' instead of 'get_tasks'
+    has_list_tool = any(tc and tc.get("name") == "list_tasks" for tc in tool_calls)
     print_result("Chat: Get Tasks Tool Called", has_list_tool,
-                f"Tools: {[tc.get('function') for tc in tool_calls]}")
+                f"Tools: {[tc.get('name') for tc in tool_calls if tc]}")
 
     results.append(("Get Tasks MCP", has_list_tool))
 
@@ -173,12 +175,11 @@ def test_task_crud(token: str) -> bool:
     print_result("Get Tasks API", found_task, f"Found {len(tasks)} tasks")
     results.append(("Get Tasks API", found_task))
 
-    # Test 4.3: Update task
-    print("\n  Test 4.3: Update task...")
-    response = requests.put(
-        f"{BASE_URL}/api/tasks/{task_id}",
-        headers=headers,
-        json={"completed": True}
+    # Test 4.3: Update task (use PATCH /complete endpoint)
+    print("\n  Test 4.3: Update task (toggle completion)...")
+    response = requests.patch(
+        f"{BASE_URL}/api/tasks/{task_id}/complete",
+        headers=headers
     )
     updated = response.status_code == 200
     if updated:
@@ -204,21 +205,21 @@ def test_all_mcp_tools(token: str) -> bool:
     headers = {"Authorization": f"Bearer {token}"}
 
     # Create a test task first
-    requests.post(
+    r = requests.post(
         f"{BASE_URL}/api/tasks",
         headers=headers,
         json={"title": "MCP Test Task", "priority": "medium"}
     )
+    task_id = None
+    if r.status_code in [200, 201]:
+        task_id = r.json().get("id")
 
     all_passed = True
 
-    # Test each MCP tool via chat
+    # Test each MCP tool via chat (use correct tool names)
     mcp_tests = [
-        ("get_tasks", "Show me all my tasks"),
-        ("create_task", "Create a new task to test MCP"),
-        ("update_task", "Mark the first task as completed"),
-        ("delete_task", "Delete the test task"),
-        ("get_task", "Show me details of task 1"),
+        ("list_tasks", "Show me all my tasks"),
+        ("add_task", "Create a new task to test MCP"),
     ]
 
     for tool_name, message in mcp_tests:
@@ -229,11 +230,33 @@ def test_all_mcp_tools(token: str) -> bool:
         )
         data = response.json()
         tool_calls = data.get("tool_calls", [])
-        found = any(tc.get("function") == tool_name for tc in tool_calls)
+        # Fixed: Use 'name' instead of 'function'
+        found = any(tc and tc.get("name") == tool_name for tc in tool_calls)
         print_result(f"MCP Tool: {tool_name}", found, f"Message: {message}")
         results.append((f"MCP {tool_name}", found))
         if not found:
             all_passed = False
+
+    # Test update and delete (require task_id)
+    if task_id:
+        mcp_tests_id_based = [
+            ("complete_task", f"Mark task {task_id} as complete"),
+            ("delete_task", f"Delete task {task_id}"),
+        ]
+
+        for tool_name, message in mcp_tests_id_based:
+            response = requests.post(
+                f"{BASE_URL}/api/chat",
+                headers=headers,
+                json={"message": message}
+            )
+            data = response.json()
+            tool_calls = data.get("tool_calls", [])
+            found = any(tc and tc.get("name") == tool_name for tc in tool_calls)
+            print_result(f"MCP Tool: {tool_name}", found, f"Message: {message}")
+            results.append((f"MCP {tool_name}", found))
+            if not found:
+                all_passed = False
 
     return all_passed
 
@@ -253,23 +276,23 @@ def test_conversation_persistence(token: str) -> bool:
     if has_conversations:
         conv_id = conversations[0].get("id")
 
-        # Get conversation details
+        # Get conversation messages (correct endpoint)
         response = requests.get(
-            f"{BASE_URL}/api/chat/conversations/{conv_id}",
+            f"{BASE_URL}/api/chat/conversations/{conv_id}/messages",
             headers=headers
         )
         details = response.status_code == 200
         if details:
-            conv = response.json()
-            message_count = len(conv.get("messages", []))
-            print_result("Conversation Details", True, f"Messages: {message_count}")
+            messages = response.json()
+            message_count = len(messages)
+            print_result("Conversation Messages", True, f"Messages: {message_count}")
         else:
-            print_result("Conversation Details", False, f"Status: {response.status_code}")
+            print_result("Conversation Messages", False, f"Status: {response.status_code}")
 
-        results.append(("Conversation Details", details))
+        results.append(("Conversation Messages", details))
         return details
 
-    results.append(("Conversation Details", False))
+    results.append(("Conversation Messages", False))
     return False
 
 def test_ai_agent_intelligence(token: str) -> bool:
@@ -289,16 +312,16 @@ def test_ai_agent_intelligence(token: str) -> bool:
     data = response.json()
     tool_calls = data.get("tool_calls", [])
 
-    # Should call get_tasks with filter
-    has_get_tasks = any(tc.get("function") == "get_tasks" for tc in tool_calls)
+    # Should call list_tasks with priority filter
+    has_list_tasks = any(tc and tc.get("name") == "list_tasks" for tc in tool_calls)
     has_response = len(data.get("response", "")) > 0
 
-    print_result("AI Uses Get Tasks", has_get_tasks, "Tool: get_tasks")
+    print_result("AI Uses List Tasks", has_list_tasks, "Tool: list_tasks")
     print_result("AI Provides Response", has_response, f"Response length: {len(data.get('response', ''))}")
 
-    results.append(("AI Intelligence", has_get_tasks and has_response))
+    results.append(("AI Intelligence", has_list_tasks and has_response))
 
-    return has_get_tasks and has_response
+    return has_list_tasks and has_response
 
 def print_summary():
     """Print test summary."""
