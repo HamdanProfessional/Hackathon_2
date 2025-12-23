@@ -1,7 +1,10 @@
 """Task API endpoints."""
-from typing import List, Optional
-from fastapi import APIRouter, Depends, status, Query
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel, Field
+import json
+import os
 
 from app.database import get_db
 from app.models.user import User
@@ -11,6 +14,18 @@ from app.api.deps import get_current_user
 from app.utils.exceptions import NotFoundException, ForbiddenException, ValidationException
 
 router = APIRouter()
+
+
+# Schema for task breakdown request/response
+class TaskBreakdownRequest(BaseModel):
+    """Schema for task breakdown request."""
+    task_title: str = Field(..., min_length=10, max_length=500, description="Task title to break down")
+
+
+class SubtaskResponse(BaseModel):
+    """Schema for a single subtask in breakdown response."""
+    title: str = Field(..., description="Subtask title")
+    description: Optional[str] = Field(None, description="Brief description of the subtask")
 
 
 @router.post(
@@ -201,3 +216,144 @@ async def delete_task(
 
     # Delete task
     await task_crud.delete_task(db, task)
+
+
+@router.post(
+    "/breakdown",
+    response_model=List[SubtaskResponse],
+    status_code=status.HTTP_200_OK,
+    summary="AI Task Breakdown",
+    description="Use AI to break down a large task into smaller actionable subtasks",
+)
+async def breakdown_task(
+    request: TaskBreakdownRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Use AI to break down a large task into smaller actionable subtasks.
+
+    - **task_title**: The title of the task to break down (min 10 characters)
+
+    Returns a list of 3-7 subtasks, each with:
+    - title: Specific subtask title
+    - description: Brief description (optional)
+
+    The AI generates subtasks that are:
+    - Specific and concrete
+    - Can be completed in 1-2 hours
+    - Ordered logically
+
+    Uses Groq API for fast AI-powered task breakdown.
+    """
+    task_title = request.task_title
+
+    # Create prompt for AI
+    prompt = f"""Break down the following task into 3-7 smaller, actionable subtasks.
+Each subtask should be:
+- Specific and concrete
+- Something that can be completed in 1-2 hours
+- Ordered logically (what needs to be done first)
+
+Task: {task_title}
+
+Respond ONLY with a JSON array of objects, each with:
+- title: subtask title
+- description: brief description (optional)
+
+Example format:
+[
+  {{"title": "Research topic", "description": "Gather information"}},
+  {{"title": "Create outline", "description": "Structure content"}}
+]
+
+Return ONLY valid JSON, no other text, no markdown code blocks."""
+
+    try:
+        # Import Groq client
+        from groq import Groq
+        from app.config import settings
+
+        # Use Groq API directly for faster response
+        client = Groq(api_key=settings.groq_api_key)
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a task breakdown assistant. Always respond with valid JSON arrays only. Never include markdown code blocks or explanatory text."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=1000,
+            response_format={"type": "json_object"}
+        )
+
+        result = response.choices[0].message.content.strip()
+
+        # Parse JSON response
+        try:
+            # Remove markdown code blocks if present
+            if result.startswith("```"):
+                result = result.split("```")[1]
+                if result.startswith("json"):
+                    result = result[4:]
+                result = result.strip()
+
+            parsed = json.loads(result)
+
+            # Handle if AI returns a dict with 'subtasks' or similar key
+            if isinstance(parsed, dict):
+                # Try to find the list in common keys
+                for key in ["subtasks", "tasks", "items", "breakdown"]:
+                    if key in parsed and isinstance(parsed[key], list):
+                        parsed = parsed[key]
+                        break
+                else:
+                    # If no list key found, treat the dict values as potential subtasks
+                    parsed = [{"title": k, "description": str(v)} for k, v in parsed.items() if k != ""]
+
+            # Validate we have a list
+            if not isinstance(parsed, list):
+                raise ValueError("Response is not a list")
+
+            subtasks = []
+            for item in parsed:
+                if isinstance(item, dict):
+                    title = item.get("title", "")
+                    description = item.get("description")
+                    if title:
+                        subtasks.append(SubtaskResponse(title=title, description=description))
+                elif isinstance(item, str):
+                    # Handle simple string items
+                    subtasks.append(SubtaskResponse(title=item, description=None))
+
+            # Ensure we have at least some subtasks
+            if not subtasks:
+                raise ValueError("No valid subtasks generated")
+
+            return subtasks
+
+        except (json.JSONDecodeError, ValueError) as parse_error:
+            print(f"Parse error: {parse_error}, result was: {result[:200]}")
+            # Fallback: create simple breakdown
+            return _create_fallback_breakdown(task_title)
+
+    except Exception as e:
+        # Log error for debugging
+        print(f"AI breakdown error: {type(e).__name__}: {str(e)}")
+        # Fallback to simple breakdown
+        return _create_fallback_breakdown(task_title)
+
+
+def _create_fallback_breakdown(task_title: str) -> List[SubtaskResponse]:
+    """
+    Create a simple fallback breakdown when AI is unavailable.
+    """
+    return [
+        SubtaskResponse(title=f"Plan: {task_title[:50]}...", description="Create a detailed plan and gather requirements"),
+        SubtaskResponse(title=f"Execute: {task_title[:50]}...", description="Complete the main work according to the plan"),
+        SubtaskResponse(title=f"Review: {task_title[:50]}...", description="Check results and refine as needed"),
+    ]

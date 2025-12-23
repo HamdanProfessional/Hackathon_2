@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, CalendarDays, X, Repeat2 } from "lucide-react";
+import { Calendar, CalendarDays, X, Repeat2, Sparkles } from "lucide-react";
 import { Task } from "@/types";
 import type { RecurrencePattern } from "@/types";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ErrorMessage } from "@/components/ui/error-message";
+import { toast } from "sonner";
 
 interface TaskFormProps {
   task?: Task | null;
@@ -55,6 +56,8 @@ export default function TaskForm({
     recurrence_pattern: RecurrencePattern | undefined;
   }>(defaultFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [subtasks, setSubtasks] = useState<Array<{title: string, description: string | null}>>([]);
+  const [loadingBreakdown, setLoadingBreakdown] = useState(false);
 
   // Populate form when editing
   useEffect(() => {
@@ -71,6 +74,7 @@ export default function TaskForm({
       setFormData(defaultFormData);
     }
     setErrors({});
+    setSubtasks([]); // Reset subtasks when dialog opens/closes
   }, [task, isOpen]);
 
   // Keyboard shortcut handler
@@ -137,6 +141,63 @@ export default function TaskForm({
     return new Date().toISOString().split('T')[0];
   };
 
+  // Get API base URL from environment or use default
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  const handleAIBreakdown = async () => {
+    if (!formData.title || formData.title.length < 10) {
+      toast.error("Enter a more detailed task title (at least 10 characters) for AI breakdown");
+      return;
+    }
+
+    setLoadingBreakdown(true);
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        toast.error("You must be logged in to use AI breakdown");
+        setLoadingBreakdown(false);
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/tasks/breakdown`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ task_title: formData.title })
+      });
+
+      if (response.ok) {
+        const tasks = await response.json();
+        setSubtasks(tasks);
+        toast.success(`AI created ${tasks.length} subtasks!`);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.detail || "Failed to generate breakdown");
+      }
+    } catch (error) {
+      toast.error("Error generating breakdown. Please try again.");
+    } finally {
+      setLoadingBreakdown(false);
+    }
+  };
+
+  const handleCreateAllSubtasks = async () => {
+    // Create all subtasks as individual tasks
+    for (const subtask of subtasks) {
+      await onSubmit({
+        ...formData,
+        title: subtask.title,
+        description: subtask.description || formData.description
+      });
+    }
+    setSubtasks([]);
+    toast.success(`Created ${subtasks.length} subtasks!`);
+    onClose();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] bg-zinc-900 border-zinc-800">
@@ -175,6 +236,78 @@ export default function TaskForm({
             />
             <ErrorMessage message={errors.title} />
           </div>
+
+          {/* AI Breakdown Button - Only show for new tasks when title is long enough */}
+          {!task && formData.title.length >= 30 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAIBreakdown}
+              disabled={loadingBreakdown || isSubmitting}
+              className="w-full border-purple-500/50 hover:bg-purple-500/10 hover:border-purple-500 text-purple-400"
+            >
+              {loadingBreakdown ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400 mr-2" />
+                  AI is thinking...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI Breakdown: Generate Subtasks
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* AI-Generated Subtasks */}
+          {subtasks.length > 0 && (
+            <div className="space-y-3 p-4 rounded-lg border border-purple-500/30 bg-purple-500/5">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-purple-400">
+                  AI-Generated Subtasks
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSubtasks([])}
+                  className="h-6 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </Button>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {subtasks.map((subtask, index) => (
+                  <div
+                    key={index}
+                    className="p-3 rounded-lg border border-zinc-700 bg-zinc-800/50"
+                  >
+                    <div className="font-medium text-sm text-foreground">
+                      <span className="text-purple-400 mr-2">{index + 1}.</span>
+                      {subtask.title}
+                    </div>
+                    {subtask.description && (
+                      <div className="text-xs text-muted-foreground mt-1 ml-5">
+                        {subtask.description}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={handleCreateAllSubtasks}
+                disabled={isSubmitting}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+              >
+                Create All {subtasks.length} Subtasks
+              </Button>
+            </div>
+          )}
 
           {/* Description */}
           <div className="space-y-2">

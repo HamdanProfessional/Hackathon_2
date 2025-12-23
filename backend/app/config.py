@@ -123,6 +123,11 @@ class Settings(BaseSettings):
         """Parse CORS origins from comma-separated string."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
+    @property
+    def groq_api_key(self) -> str:
+        """Get Groq API key from environment."""
+        return os.getenv("GROQ_API_KEY", "")
+
     model_config = {
         "env_file": ".env.test" if os.getenv("TESTING") == "true" else ".env",
         "case_sensitive": True,
