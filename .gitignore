@@ -109,3 +109,7 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+*-amd64/
+*-386/
+*-arm64/
+*-arm/

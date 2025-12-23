@@ -312,7 +312,11 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                     # Execute each tool call
                     for tool_call in assistant_message.tool_calls:
                         function_name = tool_call.function.name
-                        function_args = json.loads(tool_call.function.arguments)
+                        # Parse arguments, default to empty dict if parsing fails or empty
+                        try:
+                            function_args = json.loads(tool_call.function.arguments) if tool_call.function.arguments else {}
+                        except (json.JSONDecodeError, TypeError, AttributeError):
+                            function_args = {}
 
                         # Track tool call
                         tool_calls_made.append({

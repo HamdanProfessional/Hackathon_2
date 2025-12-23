@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, X, Minimize2 } from "lucide-react";
+import { MessageCircle, X, Minimize2, History } from "lucide-react";
 import ChatInterface from "./chat-interface";
 
 /**
@@ -12,11 +12,13 @@ import ChatInterface from "./chat-interface";
  * - Glassmorphism panel with backdrop blur
  * - Electric Violet accents (Nebula theme)
  * - Persistent conversation state
+ * - Chat history sidebar
  */
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleToggle = () => {
     if (isOpen && !isMinimized) {
@@ -69,6 +71,16 @@ export default function ChatWidget() {
             </div>
 
             <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className={`p-1.5 rounded-lg hover:bg-zinc-800/50 transition-colors ${
+                  showHistory ? 'bg-zinc-800/50 text-violet-400' : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+                aria-label="Toggle chat history"
+                title="Chat history"
+              >
+                <History className="w-4 h-4" />
+              </button>
               <button
                 onClick={handleMinimize}
                 className="p-1.5 rounded-lg hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200 transition-colors"
@@ -178,6 +190,8 @@ export default function ChatWidget() {
                 conversationId={conversationId}
                 onConversationCreated={setConversationId}
                 showHeader={false}
+                showHistory={showHistory}
+                onShowHistoryChange={setShowHistory}
               />
             </div>
           </div>

@@ -29,12 +29,16 @@ interface ChatInterfaceProps {
   conversationId?: string;
   onConversationCreated?: (id: string) => void;
   showHeader?: boolean; // New prop to control header visibility
+  showHistory?: boolean; // External control of history sidebar
+  onShowHistoryChange?: (show: boolean) => void; // Callback when history toggle changes
 }
 
 export default function ChatInterface({
   conversationId,
   onConversationCreated,
   showHeader = true, // Default to true for backwards compatibility
+  showHistory: externalShowHistory,
+  onShowHistoryChange,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -49,7 +53,19 @@ export default function ChatInterface({
   const [voicePitch, setVoicePitch] = useState(1);
   const [recordingTime, setRecordingTime] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  const [internalShowHistory, setInternalShowHistory] = useState(false);
+
+  // Use external history state if provided, otherwise use internal state
+  const showHistory = externalShowHistory !== undefined ? externalShowHistory : internalShowHistory;
+
+  // Wrapper to handle both internal and external state changes
+  const handleSetShowHistory = (newValue: boolean) => {
+    if (onShowHistoryChange) {
+      onShowHistoryChange(newValue);
+    } else {
+      setInternalShowHistory(newValue);
+    }
+  };
   const [conversations, setConversations] = useState<Array<{
     id: string;
     created_at: string;
@@ -427,14 +443,14 @@ export default function ChatInterface({
   const switchConversation = async (convId: string) => {
     setCurrentConversationId(convId);
     await loadConversationHistory(convId);
-    setShowHistory(false);
+    handleSetShowHistory(false);
     onConversationCreated?.(convId);
   };
 
   const startNewConversation = () => {
     setMessages([]);
     setCurrentConversationId(undefined);
-    setShowHistory(false);
+    handleSetShowHistory(false);
   };
 
   // If component is still in initial loading state, show a minimal loader
@@ -489,7 +505,7 @@ export default function ChatInterface({
 
         <div className="flex items-center gap-1 relative z-10">
           <button
-            onClick={() => setShowHistory(!showHistory)}
+            onClick={() => handleSetShowHistory(!showHistory)}
             className={`p-2 hover:bg-white/10 rounded-lg transition-all duration-200 group relative ${showHistory ? 'bg-white/10 text-white' : 'text-zinc-400'}`}
             title="Conversation History"
           >
@@ -548,7 +564,7 @@ export default function ChatInterface({
                 <History className="w-4 h-4 text-slate-400" />
               </button>
               <button
-                onClick={() => setShowHistory(false)}
+                onClick={() => handleSetShowHistory(false)}
                 className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
               >
                 <X className="w-4 h-4 text-slate-400" />
