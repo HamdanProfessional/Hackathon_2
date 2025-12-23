@@ -195,6 +195,23 @@ Users can have extended conversations about their tasks, with system maintaining
 
 ---
 
+### User Story 7 - AI Task Breakdown (Priority: P2)
+
+A user has a large, complex task and wants AI to automatically break it down into smaller, actionable subtasks to make it more manageable.
+
+**Why this priority**: Powerful AI capability that demonstrates value beyond simple CRUD but not essential for core chat functionality. Users can manually create subtasks if needed.
+
+**Independent Test**: User enters task title "Build a website" (30+ chars), clicks AI Breakdown button, and system generates 5 specific subtasks like "Design wireframes", "Set up development environment", etc.
+
+**Acceptance Scenarios**:
+
+1. **Given** user types task title with 30+ characters, **When** they click "AI Breakdown" button, **Then** AI generates 3-7 specific subtasks
+2. **Given** AI generates subtasks, **When** user reviews results, **Then** each subtask has title and optional description
+3. **Given** AI generates subtasks, **When** user clicks "Create All", **Then** all subtasks are created as individual tasks
+4. **Given** task title is too short, **When** user requests breakdown, **Then** system asks for more details or suggests longer title
+
+---
+
 ### Edge Cases
 
 - **What happens when user provides completely unrelated input?** System should gracefully indicate it's designed to help with task management and ask if user wants to create/view/modify tasks.
@@ -307,6 +324,14 @@ Users can have extended conversations about their tasks, with system maintaining
 
 - **FR-037**: System MUST rate-limit chat requests to prevent abuse and excessive API costs
 
+#### AI Task Breakdown
+
+- **FR-038**: System MUST provide AI task breakdown feature for complex tasks via `/api/tasks/breakdown` endpoint
+- **FR-039**: System MUST generate 3-7 actionable subtasks from task title using Groq API
+- **FR-040**: System MUST allow bulk creation of AI-generated subtasks with single confirmation
+- **FR-041**: System MUST require minimum 10 character task title for breakdown request
+- **FR-042**: System MUST validate task title before generating breakdown to prevent abuse
+
 ### Key Entities *(include if feature involves data)*
 
 - **Conversation**: Represents a chat session between user and AI. Each conversation belongs to single user and contains sequence of messages. Key attributes: conversation ID, user reference, creation timestamp, last updated timestamp.
@@ -386,6 +411,7 @@ Users can have extended conversations about their tasks, with system maintaining
 4. **Bilingual Support**: English/Urdu language detection
 5. **Loading States**: Comprehensive skeleton screens and typing indicators
 6. **Error Handling**: Graceful error messages with retry options
+7. **AI Task Breakdown**: POST /api/tasks/breakdown endpoint for breaking complex tasks into subtasks using Groq API
 
 ### Bug Fixes
 - **Duplicate Header**: Added `showHeader` prop to ChatInterface to prevent duplicate headers in dashboard widget
@@ -397,6 +423,7 @@ Users can have extended conversations about their tasks, with system maintaining
 
 - ~~Voice input/output capabilities~~ ✅ **IMPLEMENTED** - Microphone support added
 - ~~Advanced task features like priorities, tags, due dates, recurring tasks~~ ✅ Priority support added via chat
+- ~~AI-powered task breakdown~~ ✅ **IMPLEMENTED** - POST /api/tasks/breakdown endpoint added
 
 - Proactive AI suggestions or reminders (AI responds to user requests only, doesn't initiate conversations)
 
