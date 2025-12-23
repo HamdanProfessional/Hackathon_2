@@ -13,12 +13,13 @@ import TaskCard from "@/components/task/task-card";
 import TaskForm from "@/components/task/task-form";
 import { SearchBar } from "@/components/search/search-bar";
 import { TaskToolbar } from "@/components/search/task-toolbar";
-import { Plus, CheckCircle2, Circle, ListTodo, Download, ClipboardList, LayoutGrid, List } from "lucide-react";
+import { Plus, CheckCircle2, Circle, ListTodo, Download, ClipboardList, LayoutGrid, List, ChevronDown, Timer } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SettingsModal } from "@/components/settings/settings-modal";
 import ChatWidget from "@/components/chat/chat-widget";
 import LanguageSwitcher from "@/components/language-switcher";
 import { StreakHeatmap } from "@/components/analytics/streak-heatmap";
+import { PomodoroTimer } from "@/components/productivity/pomodoro-timer";
 
 export default function DashboardPage() {
   console.log("Dashboard Rendered");
@@ -37,6 +38,7 @@ export default function DashboardPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [submittingTask, setSubmittingTask] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
+  const [showPomodoro, setShowPomodoro] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
     // Initialize from localStorage first, then sync with backend
     if (typeof window !== 'undefined') {
@@ -422,6 +424,34 @@ export default function DashboardPage() {
 
             {/* Streak Heatmap */}
             <StreakHeatmap />
+
+            {/* Pomodoro Timer Section */}
+            <Card className="glass-card">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Timer className="h-5 w-5 text-primary" />
+                    <CardTitle>Pomodoro Timer</CardTitle>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPomodoro(!showPomodoro)}
+                    className="flex items-center gap-2"
+                  >
+                    {showPomodoro ? 'Hide' : 'Show'}
+                    <ChevronDown className={`h-4 w-4 transition-transform ${showPomodoro ? 'rotate-180' : ''}`} />
+                  </Button>
+                </div>
+              </CardHeader>
+              {showPomodoro && (
+                <CardContent>
+                  <div className="flex justify-center">
+                    <PomodoroTimer />
+                  </div>
+                </CardContent>
+              )}
+            </Card>
 
             {/* Tasks List */}
             <div className="space-y-4">
