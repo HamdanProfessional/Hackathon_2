@@ -16,6 +16,12 @@ from app.utils.exceptions import NotFoundException, ForbiddenException, Validati
 router = APIRouter()
 
 
+# Schema for quick add request
+class QuickAddRequest(BaseModel):
+    """Schema for quick add task request."""
+    text: str = Field(..., min_length=1, max_length=500, description="Natural language task description")
+
+
 # Schema for task breakdown request/response
 class TaskBreakdownRequest(BaseModel):
     """Schema for task breakdown request."""
@@ -357,3 +363,43 @@ def _create_fallback_breakdown(task_title: str) -> List[SubtaskResponse]:
         SubtaskResponse(title=f"Execute: {task_title[:50]}...", description="Complete the main work according to the plan"),
         SubtaskResponse(title=f"Review: {task_title[:50]}...", description="Check results and refine as needed"),
     ]
+
+
+@router.post(
+    "/quick-add",
+    response_model=TaskResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Quick add a task using natural language",
+    description="Parse natural language input to create a task with title, priority, due date, and recurrence",
+)
+async def quick_add_task(
+    request: QuickAddRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Quick add a task by parsing natural language.
+
+    Parses natural language input to extract:
+    - **Title**: The main task description
+    - **Priority**: urgent/important (high), low (low), default medium
+    - **Due date**: today, tomorrow, Monday, next Friday, in 3 days, in 2 weeks
+    - **Recurrence**: daily, weekly, monthly, yearly
+
+    Examples:
+    - "Call mom tomorrow urgent" -> High priority, due tomorrow
+    - "Submit report by Friday important" -> High priority, due Friday
+    - "Weekly team meeting every Monday" -> Recurring weekly task
+
+    Returns the created task.
+    """
+    from app.services.natural_language import NaturalLanguageParser
+
+    # Parse the natural language input
+    parsed = NaturalLanguageParser.parse(request.text)
+
+    # Create task from parsed data
+    task_data = TaskCreate(**parsed)
+    task = await task_crud.create_task(db, task_data, str(current_user.id))
+
+    return task

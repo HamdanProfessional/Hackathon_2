@@ -13,12 +13,14 @@ import TaskCard from "@/components/task/task-card";
 import TaskForm from "@/components/task/task-form";
 import { SearchBar } from "@/components/search/search-bar";
 import { TaskToolbar } from "@/components/search/task-toolbar";
+import QuickAdd from "@/components/task/quick-add";
 import { Plus, CheckCircle2, Circle, ListTodo, Download, ClipboardList, LayoutGrid, List, ChevronDown, Timer } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SettingsModal } from "@/components/settings/settings-modal";
 import ChatWidget from "@/components/chat/chat-widget";
 import LanguageSwitcher from "@/components/language-switcher";
 import { StreakHeatmap } from "@/components/analytics/streak-heatmap";
+import { ProductivityDashboard } from "@/components/analytics/productivity-dashboard";
 import { PomodoroTimer } from "@/components/productivity/pomodoro-timer";
 
 export default function DashboardPage() {
@@ -377,6 +379,19 @@ export default function DashboardPage() {
         {/* Tasks List */}
         {!loading && !error && (
           <div className="space-y-8">
+            {/* Quick Add Bar */}
+            <Card className="glass-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Quick Add Task</CardTitle>
+                <CardDescription className="text-xs">
+                  Use natural language: "Call mom tomorrow urgent" or "Meeting every Friday"
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <QuickAdd onTaskCreated={loadTasks} />
+              </CardContent>
+            </Card>
+
             {/* Search and Filter Controls */}
             <div className="space-y-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -424,6 +439,9 @@ export default function DashboardPage() {
 
             {/* Streak Heatmap */}
             <StreakHeatmap />
+
+            {/* Productivity Analytics Dashboard */}
+            <ProductivityDashboard />
 
             {/* Pomodoro Timer Section */}
             <Card className="glass-card">

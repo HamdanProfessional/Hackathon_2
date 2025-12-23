@@ -33,6 +33,7 @@ class User(Base):
     # Relationships (one-to-many)
     tasks = relationship("Task", back_populates="owner", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+    task_templates = relationship("TaskTemplate", back_populates="owner", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email})>"

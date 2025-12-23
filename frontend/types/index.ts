@@ -82,6 +82,26 @@ export interface TaskResponse {
   updated_at: string;
 }
 
+// Subtask types
+export interface Subtask {
+  id: number;
+  task_id: number;
+  title: string;
+  description: string | null;
+  completed: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SubtaskCreate {
+  title: string;
+  description?: string | null;
+}
+
+export interface SubtaskUpdate {
+  completed: boolean;
+}
+
 // API Response types
 export interface ApiResponse<T> {
   data: T;

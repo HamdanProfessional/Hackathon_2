@@ -42,6 +42,7 @@ class Task(Base):
     # Relationships
     owner = relationship("User", back_populates="tasks")
     priority_obj = relationship("Priority", back_populates="tasks")
+    subtasks = relationship("Subtask", back_populates="task", cascade="all, delete-orphan")
 
     @property
     def user_id_str(self) -> str:

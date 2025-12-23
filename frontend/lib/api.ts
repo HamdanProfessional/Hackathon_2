@@ -53,6 +53,22 @@ export interface UpdateTaskRequest {
   recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly';
 }
 
+// Subtask types
+export interface Subtask {
+  id: number;
+  task_id: number;
+  title: string;
+  description: string | null;
+  completed: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SubtaskCreate {
+  title: string;
+  description?: string | null;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -300,6 +316,26 @@ class ApiClient {
 
   async deleteConversation(conversationId: string) {
     await this.axios.delete(`/api/chat/conversations/${conversationId}`);
+  }
+
+  // Subtask methods
+  async getSubtasks(taskId: number): Promise<Subtask[]> {
+    const response = await this.axios.get<Subtask[]>(`/api/tasks/${taskId}/subtasks`);
+    return response.data;
+  }
+
+  async createSubtask(taskId: number, subtask: SubtaskCreate): Promise<Subtask> {
+    const response = await this.axios.post<Subtask>(`/api/tasks/${taskId}/subtasks`, subtask);
+    return response.data;
+  }
+
+  async updateSubtask(subtaskId: number, completed: boolean): Promise<Subtask> {
+    const response = await this.axios.patch<Subtask>(`/api/subtasks/${subtaskId}`, { completed });
+    return response.data;
+  }
+
+  async deleteSubtask(subtaskId: number): Promise<void> {
+    await this.axios.delete(`/api/subtasks/${subtaskId}`);
   }
 
   // Expose the axios instance for custom requests

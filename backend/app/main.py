@@ -19,7 +19,7 @@ from app.database import engine
 from alembic import command
 from alembic.config import Config
 # Import all models to ensure they're registered with Base.metadata
-from app.models import user, task, conversation, message
+from app.models import user, task, conversation, message, task_template, subtask
 from app.api.deps import get_db
 from sqlalchemy import text
 
@@ -1040,11 +1040,13 @@ async def test_conversation_creation():
 
 
 # Import routers
-from app.api import auth, tasks, users, chat, analytics
+from app.api import auth, tasks, users, chat, analytics, task_templates, subtasks
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
+app.include_router(subtasks.router, prefix="/api", tags=["Subtasks"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(task_templates.router, prefix="/api/task-templates", tags=["Task Templates"])
