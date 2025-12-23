@@ -4,14 +4,22 @@
 **Created**: 2025-12-23
 **Updated**: 2025-12-23
 **Status**: 📋 Planned
-**Input**: Phase V: Cloud Deployment with Event-Driven Architecture using Dapr, Kafka/Redpanda, and CI/CD automation
+**Input**: Phase V: Cloud Deployment with Event-Driven Architecture using Dapr, Redpanda, and CI/CD automation on **DigitalOcean**
 
 ---
 
 ## 📋 Implementation Summary
 
 ### 🎯 Goal
-Deploy the Todo application to a production cloud Kubernetes cluster with event-driven architecture using Dapr, Kafka/Redpanda, and CI/CD automation. Transform the monolithic architecture into microservices with event streaming.
+Deploy the Todo application to **DigitalOcean Kubernetes (DOKS)** with event-driven architecture using Dapr, Redpanda, and CI/CD automation. Transform the monolithic architecture into microservices with event streaming on DigitalOcean's cloud platform.
+
+### 🌊 Why DigitalOcean?
+
+- **Simplicity**: Easy to use, developer-friendly interface
+- **Cost-effective**: Competitive pricing for managed Kubernetes
+- **All-in-one**: Managed databases (PostgreSQL, Redis), Load Balancers, Spaces
+- **Performance**: Fast SSD storage, global data centers
+- **Integration**: Native integration with DO services (LoadBalancers, Block Storage)
 
 ### ✅ Planned Features
 
@@ -68,16 +76,18 @@ Services communicate asynchronously via events, enabling loose coupling and scal
 
 ## Technical Specification
 
-### Microservices Architecture
+### DigitalOcean Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Production Cloud Kubernetes                          │
+│                    DigitalOcean Kubernetes (DOKS)                           │
+│                    Region: NYC1 / SFO2 / AMS3 / FRA1                       │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                          Ingress Controller (NGINX)                    │  │
+│  │                   DigitalOcean Load Balancer                           │  │
+│  │                   ($12/mo - included with DOKS)                       │  │
 │  │  ┌────────────────┐  ┌─────────────────┐  ┌──────────────────────┐   │  │
 │  │  │  Frontend SVC   │  │   Backend SVC    │  │  Notification SVC    │   │  │
-│  │  │  (LoadBalancer) │  │  (LoadBalancer)  │  │  (LoadBalancer)      │   │  │
+│  │  │  (DO LB)        │  │  (DO LB)         │  │  (DO LB)             │   │  │
 │  │  └────────┬───────┘  └────────┬────────┘  └──────────┬───────────┘   │  │
 │  │           │                    │                       │             │  │
 │  │  ┌────────▼────────┐  ┌───────▼──────────┐  ┌────────▼───────────┐  │  │
@@ -90,13 +100,28 @@ Services communicate asynchronously via events, enabling loose coupling and scal
 │  │  ┌────────────────────────────────────────────────────────────────┐   │  │
 │  │  │              Dapr Components (Pub/Sub, State Store)              │   │  │
 │  │  │  ┌────────────────┐  ┌─────────────────┐  ┌──────────────────┐ │   │  │
-│  │  │  │   Redpanda     │  │   Redis         │  │   PostgreSQL     │ │   │  │
-│  │  │  │   Cluster      │  │   (State)       │  │   (External)     │ │   │  │
+│  │  │  │   Redpanda     │  │ DO Managed      │  │ DO Managed        │ │   │  │
+│  │  │  │   Cluster      │  │ Redis (Valkey)  │  │ PostgreSQL (Neon) │ │   │  │
+│  │  │  │ (3 Replicas)   │  │ ($15/mo)        │  │ (External/Managed) │ │   │  │
 │  │  │  └────────────────┘  └─────────────────┘  └──────────────────┘ │   │  │
 │  │  └────────────────────────────────────────────────────────────────┘   │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### DigitalOcean Resources
+
+| Resource | Specification | Monthly Cost |
+|----------|--------------|--------------|
+| **DOKS Cluster** | 3 nodes, s-4vcpu-8gb (Basic) | $60/mo ($20 × 3) |
+| **Load Balancers** | 3 × DO Load Balancer | $36/mo ($12 × 3) |
+| **Redis (Valkey)** | 1GB Basic | $15/mo |
+| **Block Storage** | 50GB for Redpanda (3×) | $12/mo ($4 × 3) |
+| **Container Registry** | 5GB storage | ~$5/mo |
+| **Bandwidth** | Included with LB | Free |
+| **Total** | | ~$128/mo |
+
+**Note**: Neon PostgreSQL is external and not included in DO costs (~$25/mo separately).
 
 ### Components
 
@@ -125,8 +150,14 @@ Services communicate asynchronously via events, enabling loose coupling and scal
 - **Replication Factor**: 3
 
 #### 5. Dapr Components
-- **Pub/Sub**: Redpanda for event streaming
-- **State Store**: Redis for caching (optional)
+- **Pub/Sub**: Redpanda for event streaming (self-managed on DOKS)
+- **State Store**: DigitalOcean Managed Redis (Valkey) for state management
+
+#### 6. DigitalOcean Integration
+- **Load Balancer**: DigitalOcean LB for each service
+- **Block Storage**: Persistent volumes for Redpanda (3× 50GB)
+- **Container Registry**: DO Container Registry for image storage
+- **Firewall**: DO Cloud Firewalls for cluster security
 
 ---
 
@@ -293,17 +324,38 @@ jobs:
 
 ## Dependencies
 
-### External Services
-- **Neon PostgreSQL**: External database (existing)
-- **Redpanda**: Event streaming (new)
-- **Redis**: State store (new, optional)
+### DigitalOcean Services
+- **DOKS**: DigitalOcean Kubernetes (1.29+)
+- **Load Balancers**: 3 × DO Load Balancer
+- **Managed Redis**: 1GB Basic tier for state store
+- **Block Storage**: 3× 50GB volumes for Redpanda persistence
+- **Container Registry**: DO CR for Docker image storage
+- **Cloud Firewalls**: Network security policies
 
-### Tools Required
+### External Services
+- **Neon PostgreSQL**: External database (existing) OR DO Managed PostgreSQL
+- **Redpanda**: Self-managed on DOKS (3 replicas)
+
+### DO CLI Tool Required
+- **doctl**: DigitalOcean CLI v1.100+
+  ```bash
+  # Install doctl
+  brew install doctl  # macOS
+  # or download from https://github.com/digitalocean/doctl/releases
+
+  # Authenticate
+  doctl auth init
+
+  # Get Kubernetes config
+  doctl kubernetes cluster kubeconfig save <cluster-name>
+  ```
+
+### Other Tools Required
 - **kubectl**: 1.25+
 - **Helm**: 3.0+
 - **Dapr CLI**: 1.12+
-- **kubectl-ai**: Latest
-- **kagent**: Latest
+- **kubectl-ai**: Latest (via krew)
+- **kagent**: Latest (via npm)
 
 ---
 
@@ -357,12 +409,16 @@ jobs:
 - [ ] Notifications sent for due tasks
 - [ ] Recurring tasks create occurrences
 
-### Cloud Deployment
-- [ ] Kubernetes cluster created
-- [ ] Dapr installed and running
-- [ ] Redpanda installed with 3 replicas
-- [ ] All services deployed
-- [ ] Services accessible via LoadBalancer
+### Cloud Deployment (DigitalOcean)
+- [ ] DOKS cluster created (3 nodes, s-4vcpu-8gb)
+- [ ] doctl authenticated and kubeconfig configured
+- [ ] Dapr installed on DOKS
+- [ ] Redpanda installed with 3 replicas and block storage
+- [ ] DO Managed Redis provisioned
+- [ ] All services deployed via Helm
+- [ ] DO Load Balancers provisioned
+- [ ] Services accessible via DO Load Balancers
+- [ ] Cloud Firewalls configured
 
 ### CI/CD
 - [ ] Pipeline runs on push
@@ -403,6 +459,65 @@ jobs:
 
 - [Dapr Documentation](https://dapr.io/docs/)
 - [Redpanda Documentation](https://docs.redpanda.com/)
-- [DigitalOcean Kubernetes](https://docs.digitalocean.com/products/kubernetes/)
+- [DigitalOcean Kubernetes (DOKS)](https://docs.digitalocean.com/products/kubernetes/)
+- [doctl Documentation](https://docs.digitalocean.com/reference/doctl/)
+- [DigitalOcean Container Registry](https://docs.digitalocean.com/products/container-registry/)
+- [DigitalOcean Managed Redis](https://docs.digitalocean.com/products/databases/redis/)
+- [DigitalOcean Load Balancers](https://docs.digitalocean.com/products/networking/load-balancers/)
 - [Prometheus](https://prometheus.io/docs/)
 - [Grafana](https://grafana.com/docs/)
+
+---
+
+## DigitalOcean Setup Quick Reference
+
+### Create DOKS Cluster via doctl
+```bash
+# Create cluster
+doctl kubernetes cluster create todo-cluster \
+  --region nyc1 \
+  --version 1.29.0 \
+  --node-pool "name=pool-1;size=s-4vcpu-8gb;count=3;auto-scale=true;min-nodes=2;max-nodes=5"
+
+# Get kubeconfig
+doctl kubernetes cluster kubeconfig save todo-cluster
+
+# Verify cluster
+kubectl get nodes
+```
+
+### Create DO Managed Redis
+```bash
+# Create Redis cluster
+doctl databases create todo-redis \
+  --engine redis \
+  --region nyc1 \
+  --size 1gb \
+  --num-nodes 1
+
+# Get connection details
+doctl databases connection todo-redis --format json
+```
+
+### Create Container Registry
+```bash
+# Create registry
+doctl registry create
+
+# Login to registry
+doctl registry login
+
+# Tag and push image
+docker tag todo-frontend:latest registry.digitalocean.com/todo-app/todo-frontend:latest
+docker push registry.digitalocean.com/todo-app/todo-frontend:latest
+```
+
+### Helm Deployment with DO Load Balancer
+```yaml
+# values-do.yaml
+service:
+  type: LoadBalancer  # Provisions DO Load Balancer automatically
+
+# Deploy
+helm install frontend helm/frontend -f helm/frontend/values-do.yaml
+```

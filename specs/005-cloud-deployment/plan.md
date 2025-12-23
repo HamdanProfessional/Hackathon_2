@@ -161,95 +161,332 @@ This plan breaks down Phase V implementation into 10 days of work, covering data
 
 ---
 
-## Day 6: Cloud Cluster Setup
+## Day 6: DigitalOcean Cluster Setup
 
 ### Tasks
 
-1. **Create Cloud Cluster**
-   - Choose: DOKS, GKE, or AKS
-   - Create cluster with 3 nodes
-   - Configure kubectl context
+1. **Install and Configure doctl**
+   ```bash
+   # Install doctl
+   brew install doctl  # macOS
+   # Or download from https://github.com/digitalocean/doctl/releases
 
-2. **Install Dapr**
+   # Authenticate
+   doctl auth init
+
+   # Verify authentication
+   doctl account get
+   ```
+
+2. **Create DOKS Cluster**
+   ```bash
+   # Create cluster with 3 nodes
+   doctl kubernetes cluster create todo-cluster \
+     --region nyc1 \
+     --version 1.29.0 \
+     --node-pool "name=pool-1;size=s-4vcpu-8gb;count=3;auto-scale=true;min-nodes=2;max-nodes=5"
+
+   # Get kubeconfig
+   doctl kubernetes cluster kubeconfig save todo-cluster
+
+   # Verify cluster
+   kubectl get nodes
+   kubectl cluster-info
+   ```
+
+3. **Create DO Managed Redis**
+   ```bash
+   # Create Redis database
+   doctl databases create todo-redis \
+     --engine redis \
+     --region nyc1 \
+     --size 1gb \
+     --num-nodes 1
+
+   # Get connection details
+   doctl databases connection todo-redis --format json > redis-connection.json
+   REDIS_HOST=$(cat redis-connection.json | jq -r '.host')
+   REDIS_PORT=$(cat redis-connection.json | jq -r '.port')
+   REDIS_PASSWORD=$(cat redis-connection.json | jq -r '.password')
+   ```
+
+4. **Create DO Container Registry**
+   ```bash
+   # Create registry
+   doctl registry create
+
+   # Login to registry
+   doctl registry login
+
+   # Create repository (optional - auto-created on push)
+   # doctl registry repository create todo-app
+   ```
+
+5. **Install Dapr on DOKS**
    ```bash
    dapr init --kubernetes
    kubectl get pods -n dapr-system
    ```
 
-3. **Install Redpanda**
+6. **Install Redpanda with Block Storage**
    ```bash
    helm repo add redpanda https://charts.redpanda.com
-   helm install redpanda redpanda/redpanda --set replicas=3
+   helm repo update
+
+   helm install redpanda redpanda/redpanda \
+     --set replicas=3 \
+     --set persistence.size=50Gi \
+     --set resources.requests.cpu=2 \
+     --set resources.requests.memory=4Gi
    ```
 
-4. **Install Ingress Controller**
-   - Nginx ingress for cloud
-
 **Validation**:
-- [ ] Cluster has 3 nodes
-- [ ] Dapr pods running
-- [ ] Redpanda has 3 replicas
-- [ ] Ingress controller running
+- [ ] DOKS cluster has 3 nodes running
+- [ ] doctl can manage cluster
+- [ ] DO Managed Redis is active
+- [ ] Container Registry created and accessible
+- [ ] Dapr pods running in dapr-system namespace
+- [ ] Redpanda has 3 replicas with persistent storage
+- [ ] Redpanda pods are Ready
 
 ---
 
-## Day 7: Deploy to Cloud
+## Day 7: Deploy to DigitalOcean
 
 ### Tasks
 
-1. **Build and Push Images**
-   - Tag with version
-   - Push to registry (GHCR, Docker Hub)
-
-2. **Create Production Values**
-   - File: `helm/*/values-prod.yaml`
-   - Configure LoadBalancer
-   - Configure resource limits
-
-3. **Create Secrets**
+1. **Build and Push Images to DO Container Registry**
    ```bash
+   # Build images
+   docker build -t todo-frontend:latest ./frontend
+   docker build -t todo-backend:latest ./backend
+   docker build -t todo-notifications:latest ./services/notifications
+
+   # Tag for DO registry
+   docker tag todo-frontend:latest registry.digitalocean.com/todo-app/todo-frontend:latest
+   docker tag todo-backend:latest registry.digitalocean.com/todo-app/todo-backend:latest
+   docker tag todo-notifications:latest registry.digitalocean.com/todo-app/todo-notifications:latest
+
+   # Push to DO registry
+   docker push registry.digitalocean.com/todo-app/todo-frontend:latest
+   docker push registry.digitalocean.com/todo-app/todo-backend:latest
+   docker push registry.digitalocean.com/todo-app/todo-notifications:latest
+   ```
+
+2. **Create DigitalOcean-Specific Values**
+   - File: `helm/*/values-do.yaml`
+   - Configure DO LoadBalancer
+   - Configure resource limits
+   - Configure DO Managed Redis connection
+
+   ```yaml
+   # values-do.yaml example
+   image:
+     repository: registry.digitalocean.com/todo-app/todo-backend
+     tag: latest
+
+   service:
+     type: LoadBalancer  # Provisions DO Load Balancer
+
+   resources:
+     requests:
+       memory: "256Mi"
+       cpu: "250m"
+     limits:
+       memory: "512Mi"
+       cpu: "500m"
+
+   redis:
+     host: "<REDIS_HOST>"
+     port: "<REDIS_PORT>"
+     password: "<REDIS_PASSWORD>"
+   ```
+
+3. **Create Kubernetes Secrets**
+   ```bash
+   # Create backend secrets
    kubectl create secret generic backend-secrets \
      --from-literal=database-url="$DATABASE_URL" \
-     --from-literal=jwt-secret="$JWT_SECRET"
+     --from-literal=jwt-secret="$JWT_SECRET" \
+     --from-literal=groq-api-key="$GROQ_API_KEY"
+
+   # Create Redis connection secret
+   kubectl create secret generic redis-secrets \
+     --from-literal=redis-host="$REDIS_HOST" \
+     --from-literal=redis-port="$REDIS_PORT" \
+     --from-literal=redis-password="$REDIS_PASSWORD"
+
+   # Create Dapr Redis component for state store
+   kubectl create secret generic dapr-redis-secrets \
+     --from-literal=redis-host="$REDIS_HOST" \
+     --from-literal=redis-password="$REDIS_PASSWORD"
    ```
 
-4. **Deploy Services**
+4. **Deploy Services with Helm**
    ```bash
-   helm install frontend helm/frontend -f helm/frontend/values-prod.yaml
-   helm install backend helm/backend -f helm/backend/values-prod.yaml
-   helm install notifications helm/notifications -f helm/notifications/values-prod.yaml
+   # Deploy frontend
+   helm install frontend helm/frontend \
+     -f helm/frontend/values-do.yaml \
+     --namespace production --create-namespace
+
+   # Deploy backend
+   helm install backend helm/backend \
+     -f helm/backend/values-do.yaml \
+     --namespace production --create-namespace
+
+   # Deploy notification service
+   helm install notifications helm/notifications \
+     -f helm/notifications/values-do.yaml \
+     --namespace production --create-namespace
+   ```
+
+5. **Verify DO Load Balancers**
+   ```bash
+   # Check Load Balancers are provisioned
+   kubectl get svc -n production
+
+   # Get Load Balancer IPs
+   kubectl get svc frontend -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+   kubectl get svc backend -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+
+   # Verify via doctl
+   doctl compute load-balancer list
+   ```
+
+6. **Configure DO Cloud Firewall**
+   ```bash
+   # Create firewall for cluster
+   doctl compute firewall create todo-cluster-fw \
+     --inbound-rules="protocol:tcp,ports:443,address:0.0.0.0/0,protocol:tcp,ports:80,address:0.0.0.0/0" \
+     --outbound-rules="protocol:tcp,ports:all,address:0.0.0.0/0" \
+     --tag-names=k8s:todo-cluster
+
+   # Apply to cluster nodes
+   doctl kubernetes cluster update todo-cluster --firewall todo-cluster-fw
    ```
 
 **Validation**:
-- [ ] Images pushed
-- [ ] Secrets created
-- [ ] All pods running
-- [ ] Services accessible
+- [ ] Images pushed to DO Container Registry
+- [ ] DO Load Balancers provisioned (3 total)
+- [ ] Secrets created correctly
+- [ ] All pods running in production namespace
+- [ ] Services accessible via DO Load Balancers
+- [ ] Cloud Firewall configured
+- [ ] End-to-end connectivity works
 
 ---
 
-## Day 8: CI/CD Pipeline
+## Day 8: CI/CD Pipeline with DigitalOcean
 
 ### Tasks
 
-1. **Create GitHub Actions Workflow**
-   - File: `.github/workflows/deploy.yml`
-   - Stages: Build, Test, Push, Deploy, Health Check
+1. **Create DO Container Registry Access Token**
+   ```bash
+   # Create access token for CI/CD
+   doctl registry token create --read-write --expiry-seconds 0 > do_registry_token.txt
 
-2. **Configure Secrets**
-   - Add KUBECONFIG to GitHub secrets
-   - Add registry credentials
+   # Copy token value for GitHub Secrets
+   cat do_registry_token.txt
+   ```
 
-3. **Test Pipeline**
-   - Push to main branch
-   - Verify automated deployment
-   - Check health checks
+2. **Add GitHub Secrets**
+   - `DO_REGISTRY_TOKEN`: Container registry access token
+   - `DO_ACCESS_TOKEN`: DigitalOcean API token for doctl
+   - `KUBECONFIG`: Base64-encoded kubeconfig for DOKS cluster
+   - `DATABASE_URL`: Production database connection string
+   - `JWT_SECRET`: Production JWT secret
+   - `GROQ_API_KEY`: Groq API key for AI
+
+   ```bash
+   # Encode kubeconfig for GitHub
+   cat ~/.kube/config | base64 -w 0
+
+   # Add to GitHub: Settings > Secrets > New secret
+   ```
+
+3. **Create GitHub Actions Workflow**
+   - File: `.github/workflows/deploy-digitalocean.yml`
+   - Stages: Build, Test, Push to DO Registry, Deploy to DOKS, Health Check
+
+   ```yaml
+   name: Deploy to DigitalOcean
+
+   on:
+     push:
+       branches: [main]
+
+   jobs:
+     build-and-deploy:
+       runs-on: ubuntu-latest
+
+       steps:
+       - uses: actions/checkout@v4
+
+       - name: Login to DO Registry
+         run: docker login registry.digitalocean.com -u ${{ secrets.DO_REGISTRY_TOKEN }} -p ${{ secrets.DO_REGISTRY_TOKEN }}
+
+       - name: Build images
+         run: |
+           docker build -t registry.digitalocean.com/todo-app/todo-frontend:${{ github.sha }} ./frontend
+           docker build -t registry.digitalocean.com/todo-app/todo-backend:${{ github.sha }} ./backend
+           docker build -t registry.digitalocean.com/todo-app/todo-notifications:${{ github.sha }} ./services/notifications
+
+       - name: Push images
+         run: |
+           docker push registry.digitalocean.com/todo-app/todo-frontend:${{ github.sha }}
+           docker push registry.digitalocean.com/todo-app/todo-backend:${{ github.sha }}
+           docker push registry.digitalocean.com/todo-app/todo-notifications:${{ github.sha }}
+
+       - name: Install doctl
+         uses: digitalocean/action-doctl@v2
+         with:
+           token: ${{ secrets.DO_ACCESS_TOKEN }}
+
+       - name: Configure kubectl
+         run: |
+           echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
+           export KUBECONFIG=kubeconfig
+
+       - name: Deploy to DOKS
+         run: |
+           helm upgrade --install frontend helm/frontend \
+             --set image.tag=${{ github.sha }} \
+             --namespace production
+           helm upgrade --install backend helm/backend \
+             --set image.tag=${{ github.sha }} \
+             --namespace production
+           helm upgrade --install notifications helm/notifications \
+             --set image.tag=${{ github.sha }} \
+             --namespace production
+
+       - name: Health Check
+         run: |
+           kubectl wait --for=condition=ready pod -l app=frontend -n production --timeout=300s
+           kubectl wait --for=condition=ready pod -l app=backend -n production --timeout=300s
+   ```
+
+4. **Test Pipeline**
+   ```bash
+   # Push to main branch
+   git push origin main
+
+   # Monitor workflow in GitHub Actions
+   # Verify images pushed to DO Container Registry
+   doctl registry repository list
+
+   # Verify deployment on DOKS
+   kubectl get pods -n production
+   kubectl get svc -n production
+   ```
 
 **Validation**:
-- [ ] Workflow runs on push
-- [ ] Images build and push
-- [ ] Automatic deployment works
+- [ ] DO Registry access token created
+- [ ] GitHub secrets configured
+- [ ] Workflow runs on push to main
+- [ ] Images build and push to DO Container Registry
+- [ ] Automatic deployment to DOKS works
 - [ ] Health checks pass
+- [ ] DO Load Balancers updated
 
 ---
 

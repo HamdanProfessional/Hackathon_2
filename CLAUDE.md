@@ -6,7 +6,7 @@ model: sonnet
 
 # Evolution of TODO - Project Status
 
-## Current Phase: Phase III - AI Chatbot (Production Deployed)
+## Current Phase: Phase IV - Kubernetes Deployment (Testing Complete) | Phase V - DigitalOcean Cloud (Spec Ready)
 
 ### Production URLs
 | Service | URL |
@@ -20,20 +20,50 @@ model: sonnet
 - **Free Tier**: 14,400 requests/day
 - **Fallback Chain**: Groq → Gemini → OpenAI → Grok
 
+### Phase Status
+| Phase | Status | Completion |
+|-------|--------|------------|
+| Phase I - Console App | ✅ Complete | CLI CRUD application |
+| Phase II - Web App | ✅ Complete | FastAPI + Next.js, JWT auth |
+| Phase III - AI Chatbot | ✅ Deployed | Production on Vercel |
+| Phase IV - Kubernetes | ⚠️ Testing | Minikube running, migration issues |
+| Phase V - Cloud Deployment | 📋 Spec Ready | DigitalOcean focus |
+
+### E2E Test Results (Production) - Latest: 2025-12-23
+| Test Category | Result | Details |
+|---------------|--------|---------|
+| User Registration/Login | ✅ Pass | JWT authentication working |
+| Task CRUD (API) | ✅ Pass | Create, Read, Delete work |
+| Task Update (API) | ❌ Fail | Returns 400 error |
+| MCP Tools via Chat | ❌ Fail | Tools NOT being called by AI |
+| Conversation List | ✅ Pass | 6 conversations found |
+| Conversation Details | ❌ Fail | 405 Method Not Allowed |
+| AI Text Response | ✅ Pass | AI responds but doesn't use tools |
+
+**Critical Issue**: MCP tools (get_tasks, create_task, update_task, delete_task) are defined but NOT being invoked by the AI agent. The `tool_calls` array is empty in chat responses.
+
+### Known Issues
+1. **MCP Tools Not Called**: AI responds with text but doesn't invoke MCP tools
+2. **Task Update API**: Returns 400 status code
+3. **Conversation Details Endpoint**: Returns 405 Method Not Allowed
+4. **Database Migrations**: Complex dependency chain (cc82207f4f25 causes issues on fresh DB)
+5. **Kubernetes Local**: Minikube deployment running but DB migrations need manual intervention
+
 ### Completed Phase III Features
 | Feature | Status | Notes |
 |---------|--------|-------|
 | AI Chat Interface | ✅ Deployed | Full-page chat at `/chat` |
 | Dashboard Chat Widget | ✅ Deployed | Floating widget with Nebula theme |
 | Delete Conversations | ✅ Working | Trash2 icon in conversation list |
-| MCP Tools | ✅ Working | All 5 tools functional |
+| MCP Tools (Defined) | ⚠️ Not Called | 5 tools exist but AI doesn't invoke them |
 | Stateless Agent | ✅ Deployed | Conversation history from database |
 | Conversation Persistence | ✅ Working | PostgreSQL via Neon |
 
 ### Database
-- **Type**: PostgreSQL (Neon)
+- **Type**: PostgreSQL (Neon for production, local for dev)
 - **Migrations**: Alembic
 - **Latest Migration**: 004_fix_message_role_enum_to_varchar
+- **Migration Issue**: cc82207f4f25_add_performance_indexes.py tries to drop non-existent Better Auth tables
 
 ### Project Structure
 - `backend/` - FastAPI backend
@@ -119,6 +149,92 @@ You are the Orchestrator, the meta-agent responsible for coordinating specialize
   - Skills: code-reviewer, performance-analyzer
 
 ## Orchestration Workflow
+
+### 0. Testing First (MANDATORY)
+Before ANY implementation or deployment:
+1. **Review Existing Tests**: Check `tests/` directory for relevant test files
+2. **Write Test First**: Create/update tests for the feature being implemented
+3. **Run Tests**: Execute tests to establish baseline
+4. **Implement Feature**: Write code to make tests pass
+5. **Verify All Tests Pass**: Ensure no regressions
+
+### Testing Requirements by Phase
+
+#### Phase I - Console App
+- [ ] Unit tests for CLI commands
+- [ ] Integration tests for database operations
+- [ ] End-to-end tests for user workflows
+- [ ] Test file: `tests/test_phase1_cli.py`
+
+#### Phase II - Web App
+- [ ] API endpoint tests (FastAPI TestClient)
+- [ ] Authentication tests (register, login, JWT)
+- [ ] Frontend component tests (React Testing Library)
+- [ ] E2E tests (Playwright/Cypress)
+- [ ] Test file: `tests/test_phase2_webapp.py`
+
+#### Phase III - AI Chatbot
+- [ ] MCP tool invocation tests
+- [ ] Conversation persistence tests
+- [ ] Agent statelessness tests
+- [ ] E2E chat workflow tests
+- [ ] Test files: `tests/test_phase3_chatbot.py`, `tests/test_e2e_functional.py`
+
+#### Phase IV - Kubernetes
+- [ ] Helm chart validation tests
+- [ ] Pod health check tests
+- [ ] Service connectivity tests
+- [ ] Rolling deployment tests
+- [ ] Test file: `tests/test_phase4_kubernetes.py`
+
+#### Phase V - Cloud Deployment
+- [ ] CI/CD pipeline tests
+- [ ] Infrastructure-as-code tests
+- [ ] Multi-environment deployment tests
+- [ ] Disaster recovery tests
+- [ ] Test file: `tests/test_phase5_cloud.py`
+
+### Testing Requirements by Task Type
+
+#### Backend Tasks
+- [ ] Unit tests for new functions/methods
+- [ ] API endpoint tests (request/response validation)
+- [ ] Database integration tests
+- [ ] Error handling tests
+
+#### Frontend Tasks
+- [ ] Component rendering tests
+- [ ] User interaction tests
+- [ ] API integration tests
+- [ ] State management tests
+
+#### Infrastructure Tasks
+- [ ] Configuration validation tests
+- [ ] Deployment smoke tests
+- [ ] Health check tests
+- [ ] Rollback tests
+
+#### Database Migrations
+- [ ] Forward migration test
+- [ ] Downgrade migration test
+- [ ] Data integrity tests
+- [ ] Performance tests
+
+### Git Workflow (MANDATORY)
+After EVERY task completion:
+1. **Review Changes**: Check git status
+2. **Stage Files**: Add modified files
+3. **Commit**: Use conventional commit format
+   ```
+   <type>(<scope>): <description>
+
+   [<optional body>]
+
+   [<optional footer>]
+   ```
+   Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+4. **Push**: Push to main branch
+5. **Verify**: Confirm commit appears in git log
 
 ### 1. Analyze Request
 ```markdown

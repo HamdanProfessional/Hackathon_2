@@ -1,6 +1,6 @@
-# Quick Start: Cloud Deployment with Event-Driven Architecture
+# Quick Start: Cloud Deployment with Event-Driven Architecture on DigitalOcean
 
-This guide helps you get started with Phase V implementation.
+This guide helps you get started with Phase V implementation on **DigitalOcean Kubernetes (DOKS)**.
 
 ---
 
@@ -10,13 +10,17 @@ This guide helps you get started with Phase V implementation.
 
 ```bash
 # kubectl
-kubectl version --client
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/darwin/arm64/kubectl"
+chmod +x kubectl && sudo mv kubectl /usr/local/bin/
 
 # Helm
-helm version
+brew install helm
+
+# doctl (DigitalOcean CLI)
+brew install doctl
 
 # Dapr CLI
-dapr version
+brew install dapr/tap/dapr-cli
 
 # kubectl-ai (via krew)
 kubectl krew install ai
@@ -25,12 +29,11 @@ kubectl krew install ai
 npm install -g @kagent/cli
 ```
 
-### Cloud Account
+### DigitalOcean Account
 
-Choose one:
-- **DigitalOcean**: Create account at digitalocean.com
-- **Google Cloud**: Create project at console.cloud.google.com
-- **Azure**: Create account at portal.azure.com
+1. Create account at [digitalocean.com](https://www.digitalocean.com)
+2. Generate API token: Account > API > Generate New Token
+3. Save token for doctl authentication
 
 ---
 
@@ -124,67 +127,105 @@ docker build -t todo-notifications:latest .
 
 ---
 
-## Day 6: Cloud Cluster Setup
+## Day 6: DigitalOcean Cluster Setup
 
-### DigitalOcean (DOKS)
+### Install and Authenticate doctl
 
 ```bash
 # Install doctl
 brew install doctl
 
-# Authenticate
+# Authenticate with your API token
 doctl auth init
 
-# Create cluster
+# Verify authentication
+doctl account get
+```
+
+### Create DOKS Cluster
+
+```bash
+# Create cluster with 3 nodes (autoscaling 2-5)
 doctl kubernetes cluster create todo-cluster \
   --region nyc1 \
-  --node-pool "name=pool-1;size=s-4vcpu-8gb;count=3"
+  --version 1.29.0 \
+  --node-pool "name=pool-1;size=s-4vcpu-8gb;count=3;auto-scale=true;min-nodes=2;max-nodes=5"
 
 # Get kubeconfig
 doctl kubernetes cluster kubeconfig save todo-cluster
+
+# Verify cluster
+kubectl get nodes
+kubectl cluster-info
 ```
 
-### Google Cloud (GKE)
+### Create DO Managed Redis
 
 ```bash
-# Create cluster
-gcloud container clusters create todo-cluster \
-  --region=us-central1 \
-  --num-nodes=3
+# Create Redis database for Dapr state store
+doctl databases create todo-redis \
+  --engine redis \
+  --region nyc1 \
+  --size 1gb \
+  --num-nodes 1
 
-# Get credentials
-gcloud container clusters get-credentials todo-cluster --region=us-central1
+# Get connection details
+doctl databases connection todo-redis --format json > redis-connection.json
+cat redis-connection.json | jq '.host, .port, .password'
 ```
 
-### Azure (AKS)
+### Create DO Container Registry
 
 ```bash
-# Create cluster
-az aks create \
-  --resource-group todo-rg \
-  --name todo-cluster \
-  --node-count 3
+# Create registry
+doctl registry create
 
-# Get credentials
-az aks get-credentials --resource-group todo-rg --name todo-cluster
+# Login to registry
+doctl registry login
+```
+
+### Install Dapr and Redpanda on DOKS
+
+```bash
+# Install Dapr
+dapr init --kubernetes
+kubectl get pods -n dapr-system
+
+# Install Redpanda with DO Block Storage
+helm repo add redpanda https://charts.redpanda.com
+helm repo update
+
+helm install redpanda redpanda/redpanda \
+  --set replicas=3 \
+  --set persistence.size=50Gi \
+  --set resources.requests.cpu=2 \
+  --set resources.requests.memory=4Gi
+
+# Verify Redpanda
+kubectl get pods -l app=redpanda
 ```
 
 ---
 
-## Day 7: Deploy to Cloud
+## Day 7: Deploy to DigitalOcean
 
-### Push Images
+### Build and Push Images to DO Registry
 
 ```bash
-# Tag for registry
-docker tag todo-frontend:latest ghcr.io/username/todo-frontend:latest
-docker tag todo-backend:latest ghcr.io/username/todo-backend:latest
-docker tag todo-notifications:latest ghcr.io/username/todo-notifications:latest
+# Build images
+docker build -t todo-frontend:latest ./frontend
+docker build -t todo-backend:latest ./backend
+docker build -t todo-notifications:latest ./services/notifications
 
-# Push
-docker push ghcr.io/username/todo-frontend:latest
-docker push ghcr.io/username/todo-backend:latest
-docker push ghcr.io/username/todo-notifications:latest
+# Tag for DO registry
+docker tag todo-frontend:latest registry.digitalocean.com/todo-app/todo-frontend:latest
+docker tag todo-backend:latest registry.digitalocean.com/todo-app/todo-backend:latest
+docker tag todo-notifications:latest registry.digitalocean.com/todo-app/todo-notifications:latest
+
+# Push to DO registry
+docker push registry.digitalocean.com/todo-app/todo-frontend:latest
+docker push registry.digitalocean.com/todo-app/todo-backend:latest
+docker push registry.digitalocean.com/todo-app/todo-notifications:latest
 ```
 
 ### Deploy with Helm
@@ -193,50 +234,89 @@ docker push ghcr.io/username/todo-notifications:latest
 # Create secrets
 kubectl create secret generic backend-secrets \
   --from-literal=database-url="$DATABASE_URL" \
-  --from-literal=jwt-secret="$JWT_SECRET"
+  --from-literal=jwt-secret="$JWT_SECRET" \
+  --from-literal=groq-api-key="$GROQ_API_KEY"
 
-# Install services
+# Create Redis secret
+kubectl create secret generic redis-secrets \
+  --from-literal=redis-host="<REDIS_HOST>" \
+  --from-literal=redis-port="<REDIS_PORT>" \
+  --from-literal=redis-password="<REDIS_PASSWORD>"
+
+# Install services (provisions DO Load Balancers automatically)
 helm install frontend helm/frontend \
-  --set image.repository=ghcr.io/username/todo-frontend
+  -f helm/frontend/values-do.yaml \
+  --namespace production --create-namespace
 
 helm install backend helm/backend \
-  --set image.repository=ghcr.io/username/todo-backend
+  -f helm/backend/values-do.yaml \
+  --namespace production --create-namespace
 
 helm install notifications helm/notifications \
-  --set image.repository=ghcr.io/username/todo-notifications
+  -f helm/notifications/values-do.yaml \
+  --namespace production --create-namespace
+```
+
+### Verify Deployment
+
+```bash
+# Check pods
+kubectl get pods -n production
+
+# Check Load Balancers
+kubectl get svc -n production
+
+# Get Load Balancer IPs
+doctl compute load-balancer list
 ```
 
 ---
 
-## Day 8: CI/CD Pipeline
+## Day 8: CI/CD Pipeline with DigitalOcean
 
 ### Create GitHub Actions Workflow
 
-File: `.github/workflows/deploy.yml`
+File: `.github/workflows/deploy-digitalocean.yml`
 
 ```yaml
-name: Build and Deploy
+name: Deploy to DigitalOcean
 
 on:
   push:
     branches: [main]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Build images
+
+    - name: Login to DO Registry
+      run: docker login registry.digitalocean.com -u ${{ secrets.DO_REGISTRY_TOKEN }} -p ${{ secrets.DO_REGISTRY_TOKEN }}
+
+    - name: Build and push
       run: |
-        docker build -t ghcr.io/todo-backend ./backend
-        docker push ghcr.io/todo-backend
+        docker build -t registry.digitalocean.com/todo-app/todo-backend:${{ github.sha }} ./backend
+        docker push registry.digitalocean.com/todo-app/todo-backend:${{ github.sha }}
+
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DO_ACCESS_TOKEN }}
+
+    - name: Deploy to DOKS
+      run: |
+        echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        helm upgrade --install backend helm/backend --set image.tag=${{ github.sha }}
 ```
 
 ### Add GitHub Secrets
 
-1. Go to repository Settings > Secrets
-2. Add `KUBECONFIG` (base64 encoded)
-3. Add `GHCR_TOKEN`
+1. Go to repository Settings > Secrets > New secret
+2. Add `DO_REGISTRY_TOKEN` (from `doctl registry token create`)
+3. Add `DO_ACCESS_TOKEN` (from DO dashboard)
+4. Add `KUBECONFIG` (base64 encoded kubeconfig)
 
 ---
 
@@ -275,13 +355,14 @@ kagent "Scale the frontend for high traffic"
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm install prometheus prometheus-community/kube-prometheus-stack
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring --create-namespace
 ```
 
 ### Access Grafana
 
 ```bash
-kubectl port-forward svc/prometheus-grafana 3000:80
+kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
 ```
 
 Open http://localhost:3000
@@ -295,7 +376,10 @@ Open http://localhost:3000
 ### Create Task with Due Date
 
 ```bash
-curl -X POST $API_URL/api/tasks \
+# Get Load Balancer IP
+LB_IP=$(kubectl get svc backend -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+curl -X POST http://$LB_IP/api/tasks \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "title": "Complete report",
@@ -306,7 +390,7 @@ curl -X POST $API_URL/api/tasks \
 ### Create Recurring Task
 
 ```bash
-curl -X POST $API_URL/api/recurring-tasks \
+curl -X POST http://$LB_IP/api/recurring-tasks \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "title": "Daily Standup",
@@ -331,7 +415,7 @@ kubectl exec -it redpanda-0 -- rpk topic consume task-created
 
 ```bash
 # Uninstall services
-helm uninstall frontend backend notifications
+helm uninstall frontend backend notifications -n production
 
 # Delete Redpanda
 helm uninstall redpanda
@@ -339,14 +423,34 @@ helm uninstall redpanda
 # Uninstall Dapr
 dapr uninstall --kubernetes
 
-# Delete cluster (DOKS)
+# Delete DO Managed Redis
+doctl databases delete todo-redis
+
+# Delete DOKS cluster
 doctl kubernetes cluster delete todo-cluster
+
+# Delete DO Container Registry (optional)
+doctl registry delete
 ```
+
+---
+
+## Cost Summary
+
+| DigitalOcean Service | Monthly Cost |
+|---------------------|--------------|
+| DOKS Cluster (3 nodes) | $60 |
+| Load Balancers (3×) | $36 |
+| Managed Redis | $15 |
+| Block Storage (150GB) | $12 |
+| Container Registry | ~$5 |
+| **Total** | **~$128/mo** |
 
 ---
 
 ## Next Steps
 
-- Read full [spec.md](./spec.md) for details
-- Follow [plan.md](./plan.md) for 10-day implementation
+- Read full [spec.md](./spec.md) for DigitalOcean architecture details
+- Follow [plan.md](./plan.md) for 10-day DigitalOcean implementation
 - See [tasks.md](./tasks.md) for complete task list
+- Review [research.md](./research.md) for technology decisions

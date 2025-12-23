@@ -176,9 +176,11 @@ class ApiClient {
   async getCurrentUserFromAuth(): Promise<User | null> {
     try {
       const session = await getSession();
-      if (session.data?.session?.user) {
+      // Use type assertion to handle Better Auth response structure
+      const sessionData = session.data as any;
+      if (sessionData?.session?.user) {
         // Convert Better Auth user format to our User type
-        const authUser = session.data.session.user;
+        const authUser = sessionData.session.user;
         return {
           id: parseInt(authUser.id) || 0,
           email: authUser.email,

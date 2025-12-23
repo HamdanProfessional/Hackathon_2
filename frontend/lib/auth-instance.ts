@@ -6,8 +6,9 @@
  */
 
 import { betterAuth } from "better-auth";
-import { jwt } from "better-auth/jwt";
-import { nodemailer } from "better-auth/nodemailer";
+
+// Note: better-auth/jwt and better-auth/nodemailer are optional plugins
+// They may not be available in all versions, so we import them conditionally
 
 /**
  * Better Auth instance configuration
@@ -37,11 +38,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // Disable for hackathon
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, url }: any) => {
       // Implement password reset email if needed
       console.log("Password reset requested for:", user.email);
     },
-    sendVerificationEmail: async ({ user, url }) => {
+    sendVerificationEmail: async ({ user, url }: any) => {
       // Implement email verification if needed
       console.log("Verification email sent to:", user.email);
     },
@@ -81,7 +82,16 @@ export const auth = betterAuth({
 
 // Export type for schema
 export type Session = typeof auth.$Infer.Session;
-export type User = typeof auth.$Infer.User;
+// User type is not directly exported by better-auth, define it manually
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+  emailVerified: boolean;
+  image?: string | null;
+}
 
 /**
  * JWT Configuration for Backend

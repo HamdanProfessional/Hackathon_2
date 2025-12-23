@@ -142,10 +142,10 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, url }: any) => {
       console.log("Password reset for:", user.email);
     },
-    sendVerificationEmail: async ({ user, url }) => {
+    sendVerificationEmail: async ({ user, url }: any) => {
       console.log("Verification for:", user.email);
     },
   },
@@ -167,4 +167,13 @@ export const auth = betterAuth({
 });
 
 export type Session = typeof auth.$Infer.Session;
-export type User = typeof auth.$Infer.User;
+// User type is not directly exported by better-auth, define it manually
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+  emailVerified: boolean;
+  image?: string | null;
+}

@@ -45,8 +45,9 @@ export async function signIn(email: string, password: string) {
   });
 
   // Store JWT token for API calls
-  if (response.data?.session?.token) {
-    localStorage.setItem("access_token", response.data.session.token);
+  // Note: better-auth response structure has token at data level
+  if ((response.data as any)?.token) {
+    localStorage.setItem("access_token", (response.data as any).token);
   }
 
   return response;
@@ -59,12 +60,12 @@ export async function signUp(email: string, password: string, name?: string) {
   const response = await authClient.signUp.email({
     email,
     password,
-    name,
+    name: name || email.split('@')[0], // Use email username as default name
   });
 
   // Store JWT token for API calls
-  if (response.data?.session?.token) {
-    localStorage.setItem("access_token", response.data.session.token);
+  if ((response.data as any)?.token) {
+    localStorage.setItem("access_token", (response.data as any).token);
   }
 
   return response;
@@ -95,8 +96,9 @@ export async function getSession() {
   const response = await authClient.getSession();
 
   // Update localStorage token if session exists
-  if (response.data?.session?.token) {
-    localStorage.setItem("access_token", response.data.session.token);
+  // Note: better-auth response structure varies
+  if ((response.data as any)?.token) {
+    localStorage.setItem("access_token", (response.data as any).token);
   }
 
   return response;
@@ -124,5 +126,5 @@ export function isAuthenticated(): boolean {
  */
 export async function getCurrentUser(): Promise<User | null> {
   const session = await getSession();
-  return session.data?.session?.user || null;
+  return (session.data as any)?.session?.user || null;
 }
