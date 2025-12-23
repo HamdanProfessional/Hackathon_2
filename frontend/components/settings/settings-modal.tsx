@@ -42,6 +42,11 @@ export function SettingsModal() {
     const newPreferences = { ...preferences, [key]: value };
     setPreferences(newPreferences);
 
+    // Sync viewMode to localStorage for cross-tab communication
+    if (key === 'viewMode' && typeof window !== 'undefined') {
+      localStorage.setItem('viewMode', value);
+    }
+
     try {
       await apiClient.updateUserPreferences(newPreferences);
       toast.success("Preference updated successfully");
@@ -49,6 +54,9 @@ export function SettingsModal() {
       toast.error("Failed to update preference");
       // Revert on error
       setPreferences(preferences);
+      if (key === 'viewMode' && typeof window !== 'undefined') {
+        localStorage.setItem('viewMode', preferences.viewMode || 'grid');
+      }
     }
   };
 

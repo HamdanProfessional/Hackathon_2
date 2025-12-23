@@ -26,6 +26,26 @@ export default function TaskCard({
 }: TaskCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Calculate task age in days
+  const getTaskAge = (createdAt: string): number => {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffTime = now.getTime() - created.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  // Get age color class for left border
+  const getAgeBorderColor = (age: number): string => {
+    if (age < 3) return 'border-l-green-500'; // New - green
+    if (age < 7) return 'border-l-yellow-500'; // Aging - yellow
+    if (age < 14) return 'border-l-orange-500'; // Old - orange
+    return 'border-l-red-500'; // Critical - red
+  };
+
+  const taskAge = getTaskAge(task.created_at);
+  const ageBorderColor = getAgeBorderColor(taskAge);
+
   const priorityColors = {
     HIGH: "border-l-red-500 bg-red-500/10",
     MEDIUM: "border-l-amber-500 bg-amber-500/10",
@@ -69,8 +89,13 @@ export default function TaskCard({
         "group relative overflow-hidden transition-all duration-200 hover:shadow-glow-primary",
         "bg-zinc-900/50 backdrop-blur-md border-zinc-800",
         task.completed && "opacity-60",
-        priorityColors[task.priority],
-        viewMode === 'list' && "border-l-4"
+        // Use priority colors for background tint
+        task.priority === "high" && "bg-red-500/5",
+        task.priority === "medium" && "bg-amber-500/5",
+        task.priority === "low" && "bg-zinc-500/5",
+        // Age-based left border
+        viewMode === 'list' ? `border-l-4 ${ageBorderColor}` : "",
+        viewMode === 'grid' ? `border-l-4 ${ageBorderColor}` : ""
       )}
     >
       <CardContent className={cn(

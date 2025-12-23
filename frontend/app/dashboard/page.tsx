@@ -18,6 +18,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SettingsModal } from "@/components/settings/settings-modal";
 import ChatWidget from "@/components/chat/chat-widget";
 import LanguageSwitcher from "@/components/language-switcher";
+import { StreakHeatmap } from "@/components/analytics/streak-heatmap";
 
 export default function DashboardPage() {
   console.log("Dashboard Rendered");
@@ -36,7 +37,14 @@ export default function DashboardPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [submittingTask, setSubmittingTask] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    // Initialize from localStorage first, then sync with backend
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('viewMode');
+      return (stored === 'grid' || stored === 'list') ? stored : 'grid';
+    }
+    return 'grid';
+  });
 
   // Extract primitive values from searchParams to prevent infinite loops
   const searchQuery = searchParams.get("search");
@@ -72,6 +80,10 @@ export default function DashboardPage() {
           const prefs = await apiClient.getUserPreferences();
           if (prefs?.preferences?.viewMode) {
             setViewMode(prefs.preferences.viewMode);
+            // Sync to localStorage
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('viewMode', prefs.preferences.viewMode);
+            }
           }
         } catch (error) {
           console.error("Failed to load preferences:", error);
@@ -80,6 +92,21 @@ export default function DashboardPage() {
     };
 
     loadUserData();
+  }, []);
+
+  // Listen for localStorage changes (sync across tabs/settings modal)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'viewMode' && e.newValue) {
+        const newMode = e.newValue === 'grid' || e.newValue === 'list' ? e.newValue : 'grid';
+        setViewMode(newMode);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
   }, []);
 
   // Memoized loadTasks function to prevent infinite loops
@@ -116,6 +143,10 @@ export default function DashboardPage() {
   // Handle view mode change
   const handleViewModeChange = async (newViewMode: 'grid' | 'list') => {
     setViewMode(newViewMode);
+    // Sync to localStorage immediately for responsive UI
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('viewMode', newViewMode);
+    }
     // Also update in user preferences
     try {
       const prefs = await apiClient.getUserPreferences();
@@ -388,6 +419,9 @@ export default function DashboardPage() {
                 </CardHeader>
               </Card>
             </div>
+
+            {/* Streak Heatmap */}
+            <StreakHeatmap />
 
             {/* Tasks List */}
             <div className="space-y-4">

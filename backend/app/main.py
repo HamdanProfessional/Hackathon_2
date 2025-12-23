@@ -1040,10 +1040,11 @@ async def test_conversation_creation():
 
 
 # Import routers
-from app.api import auth, tasks, users, chat
+from app.api import auth, tasks, users, chat, analytics
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
