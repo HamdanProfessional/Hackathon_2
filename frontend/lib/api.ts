@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { getSession } from '@/lib/auth-client';
 
 // API base URL - hardcoded for production
-const API_BASE_URL = 'https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app';
+const API_BASE_URL = 'https://backend-lac-nu-61.vercel.app';
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Type definitions
