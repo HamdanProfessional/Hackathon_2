@@ -34,13 +34,15 @@ slowapi==0.1.9
 # Natural language parsing
 python-dateutil>=2.8.2
 
-# Phase III: AI Agent Integration (Google Gemini + OpenAI)
+# Phase III: AI Agent Integration (Google Gemini + OpenAI + Groq)
 openai>=1.0.0
 google-generativeai>=0.8.0  # Native Gemini SDK for better support
+groq>=0.11.0  # Groq API for fast LLM inference
 mcp>=1.0.0
 # Note: Supports both OpenAI and Google Gemini models
 # Using OpenAI client with Gemini's OpenAI-compatible endpoint for tool calling
 # Native Gemini SDK available as backup/alternative
+# Groq API for free tier high-speed inference
 
 # Phase V: Dapr Event-Driven Architecture
 dapr>=1.14.0

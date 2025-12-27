@@ -1,11 +1,12 @@
 replicaCount: 2
 
 image:
-  repository: todo-backend
-  tag: latest
+  repository: registry.digitalocean.com/todo-chatbot-reg/todo-backend
+  tag: phase-v-groq
   pullPolicy: IfNotPresent
 
-imagePullSecrets: []
+imagePullSecrets:
+  - name: registry-pull-secret
 nameOverride: ""
 fullnameOverride: ""
 
@@ -66,6 +67,13 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# Dapr configuration
+dapr:
+  enabled: false
+  appId: todo-backend
+  appPort: 8000
+  appProtocol: http
 
 # Secrets (should be overridden in production)
 secrets:
