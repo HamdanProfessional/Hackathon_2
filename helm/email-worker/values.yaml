@@ -1,0 +1,100 @@
+# Email Worker Helm Chart Values
+
+replicaCount: 2
+
+image:
+  repository: registry.digitalocean.com/hackathon2-hub/email-worker
+  pullPolicy: Always
+  tag: "latest"
+
+# Email configuration (Gmail SMTP)
+email:
+  mailServer: smtp.gmail.com
+  mailPort: 587
+  mailUsername: n00bi2761@gmail.com
+  mailPassword: dzhq jnkd kycv plaz
+  mailFrom: noreply@hackathon2.testservers.online
+  mailFromName: Todo App
+
+# Dapr configuration
+dapr:
+  enabled: true
+  appId: email-worker
+  appPort: 8003
+  appProtocol: http
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8003
+
+# Ingress configuration (optional - for external access)
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: email-worker.hackathon2.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Resource limits
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Auto-scaling
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Database (shared with backend)
+database:
+  url: postgresql+asyncpg://todo_user:your_password_here@postgres-service:5432/todo
+
+# Environment variables
+env:
+  debug: false
+  logLevel: info
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}

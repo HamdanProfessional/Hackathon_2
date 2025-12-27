@@ -1,0 +1,12 @@
+apiVersion: v2
+name: email-worker
+description: Email Worker microservice for Todo App - handles email notifications via Dapr events
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - email
+  - notifications
+  - dapr
+maintainers:
+  - name: Todo App Team

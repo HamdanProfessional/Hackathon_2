@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "email-worker.fullname" . }}
+  labels:
+    {{- include "email-worker.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "email-worker.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: {{ .Values.dapr.appId }}
+        dapr.io/app-port: "{{ .Values.dapr.appPort }}"
+        dapr.io/app-protocol: {{ .Values.dapr.appProtocol }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "email-worker.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.port }}
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "{{ .Values.service.port }}"
+        - name: APP_NAME
+          value: "Email Worker"
+        - name: DEBUG
+          value: "{{ .Values.env.debug | toString }}"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: todo-secrets
+              key: database-url
+        # Email configuration
+        - name: MAIL_SERVER
+          value: {{ .Values.email.mailServer | quote }}
+        - name: MAIL_PORT
+          value: "{{ .Values.email.mailPort }}"
+        - name: MAIL_USERNAME
+          value: {{ .Values.email.mailUsername | quote }}
+        - name: MAIL_PASSWORD
+          value: {{ .Values.email.mailPassword | quote }}
+        - name: MAIL_FROM
+          value: {{ .Values.email.mailFrom | quote }}
+        - name: MAIL_FROM_NAME
+          value: {{ .Values.email.mailFromName | quote }}
+        # Dapr configuration
+        - name: DAPR_HTTP_PORT
+          value: "{{ .Values.dapr.appPort }}"
+        - name: DAPR_PUBSUB_NAME
+          value: "todo-pubsub"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

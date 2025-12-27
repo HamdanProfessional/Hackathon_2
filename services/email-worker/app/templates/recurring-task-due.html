@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recurring Task Due</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #4F46E5;
+        }
+        .header h1 {
+            color: #4F46E5;
+            margin: 0;
+            font-size: 24px;
+        }
+        .task-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1F2937;
+            margin: 20px 0 10px 0;
+        }
+        .task-details {
+            background-color: #F9FAFB;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .task-details p {
+            margin: 8px 0;
+        }
+        .label {
+            font-weight: 600;
+            color: #6B7280;
+        }
+        .recurrence-badge {
+            display: inline-block;
+            background-color: #DEF7EC;
+            color: #03543F;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #4F46E5;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #E5E7EB;
+            font-size: 12px;
+            color: #6B7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Recurring Task Reminder</h1>
+        </div>
+
+        <div class="task-title">
+            {{ title }}
+            <span class="recurrence-badge">{{ recurrence_type|capitalize }}</span>
+        </div>
+
+        <div class="task-details">
+            <p><span class="label">Next Due:</span> {{ next_due_date }}</p>
+            <p><span class="label">Recurrence:</span> {{ recurrence_type|capitalize }}</p>
+            {% if end_date %}
+            <p><span class="label">Ends:</span> {{ end_date }}</p>
+            {% else %}
+            <p><span class="label">Ends:</span> Never</p>
+            {% endif %}
+            {% if description %}
+            <p><span class="label">Description:</span> {{ description }}</p>
+            {% endif %}
+        </div>
+
+        <p>Your recurring task is due {{ recurrence_type }}. A new task instance has been created for you.</p>
+
+        <center>
+            <a href="{{ app_url }}" class="btn">View Task</a>
+        </center>
+
+        <div class="footer">
+            <p>You're receiving this email because you have a recurring task in Todo App.</p>
+            <p>&copy; 2025 Todo App. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
