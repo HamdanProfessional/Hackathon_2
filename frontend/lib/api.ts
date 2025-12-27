@@ -16,8 +16,8 @@ function getApiBaseUrl(): string {
   if (buildTimeUrl && buildTimeUrl !== 'http://localhost:8000') {
     return buildTimeUrl;
   }
-  // Default to production backend
-  return 'https://backend-lac-nu-61.vercel.app';
+  // Default to production backend (api.testservers.online)
+  return 'https://api.testservers.online';
 }
 
 // Load runtime config from /config.json (called on page load)
