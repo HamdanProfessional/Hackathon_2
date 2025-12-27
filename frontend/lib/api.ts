@@ -6,13 +6,13 @@ import { getSession } from '@/lib/auth-client';
 // This allows changing the backend URL without rebuilding the Docker image
 let runtimeApiUrl: string | null = null;
 
-// Get API URL - tries runtime config first, then env var, then default
+// Get API URL - tries runtime config first, then env var, then production backend, then localhost
 function getApiBaseUrl(): string {
   if (runtimeApiUrl) {
     return runtimeApiUrl;
   }
-  // Fallback to build-time env var or default
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  // Fallback to build-time env var or production backend, then localhost
+  return process.env.NEXT_PUBLIC_API_URL || 'https://backend-lac-nu-61.vercel.app' || 'http://localhost:8000';
 }
 
 // Load runtime config from /config.json (called on page load)
