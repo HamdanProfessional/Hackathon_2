@@ -11,8 +11,8 @@ image:
 email:
   mailServer: smtp.gmail.com
   mailPort: 587
-  mailUsername: n00bi2761@gmail.com
-  mailPassword: dzhq jnkd kycv plaz
+  mailUsername: your-email@gmail.com
+  mailPassword: your-gmail-app-password
   mailFrom: noreply@hackathon2.testservers.online
   mailFromName: Todo App
 
