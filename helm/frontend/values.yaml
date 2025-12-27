@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: registry.digitalocean.com/todo-chatbot-reg/todo-frontend
-  tag: v3
+  tag: v4
   pullPolicy: IfNotPresent
 
 imagePullSecrets:
