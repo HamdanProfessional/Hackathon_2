@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  k8s-cluster-health.json: |
+{{ .Files.Get "grafana-dashboards/k8s-cluster-health.json" | indent 4 }}
+  backend-application.json: |
+{{ .Files.Get "grafana-dashboards/backend-application.json" | indent 4 }}

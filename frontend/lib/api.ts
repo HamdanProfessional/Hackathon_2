@@ -2,9 +2,33 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { toast } from 'sonner';
 import { getSession } from '@/lib/auth-client';
 
-// API base URL - hardcoded for production
-const API_BASE_URL = 'https://backend-lac-nu-61.vercel.app';
-// Updated 2025-12-23 with analytics and AI breakdown endpoints
+// Runtime configuration - support for runtime config.json overrides
+// This allows changing the backend URL without rebuilding the Docker image
+let runtimeApiUrl: string | null = null;
+
+// Get API URL - tries runtime config first, then env var, then default
+function getApiBaseUrl(): string {
+  if (runtimeApiUrl) {
+    return runtimeApiUrl;
+  }
+  // Fallback to build-time env var or default
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+}
+
+// Load runtime config from /config.json (called on page load)
+if (typeof window !== 'undefined') {
+  fetch('/config.json')
+    .then(res => res.json())
+    .then((config: { NEXT_PUBLIC_API_URL?: string }) => {
+      if (config.NEXT_PUBLIC_API_URL) {
+        runtimeApiUrl = config.NEXT_PUBLIC_API_URL;
+        console.log('[API] Using runtime config:', runtimeApiUrl);
+      }
+    })
+    .catch(() => {
+      console.log('[API] Using build-time config:', getApiBaseUrl());
+    });
+}
 
 // Type definitions
 export interface User {
@@ -101,15 +125,22 @@ class ApiClient {
 
   constructor() {
     this.axios = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: getApiBaseUrl(),
+      timeout: 30000, // 30 second timeout
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
-    // Request interceptor to add auth token
+    // Request interceptor to add auth token and update baseURL dynamically
     this.axios.interceptors.request.use(
       (config) => {
+        // Update baseURL from runtime config on each request
+        const currentBaseUrl = getApiBaseUrl();
+        if (config.baseURL !== currentBaseUrl) {
+          config.baseURL = currentBaseUrl;
+        }
+
         const token = this.getToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -125,6 +156,11 @@ class ApiClient {
     this.axios.interceptors.response.use(
       (response) => response,
       (error) => {
+        // Don't show error for cancelled requests
+        if (error.code === 'ERR_CANCELED' || error.message?.includes('canceled')) {
+          return Promise.reject(error);
+        }
+
         if (error.response?.status === 401) {
           // Token expired or invalid
           this.clearToken();
@@ -290,7 +326,7 @@ class ApiClient {
   }
 
   async updateUserPreferences(preferences: any): Promise<void> {
-    await this.axios.put('/api/users/me/preferences', preferences);
+    await this.axios.patch('/api/users/me/preferences', preferences);
   }
 
   // Chat methods
@@ -336,6 +372,45 @@ class ApiClient {
 
   async deleteSubtask(subtaskId: number): Promise<void> {
     await this.axios.delete(`/api/subtasks/${subtaskId}`);
+  }
+
+  // Conversation Analytics methods
+  async getChatOverview(): Promise<{
+    total_conversations: number;
+    total_messages: number;
+    avg_messages_per_conversation: number;
+    total_tool_calls: number;
+  }> {
+    const response = await this.axios.get('/api/analytics/overview');
+    return response.data;
+  }
+
+  async getConversationsTimeline(period: 'daily' | 'weekly' | 'monthly' = 'daily'): Promise<{
+    period: string;
+    data: Array<{ date: string; count: number }>;
+    total_conversations: number;
+  }> {
+    const response = await this.axios.get('/api/analytics/conversations-timeline', {
+      params: { period }
+    });
+    return response.data;
+  }
+
+  async getToolUsage(): Promise<{
+    total_tool_calls: number;
+    tool_stats: Array<{ tool_name: string; call_count: number }>;
+    most_used_tool: string | null;
+  }> {
+    const response = await this.axios.get('/api/analytics/tool-usage');
+    return response.data;
+  }
+
+  async getMessageDistribution(): Promise<{
+    total_messages: number;
+    distribution: Array<{ role: string; count: number; percentage: number }>;
+  }> {
+    const response = await this.axios.get('/api/analytics/message-distribution');
+    return response.data;
   }
 
   // Expose the axios instance for custom requests

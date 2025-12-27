@@ -1,4 +1,5 @@
 """Database connection and session management."""
+import os
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import text
@@ -15,19 +16,27 @@ if db_url.startswith("postgres://"):
 elif db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# 3. Clean Query Params (Fixes 'sslmode' issue from before)
+# 3. Determine SSL requirement
+# Use SSL for Neon/Vercel (detected by 'neon.tech' or 'vercel' in URL), disable for local
+use_ssl = "neon.tech" in db_url or "vercel" in db_url or os.getenv("DB_SSL_REQUIRE", "false").lower() == "true"
+
+# 4. Clean Query Params (Fixes 'sslmode' issue from before)
 if "?" in db_url:
     base_url, query = db_url.split("?", 1)
     # Only keep params that asyncpg might support, or strip all to be safe if using connect_args
     db_url = base_url
 
-# 4. Create Engine
+# 5. Create Engine with conditional SSL
+connect_args = {}
+if use_ssl:
+    connect_args["ssl"] = "require"  # Force SSL for Neon/Vercel
+
 engine = create_async_engine(
     db_url,
     echo=settings.ENVIRONMENT == "local" if hasattr(settings, 'ENVIRONMENT') else settings.DEBUG,
     future=True,
     pool_pre_ping=True,
-    connect_args={"ssl": "require"}  # Force SSL for Neon/Vercel
+    connect_args=connect_args
 )
 
 # Base class for SQLAlchemy models

@@ -8,13 +8,13 @@ import { toast } from "sonner";
 import { useAuthGuard } from "@/hooks/use-auth-guard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-// import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TaskCard from "@/components/task/task-card";
 import TaskForm from "@/components/task/task-form";
 import { SearchBar } from "@/components/search/search-bar";
 import { TaskToolbar } from "@/components/search/task-toolbar";
 import QuickAdd from "@/components/task/quick-add";
-import { Plus, CheckCircle2, Circle, ListTodo, Download, ClipboardList, LayoutGrid, List, ChevronDown, Timer } from "lucide-react";
+import { Plus, CheckCircle2, Circle, ListTodo, ClipboardList, Timer } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SettingsModal } from "@/components/settings/settings-modal";
 import ChatWidget from "@/components/chat/chat-widget";
@@ -22,6 +22,8 @@ import LanguageSwitcher from "@/components/language-switcher";
 import { StreakHeatmap } from "@/components/analytics/streak-heatmap";
 import { ProductivityDashboard } from "@/components/analytics/productivity-dashboard";
 import { PomodoroTimer } from "@/components/productivity/pomodoro-timer";
+
+type TabValue = "tasks" | "analytics" | "pomodoro";
 
 export default function DashboardPage() {
   console.log("Dashboard Rendered");
@@ -40,9 +42,8 @@ export default function DashboardPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [submittingTask, setSubmittingTask] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
-  const [showPomodoro, setShowPomodoro] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabValue>("tasks");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
-    // Initialize from localStorage first, then sync with backend
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('viewMode');
       return (stored === 'grid' || stored === 'list') ? stored : 'grid';
@@ -71,20 +72,16 @@ export default function DashboardPage() {
     return params;
   }, [searchQuery, statusFilter, priorityFilter, sortBy, sortOrder]);
 
-  // Load user data on mount (after auth guard has validated token)
+  // Load user data on mount
   useEffect(() => {
     const loadUserData = async () => {
-      // Get user from token
       const currentUser = apiClient.getCurrentUser();
       if (currentUser) {
         setUser(currentUser);
-
-        // Load user preferences including viewMode
         try {
           const prefs = await apiClient.getUserPreferences();
           if (prefs?.preferences?.viewMode) {
             setViewMode(prefs.preferences.viewMode);
-            // Sync to localStorage
             if (typeof window !== 'undefined') {
               localStorage.setItem('viewMode', prefs.preferences.viewMode);
             }
@@ -98,7 +95,7 @@ export default function DashboardPage() {
     loadUserData();
   }, []);
 
-  // Listen for localStorage changes (sync across tabs/settings modal)
+  // Listen for localStorage changes
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'viewMode' && e.newValue) {
@@ -113,7 +110,7 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Memoized loadTasks function to prevent infinite loops
+  // Memoized loadTasks function
   const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
@@ -124,9 +121,6 @@ export default function DashboardPage() {
       const errorMessage = err.response?.data?.detail || "Failed to load tasks";
       setError(errorMessage);
       toast.error(errorMessage);
-
-      // If unauthorized, the API client will handle redirect
-      // No need to manually redirect here
     } finally {
       setLoading(false);
     }
@@ -144,14 +138,11 @@ export default function DashboardPage() {
     toast.info("Logged out successfully");
   };
 
-  // Handle view mode change
   const handleViewModeChange = async (newViewMode: 'grid' | 'list') => {
     setViewMode(newViewMode);
-    // Sync to localStorage immediately for responsive UI
     if (typeof window !== 'undefined') {
       localStorage.setItem('viewMode', newViewMode);
     }
-    // Also update in user preferences
     try {
       const prefs = await apiClient.getUserPreferences();
       const updatedPrefs = { ...(prefs?.preferences || {}), viewMode: newViewMode };
@@ -161,56 +152,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Handle export to JSON
-  const handleExportToJSON = () => {
-    const exportData = {
-      user: {
-        email: user?.email,
-        id: user?.id,
-        created_at: user?.created_at
-      },
-      tasks: tasks.map(task => ({
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        priority: task.priority,
-        completed: task.completed,
-        due_date: task.due_date,
-        created_at: task.created_at,
-        updated_at: task.updated_at
-      })),
-      exported_at: new Date().toISOString(),
-      filters: {
-        search: searchQuery,
-        status: statusFilter,
-        priority: priorityFilter,
-        sort_by: sortBy,
-        sort_order: sortOrder
-      },
-      statistics: {
-        total: totalTasks,
-        completed: completedTasks,
-        active: activeTasks
-      }
-    };
-
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
-
-    const exportFileDefaultName = `tasks-${new Date().toISOString().split('T')[0]}.json`;
-
-    const linkElement = document.createElement("a");
-    linkElement.setAttribute("href", dataUri);
-    linkElement.setAttribute("download", exportFileDefaultName);
-    linkElement.style.visibility = "hidden";
-    document.body.appendChild(linkElement);
-    linkElement.click();
-    document.body.removeChild(linkElement);
-
-    toast.success("Tasks exported successfully!");
-  };
-
-  // Handle task creation
   const handleCreateTask = async (data: {
     title: string;
     description?: string;
@@ -226,13 +167,12 @@ export default function DashboardPage() {
       toast.success("Task created successfully!");
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Failed to create task");
-      throw err; // Re-throw to prevent form from closing
+      throw err;
     } finally {
       setSubmittingTask(false);
     }
   };
 
-  // Handle task editing
   const handleEditTask = async (data: {
     title: string;
     description?: string;
@@ -256,9 +196,7 @@ export default function DashboardPage() {
     }
   };
 
-  // Handle task completion toggle with optimistic UI
   const handleToggleComplete = async (taskId: number) => {
-    // Optimistic update
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
@@ -271,14 +209,12 @@ export default function DashboardPage() {
 
     try {
       const updatedTask = await apiClient.toggleTaskCompletion(taskId);
-      // Ensure the API response matches our optimistic update
       setTasks(
         tasks.map((t) =>
           t.id === taskId ? updatedTask : t
         )
       );
     } catch (err: any) {
-      // Revert on error
       setTasks(
         tasks.map((t) =>
           t.id === taskId ? { ...t, completed: originalCompleted } : t
@@ -288,16 +224,13 @@ export default function DashboardPage() {
     }
   };
 
-  // Handle task deletion with confirmation
   const handleDeleteTask = async (task: Task) => {
     setDeletingTaskId(task.id);
     try {
-      // Optimistic update
       setTasks(tasks.filter((t) => t.id !== task.id));
       await apiClient.deleteTask(task.id);
       toast.success("Task deleted successfully!");
     } catch (err: any) {
-      // Revert on error
       setTasks((prev) => [...prev, task]);
       toast.error(err.response?.data?.detail || "Failed to delete task");
     } finally {
@@ -333,7 +266,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
             <LanguageSwitcher />
             <SettingsModal />
@@ -345,9 +278,9 @@ export default function DashboardPage() {
               className="gradient-bg"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Create New Task
+              New Task
             </Button>
-            <Button variant="outline" onClick={handleLogout}>
+            <Button variant="ghost" onClick={handleLogout} size="sm">
               Logout
             </Button>
           </div>
@@ -355,7 +288,7 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Error State */}
         {error && (
           <Card className="mb-6 border-destructive/50">
@@ -368,23 +301,73 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Loading State */}
-        {loading && !error && (
-          <div className="text-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading your tasks...</p>
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="space-y-6">
+          {/* Stats Summary Cards - Always Visible */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="glass-card">
+              <CardHeader className="pb-2 px-4 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ListTodo className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Total</span>
+                  </div>
+                  <CardTitle className="text-2xl font-bold">{totalTasks}</CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
+            <Card className="glass-card">
+              <CardHeader className="pb-2 px-4 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Circle className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm text-muted-foreground">Active</span>
+                  </div>
+                  <CardTitle className="text-2xl font-bold text-amber-500">
+                    {activeTasks}
+                  </CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
+            <Card className="glass-card">
+              <CardHeader className="pb-2 px-4 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-muted-foreground">Done</span>
+                  </div>
+                  <CardTitle className="text-2xl font-bold text-green-500">
+                    {completedTasks}
+                  </CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
           </div>
-        )}
 
-        {/* Tasks List */}
-        {!loading && !error && (
-          <div className="space-y-8">
-            {/* Quick Add Bar */}
+          {/* Tabs Navigation */}
+          <TabsList className="grid w-full max-w-md grid-cols-3">
+            <TabsTrigger value="tasks" className="flex items-center gap-2">
+              <ListTodo className="h-4 w-4" />
+              Tasks
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <Timer className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="pomodoro" className="flex items-center gap-2">
+              <Timer className="h-4 w-4" />
+              Focus
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Tasks Tab */}
+          <TabsContent value="tasks" className="space-y-6 mt-6">
+            {/* Quick Add */}
             <Card className="glass-card">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Quick Add Task</CardTitle>
+                <CardTitle className="text-base">Quick Add</CardTitle>
                 <CardDescription className="text-xs">
-                  Use natural language: "Call mom tomorrow urgent" or "Meeting every Friday"
+                  "Call mom tomorrow urgent" or "Meeting every Friday"
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -392,140 +375,52 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Search and Filter Controls */}
+            {/* Search and Filters */}
             <div className="space-y-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex-1 max-w-md">
-                  <SearchBar placeholder="Search tasks by title or description..." />
-                </div>
-              </div>
+              <SearchBar placeholder="Search tasks..." />
               <TaskToolbar viewMode={viewMode} onViewModeChange={handleViewModeChange} />
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="glass-card">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <ListTodo className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-2xl font-bold">{totalTasks}</CardTitle>
-                  </div>
-                  <CardDescription>Total Tasks</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="glass-card">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <Circle className="h-5 w-5 text-amber-500" />
-                    <CardTitle className="text-2xl font-bold text-amber-500">
-                      {activeTasks}
-                    </CardTitle>
-                  </div>
-                  <CardDescription>Active Tasks</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="glass-card">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    <CardTitle className="text-2xl font-bold text-green-500">
-                      {completedTasks}
-                    </CardTitle>
-                  </div>
-                  <CardDescription>Completed</CardDescription>
-                </CardHeader>
-              </Card>
-            </div>
-
-            {/* Streak Heatmap */}
-            <StreakHeatmap />
-
-            {/* Productivity Analytics Dashboard */}
-            <ProductivityDashboard />
-
-            {/* Pomodoro Timer Section */}
-            <Card className="glass-card">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Timer className="h-5 w-5 text-primary" />
-                    <CardTitle>Pomodoro Timer</CardTitle>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowPomodoro(!showPomodoro)}
-                    className="flex items-center gap-2"
-                  >
-                    {showPomodoro ? 'Hide' : 'Show'}
-                    <ChevronDown className={`h-4 w-4 transition-transform ${showPomodoro ? 'rotate-180' : ''}`} />
-                  </Button>
-                </div>
-              </CardHeader>
-              {showPomodoro && (
-                <CardContent>
-                  <div className="flex justify-center">
-                    <PomodoroTimer />
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-
             {/* Tasks List */}
             <div className="space-y-4">
-              <h2 className="text-2xl font-semibold flex items-center gap-2">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
                 <span>Your Tasks</span>
                 <span className="text-sm font-normal text-muted-foreground">
-                  ({totalTasks} total{activeFiltersCount > 0 && `, ${activeFiltersCount} filter${activeFiltersCount > 1 ? "s" : ""} active`})
+                  ({totalTasks}{activeFiltersCount > 0 && `, ${activeFiltersCount} filter${activeFiltersCount > 1 ? "s" : ""} active`})
                 </span>
               </h2>
 
-              {/* Empty State */}
-              {tasks.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                </div>
+              ) : tasks.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5 }}
+                  transition={{ duration: 0.3 }}
                   className="flex flex-col items-center justify-center py-12 text-center"
                 >
-                  <div className="bg-zinc-900/50 p-6 rounded-full mb-4 ring-1 ring-white/10">
-                    <ClipboardList className="w-12 h-12 text-zinc-500" />
+                  <div className="bg-zinc-900/50 p-4 rounded-full mb-4 ring-1 ring-white/10">
+                    <ClipboardList className="w-10 h-10 text-zinc-500" />
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">
-                    {searchQuery ||
-                     statusFilter ||
-                     priorityFilter
+                  <h3 className="text-lg font-semibold mb-2">
+                    {searchQuery || statusFilter || priorityFilter
                       ? "No tasks match your filters"
                       : "All caught up!"}
                   </h3>
-                  <p className="text-zinc-400 max-w-sm mb-6">
-                    {searchQuery ||
-                     statusFilter ||
-                     priorityFilter
-                      ? "Try adjusting your filters or create a new task"
-                      : "You have no pending tasks. Enjoy your free time or add a new task to get started."}
+                  <p className="text-sm text-muted-foreground max-w-sm mb-4">
+                    {searchQuery || statusFilter || priorityFilter
+                      ? "Try adjusting your filters"
+                      : "Create a new task to get started"}
                   </p>
-                  <Button
-                    onClick={() => {
-                      setEditingTask(null);
-                      setIsFormOpen(true);
-                    }}
-                    className="gradient-bg"
-                  >
-                      <Plus className="w-4 h-4 mr-2" />
-                      {searchQuery ||
-                       statusFilter ||
-                       priorityFilter
-                        ? "Create a New Task"
-                        : "Create Your First Task"}
-                    </Button>
                 </motion.div>
               ) : (
                 <AnimatePresence>
                   <motion.div
                     layout
                     className={viewMode === 'grid'
-                      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                       : "flex flex-col gap-3"
                     }
                   >
@@ -533,12 +428,10 @@ export default function DashboardPage() {
                       <motion.div
                         key={task.id}
                         layout
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{
-                          duration: 0.2,
-                        }}
+                        transition={{ duration: 0.15 }}
                       >
                         <TaskCard
                           task={task}
@@ -549,7 +442,6 @@ export default function DashboardPage() {
                             setIsFormOpen(true);
                           }}
                           onDelete={(task) => {
-                            // Use AlertDialog for confirmation
                             setDeletingTaskId(task.id);
                             handleDeleteTask(task);
                           }}
@@ -561,8 +453,50 @@ export default function DashboardPage() {
                 </AnimatePresence>
               )}
             </div>
-          </div>
-        )}
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-6 mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Streak Heatmap */}
+              <Card className="glass-card lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Activity Streak</CardTitle>
+                  <CardDescription className="text-xs">Your task completion over the past year</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <StreakHeatmap />
+                </CardContent>
+              </Card>
+
+              {/* Productivity Dashboard */}
+              <Card className="glass-card lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Productivity Insights</CardTitle>
+                  <CardDescription className="text-xs">30-day performance metrics</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ProductivityDashboard />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Pomodoro Tab */}
+          <TabsContent value="pomodoro" className="mt-6">
+            <Card className="glass-card max-w-md mx-auto">
+              <CardHeader>
+                <CardTitle className="text-center">Pomodoro Timer</CardTitle>
+                <CardDescription className="text-center text-xs">
+                  Focus for 25 minutes, then take a 5-minute break
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <PomodoroTimer />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Task Form Modal */}

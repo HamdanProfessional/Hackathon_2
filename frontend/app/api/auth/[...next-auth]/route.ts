@@ -1,32 +1,26 @@
 /**
- * Better Auth API Routes
+ * Better Auth API Routes - DISABLED
  *
- * These Next.js API routes handle authentication requests.
- * They bridge between Better Auth and our FastAPI backend.
+ * These routes are disabled because we use the FastAPI backend for authentication.
+ * The Python backend handles all auth operations at /api/auth/login, /api/auth/register, etc.
+ *
+ * To enable Better Auth server-side auth in Next.js:
+ * 1. Configure a database connection
+ * 2. Uncomment the imports and export below
+ * 3. Update the auth-instance.ts configuration
  */
 
-import { auth } from "@/lib/auth-instance";
-import { toNextJsHandler } from "better-auth/next-js";
+// import { auth } from "@/lib/auth-instance";
+// import { toNextJsHandler } from "better-auth/next-js";
+// export const { GET, POST } = toNextJsHandler(auth);
 
-/**
- * Export all Better Auth routes as Next.js API handlers
- *
- * These routes are automatically available at:
- * - POST /api/auth/sign-in
- * - POST /api/auth/sign-up
- * - POST /api/auth/sign-out
- * - GET /api/auth/session
- * - POST /api/auth/reset-password
- *
- * Example usage in frontend:
- * ```typescript
- * import { authClient } from "@/lib/auth-client";
- *
- * // Sign in
- * await authClient.signIn.email({ email, password });
- *
- * // Get session
- * const session = await authClient.getSession();
- * ```
- */
-export const { GET, POST } = toNextJsHandler(auth);
+// Temporarily return 404 to prevent these routes from being used
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  return NextResponse.json({ message: 'Use FastAPI backend for authentication' }, { status: 404 });
+}
+
+export async function POST() {
+  return NextResponse.json({ message: 'Use FastAPI backend for authentication' }, { status: 404 });
+}

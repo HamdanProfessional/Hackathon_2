@@ -1,0 +1,14 @@
+# Dapr In-Memory PubSub Component for Testing
+# This component uses in-memory pub/sub which works within a Dapr-enabled cluster
+# without requiring external message brokers like Kafka/Redpanda.
+# NOTE: Messages are NOT persisted and only available within the same Dapr deployment.
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: todo-pubsub
+  namespace: production
+spec:
+  type: pubsub.in-memory
+  version: v1
+  metadata: []

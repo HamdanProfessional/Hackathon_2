@@ -41,3 +41,7 @@ mcp>=1.0.0
 # Note: Supports both OpenAI and Google Gemini models
 # Using OpenAI client with Gemini's OpenAI-compatible endpoint for tool calling
 # Native Gemini SDK available as backup/alternative
+
+# Phase V: Dapr Event-Driven Architecture
+dapr>=1.14.0
+dapr-ext-fastapi>=1.14.0

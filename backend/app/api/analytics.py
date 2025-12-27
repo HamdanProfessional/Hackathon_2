@@ -1,15 +1,26 @@
-"""Analytics API endpoints for task statistics and insights."""
+"""Analytics API endpoints for task statistics and chat/conversation insights."""
 from datetime import datetime, timedelta, date
-from typing import List
-from fastapi import APIRouter, Depends, Query, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, cast, Date
+from sqlalchemy import select, func, cast, Date, and_, or_, text
 
 from app.database import get_db
 from app.models.user import User
 from app.models.task import Task
+from app.models.conversation import Conversation
+from app.models.message import Message
 from app.api.deps import get_current_user
-from app.schemas.analytics import DailyCompletionCount
+from app.schemas.analytics import (
+    DailyCompletionCount,
+    ChatOverviewStats,
+    TimelineDataPoint,
+    ConversationsTimelineResponse,
+    ToolUsageStats,
+    ToolUsageResponse,
+    MessageRoleStats,
+    MessageDistributionResponse,
+)
 
 router = APIRouter()
 
@@ -322,3 +333,317 @@ async def get_focus_hours(
         "focus_minutes": focus_minutes,
         "focus_hours": focus_hours
     }
+
+
+# ============================================================================
+# Chat/Conversation Analytics Endpoints
+# ============================================================================
+
+
+@router.get(
+    "/overview",
+    response_model=ChatOverviewStats,
+    status_code=status.HTTP_200_OK,
+    summary="Get chat overview statistics",
+    description="Returns summary statistics for conversations and messages including total counts, averages, and tool calls.",
+)
+async def get_chat_overview(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get overview statistics for the current user's chat conversations.
+
+    Returns:
+    - **total_conversations**: Total number of conversations
+    - **total_messages**: Total number of messages across all conversations
+    - **avg_messages_per_conversation**: Average messages per conversation
+    - **total_tool_calls**: Total number of tool calls made by the AI
+
+    Data isolation: Only returns statistics for current user's conversations.
+    """
+    # Get total conversations count
+    conv_query = select(func.count(Conversation.id)).where(
+        Conversation.user_id == current_user.id
+    )
+    conv_result = await db.execute(conv_query)
+    total_conversations = conv_result.scalar() or 0
+
+    # Get total messages count (only for user's conversations)
+    msg_query = select(func.count(Message.id)).join(
+        Conversation, Message.conversation_id == Conversation.id
+    ).where(Conversation.user_id == current_user.id)
+    msg_result = await db.execute(msg_query)
+    total_messages = msg_result.scalar() or 0
+
+    # Calculate average messages per conversation
+    avg_messages = (
+        round(total_messages / total_conversations, 2)
+        if total_conversations > 0
+        else 0.0
+    )
+
+    # Get total tool calls count
+    # Tool calls are stored in the tool_calls JSONB column
+    # We need to count the number of tool calls across all assistant messages
+    tool_calls_query = text("""
+        SELECT COUNT(*)
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE c.user_id = :user_id
+        AND m.tool_calls IS NOT NULL
+        AND m.tool_calls != '[]'::jsonb
+        AND m.tool_calls != 'null'::jsonb
+    """)
+
+    tool_result = await db.execute(tool_calls_query, {"user_id": str(current_user.id)})
+    total_tool_calls = tool_result.scalar() or 0
+
+    return ChatOverviewStats(
+        total_conversations=total_conversations,
+        total_messages=total_messages,
+        avg_messages_per_conversation=avg_messages,
+        total_tool_calls=total_tool_calls,
+    )
+
+
+@router.get(
+    "/conversations-timeline",
+    response_model=ConversationsTimelineResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get conversations timeline data",
+    description="Returns time series data of conversations created grouped by day, week, or month.",
+)
+async def get_conversations_timeline(
+    period: str = Query(
+        "daily",
+        regex="^(daily|weekly|monthly)$",
+        description="Time period granularity: daily, weekly, or monthly",
+    ),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get conversations timeline data for the current user.
+
+    Query Parameters:
+    - **period**: daily (last 30 days), weekly (last 12 weeks), or monthly (last 12 months)
+
+    Returns an array of date/count pairs for charting conversation creation over time.
+
+    Data isolation: Only returns data for current user's conversations.
+    """
+    # Determine date range based on period
+    if period == "daily":
+        start_date = datetime.utcnow() - timedelta(days=30)
+        # Group by day
+        date_format = "YYYY-MM-DD"
+        date_trunc = "day"
+    elif period == "weekly":
+        start_date = datetime.utcnow() - timedelta(weeks=12)
+        # Group by week (ISO week)
+        date_format = "IYYY-IW"  # ISO year and week
+        date_trunc = "week"
+    else:  # monthly
+        start_date = datetime.utcnow() - timedelta(days=365)
+        # Group by month
+        date_format = "YYYY-MM"
+        date_trunc = "month"
+
+    # Build query based on period
+    if period == "daily":
+        query = text("""
+            SELECT
+                TO_CHAR(c.created_at, :date_format) as date_label,
+                COUNT(*) as count
+            FROM conversations c
+            WHERE c.user_id = :user_id
+            AND c.created_at >= :start_date
+            GROUP BY TO_CHAR(c.created_at, :date_format)
+            ORDER BY date_label
+        """)
+    elif period == "weekly":
+        query = text("""
+            SELECT
+                TO_CHAR(c.created_at, :date_format) as date_label,
+                COUNT(*) as count
+            FROM conversations c
+            WHERE c.user_id = :user_id
+            AND c.created_at >= :start_date
+            GROUP BY TO_CHAR(c.created_at, :date_format)
+            ORDER BY date_label
+        """)
+    else:  # monthly
+        query = text("""
+            SELECT
+                TO_CHAR(c.created_at, :date_format) as date_label,
+                COUNT(*) as count
+            FROM conversations c
+            WHERE c.user_id = :user_id
+            AND c.created_at >= :start_date
+            GROUP BY TO_CHAR(c.created_at, :date_format)
+            ORDER BY date_label
+        """)
+
+    result = await db.execute(
+        query,
+        {
+            "user_id": str(current_user.id),
+            "start_date": start_date,
+            "date_format": date_format,
+        },
+    )
+    rows = result.fetchall()
+
+    # Convert to response format
+    timeline_data = [
+        TimelineDataPoint(date=row.date_label, count=row.count) for row in rows
+    ]
+
+    # Get total count
+    total_query = select(func.count(Conversation.id)).where(
+        and_(
+            Conversation.user_id == current_user.id,
+            Conversation.created_at >= start_date,
+        )
+    )
+    total_result = await db.execute(total_query)
+    total_conversations = total_result.scalar() or 0
+
+    return ConversationsTimelineResponse(
+        period=period,
+        data=timeline_data,
+        total_conversations=total_conversations,
+    )
+
+
+@router.get(
+    "/tool-usage",
+    response_model=ToolUsageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get tool usage statistics",
+    description="Returns statistics about tool/function calls made by the AI, including most used tools.",
+)
+async def get_tool_usage(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get tool usage statistics for the current user's conversations.
+
+    Returns:
+    - **total_tool_calls**: Total number of tool calls
+    - **tool_stats**: Array of tool names with call counts (sorted by count desc)
+    - **most_used_tool**: Name of the most frequently called tool
+
+    Tool calls are extracted from the tool_calls JSONB column in assistant messages.
+    Each tool_call contains a function object with a name property.
+
+    Data isolation: Only returns data for current user's conversations.
+    """
+    # Query to extract tool names and count them
+    # The tool_calls column contains JSONB like:
+    # [{"id": "call_abc", "type": "function", "function": {"name": "get_tasks", ...}}]
+    query = text("""
+        SELECT
+            tool_elem->>'name' as tool_name,
+            COUNT(*) as call_count
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        CROSS JOIN jsonb_array_elements(m.tool_calls) as tool_elem
+        WHERE c.user_id = :user_id
+        AND m.tool_calls IS NOT NULL
+        GROUP BY tool_elem->>'name'
+        ORDER BY call_count DESC
+    """)
+
+    result = await db.execute(query, {"user_id": str(current_user.id)})
+    rows = result.fetchall()
+
+    # Build tool stats array
+    tool_stats = [
+        ToolUsageStats(tool_name=row.tool_name, call_count=row.call_count)
+        for row in rows
+    ]
+
+    # Calculate total
+    total_tool_calls = sum(stat.call_count for stat in tool_stats)
+
+    # Get most used tool
+    most_used_tool = tool_stats[0].tool_name if tool_stats else None
+
+    return ToolUsageResponse(
+        total_tool_calls=total_tool_calls,
+        tool_stats=tool_stats,
+        most_used_tool=most_used_tool,
+    )
+
+
+@router.get(
+    "/message-distribution",
+    response_model=MessageDistributionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get message distribution by role",
+    description="Returns breakdown of messages by role (user, assistant, system, tool) with percentages.",
+)
+async def get_message_distribution(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get message distribution by role for the current user's conversations.
+
+    Returns:
+    - **total_messages**: Total number of messages
+    - **distribution**: Array of message counts per role with percentages
+
+    Message roles:
+    - **user**: Messages sent by the user
+    - **assistant**: Responses from the AI assistant
+    - **system**: System prompt messages
+    - **tool**: Tool response messages
+
+    Data isolation: Only returns data for current user's conversations.
+    """
+    # Get total messages count first
+    total_query = select(func.count(Message.id)).join(
+        Conversation, Message.conversation_id == Conversation.id
+    ).where(Conversation.user_id == current_user.id)
+    total_result = await db.execute(total_query)
+    total_messages = total_result.scalar() or 0
+
+    if total_messages == 0:
+        return MessageDistributionResponse(
+            total_messages=0,
+            distribution=[],
+        )
+
+    # Get count by role
+    role_query = text("""
+        SELECT
+            m.role,
+            COUNT(*) as count
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE c.user_id = :user_id
+        GROUP BY m.role
+        ORDER BY count DESC
+    """)
+
+    role_result = await db.execute(role_query, {"user_id": str(current_user.id)})
+    rows = role_result.fetchall()
+
+    # Build distribution with percentages
+    distribution = [
+        MessageRoleStats(
+            role=row.role,
+            count=row.count,
+            percentage=round((row.count / total_messages) * 100, 2),
+        )
+        for row in rows
+    ]
+
+    return MessageDistributionResponse(
+        total_messages=total_messages,
+        distribution=distribution,
+    )

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, Clock, Target, Award, Zap } from "lucide-react";
+import { apiClient } from "@/lib/api";
 
 interface AnalyticsData {
   period_days: number;
@@ -34,39 +35,17 @@ export function ProductivityDashboard() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app';
-
-      // Fetch both analytics in parallel
-      const [analyticsRes, focusRes] = await Promise.all([
-        fetch(`${baseUrl}/api/analytics/productivity?days=30`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${baseUrl}/api/analytics/focus-hours?days=30`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+      // Use apiClient to fetch analytics
+      const [analyticsJson, focusJson] = await Promise.all([
+        apiClient.axiosInstance.get('/api/analytics/productivity?days=30').then(r => r.data),
+        apiClient.axiosInstance.get('/api/analytics/focus-hours?days=30').then(r => r.data)
       ]);
-
-      if (!analyticsRes.ok) {
-        throw new Error(`Analytics API returned ${analyticsRes.status}`);
-      }
-
-      if (!focusRes.ok) {
-        throw new Error(`Focus hours API returned ${focusRes.status}`);
-      }
-
-      const analyticsJson = await analyticsRes.json();
-      const focusJson = await focusRes.json();
 
       setAnalytics(analyticsJson);
       setFocusData(focusJson);
     } catch (err: any) {
       console.error("Failed to load analytics:", err);
-      setError(err.message);
+      setError(err.response?.data?.detail || err.message || "Failed to load analytics");
     } finally {
       setLoading(false);
     }

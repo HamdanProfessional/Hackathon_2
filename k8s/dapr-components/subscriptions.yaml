@@ -1,0 +1,80 @@
+# Dapr Subscriptions for Todo Notification Service
+# These subscriptions define which Kafka topics the notification service listens to
+
+---
+# Subscription: task-created
+apiVersion: dapr.io/v1alpha1
+kind: Subscription
+metadata:
+  name: task-created-subscription
+  namespace: production
+spec:
+  topic: task-created
+  route: /subscribe/task-created
+  pubsubname: todo-pubsub
+  # scopes field removed - deprecated in Dapr 1.12+
+
+---
+# Subscription: task-updated
+apiVersion: dapr.io/v1alpha1
+kind: Subscription
+metadata:
+  name: task-updated-subscription
+  namespace: production
+spec:
+  topic: task-updated
+  route: /subscribe/task-updated
+  pubsubname: todo-pubsub
+  # scopes field removed - deprecated in Dapr 1.12+
+
+---
+# Subscription: task-completed
+apiVersion: dapr.io/v1alpha1
+kind: Subscription
+metadata:
+  name: task-completed-subscription
+  namespace: production
+spec:
+  topic: task-completed
+  route: /subscribe/task-completed
+  pubsubname: todo-pubsub
+  # scopes field removed - deprecated in Dapr 1.12+
+
+---
+# Subscription: task-deleted
+apiVersion: dapr.io/v1alpha1
+kind: Subscription
+metadata:
+  name: task-deleted-subscription
+  namespace: production
+spec:
+  topic: task-deleted
+  route: /subscribe/task-deleted
+  pubsubname: todo-pubsub
+  # scopes field removed - deprecated in Dapr 1.12+
+
+---
+# Subscription: task-due-soon
+apiVersion: dapr.io/v1alpha1
+kind: Subscription
+metadata:
+  name: task-due-soon-subscription
+  namespace: production
+spec:
+  topic: task-due-soon
+  route: /subscribe/task-due-soon
+  pubsubname: todo-pubsub
+  # scopes field removed - deprecated in Dapr 1.12+
+
+---
+# Subscription: recurring-task-due
+apiVersion: dapr.io/v1alpha1
+kind: Subscription
+metadata:
+  name: recurring-task-due-subscription
+  namespace: production
+spec:
+  topic: recurring-task-due
+  route: /subscribe/recurring-task-due
+  pubsubname: todo-pubsub
+  # scopes field removed - deprecated in Dapr 1.12+

@@ -18,8 +18,9 @@ class Priority(Base):
     level = Column(Integer, nullable=False)  # 1=Low, 2=Medium, 3=High
     color = Column(String(7), nullable=True)  # Hex color code
 
-    # Relationship to tasks
+    # Relationship to tasks and recurring_tasks
     tasks = relationship("Task", back_populates="priority_obj")
+    recurring_tasks = relationship("RecurringTask", back_populates="priority_obj")
 
 
 class Task(Base):
@@ -39,10 +40,16 @@ class Task(Base):
     is_recurring = Column(Boolean, default=False, nullable=False)
     recurrence_pattern = Column(String(100), nullable=True)
 
+    # Phase V: Recurring tasks and notification tracking
+    notified = Column(Boolean, default=False, nullable=False)  # track if due notification sent
+    recurring_task_id = Column(Integer, ForeignKey("recurring_tasks.id", ondelete="SET NULL"), nullable=True)  # link to parent recurring task
+
     # Relationships
     owner = relationship("User", back_populates="tasks")
     priority_obj = relationship("Priority", back_populates="tasks")
     subtasks = relationship("Subtask", back_populates="task", cascade="all, delete-orphan")
+    recurring_task = relationship("RecurringTask", back_populates="tasks")
+    event_logs = relationship("TaskEventLog", back_populates="task", cascade="all, delete-orphan")
 
     @property
     def user_id_str(self) -> str:

@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Modern gradient colors */
+    /* Light theme colors */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -13,7 +13,7 @@
     --popover-foreground: 222.2 84% 4.9%;
 
     /* Vibrant primary colors */
-    --primary: 221 83% 53%;
+    --primary: 262 83% 58%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -21,7 +21,7 @@
     /* Accent colors */
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 221 83% 53%;
+    --accent: 262 83% 58%;
     --accent-foreground: 210 40% 98%;
 
     /* Status colors */
@@ -35,7 +35,7 @@
     /* UI elements */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 53%;
+    --ring: 262 83% 58%;
     --radius: 0.75rem;
 
     /* Shadows */
@@ -48,37 +48,33 @@
 
   .dark {
     /* Nebula 2025 Dark Theme */
-    --background: 240 10% 3.9%; /* Zinc-950 */
-    --foreground: 240 5% 91%; /* Zinc-100 */
-    --card: 240 10% 3.9%; /* Zinc-950 */
-    --card-foreground: 240 5% 91%; /* Zinc-100 */
-    --popover: 240 10% 3.9%; /* Zinc-950 */
-    --popover-foreground: 240 5% 91%; /* Zinc-100 */
+    --background: 240 10% 3.9%;
+    --foreground: 240 5% 91%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 240 5% 91%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 240 5% 91%;
 
-    /* Electric Violet primary in dark mode */
-    --primary: 262 83% 58%; /* Electric Violet */
-    --primary-foreground: 240 5% 91%; /* Zinc-100 */
-    --secondary: 240 7% 17%; /* Zinc-900 */
-    --secondary-foreground: 240 5% 91%; /* Zinc-100 */
+    --primary: 262 83% 58%;
+    --primary-foreground: 240 5% 91%;
+    --secondary: 240 7% 17%;
+    --secondary-foreground: 240 5% 91%;
 
-    /* Muted accents */
-    --muted: 240 7% 17%; /* Zinc-900 */
-    --muted-foreground: 240 5% 64%; /* Zinc-400 */
-    --accent: 262 83% 58%; /* Electric Violet */
-    --accent-foreground: 240 5% 91%; /* Zinc-100 */
+    --muted: 240 7% 17%;
+    --muted-foreground: 240 5% 64%;
+    --accent: 262 83% 58%;
+    --accent-foreground: 240 5% 91%;
 
-    /* Status colors in dark mode */
-    --destructive: 0 63% 31%; /* Red-800 */
-    --destructive-foreground: 240 5% 91%; /* Zinc-100 */
-    --success: 142 76% 36%; /* Green-600 */
-    --success-foreground: 240 5% 91%; /* Zinc-100 */
-    --warning: 38 92% 50%; /* Yellow-500 */
-    --warning-foreground: 240 9% 4%; /* Zinc-950 */
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 240 5% 91%;
+    --success: 142 76% 36%;
+    --success-foreground: 240 5% 91%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 240 9% 4%;
 
-    /* Dark UI elements */
-    --border: 240 10% 20%; /* Zinc-800 */
-    --input: 240 10% 20%; /* Zinc-800 */
-    --ring: 262 83% 58%; /* Electric Violet */
+    --border: 240 10% 20%;
+    --input: 240 10% 20%;
+    --ring: 262 83% 58%;
   }
 
   * {
@@ -86,13 +82,8 @@
   }
 
   body {
-    @apply bg-zinc-950 text-zinc-100 antialiased;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
-  }
-
-  /* Force dark mode by default */
-  html, body {
-    color-scheme: dark;
   }
 
   /* Smooth scrolling */
@@ -125,11 +116,15 @@
 
   /* Glassmorphism effects */
   .glass-card {
+    @apply bg-background/80 backdrop-blur-md border border-border shadow-sm;
+  }
+
+  .dark .glass-card {
     @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl;
   }
 
   .glass-input {
-    @apply bg-white/5 backdrop-blur-md border border-white/10 placeholder:text-zinc-400;
+    @apply bg-background border border-border placeholder:text-muted-foreground;
   }
 
   /* Button variants */

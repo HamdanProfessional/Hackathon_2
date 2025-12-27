@@ -1,11 +1,17 @@
 """Task CRUD operations."""
 from typing import List, Optional
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, asc, desc
 from sqlalchemy.orm import selectinload
 
 from app.models.task import Task, Priority
 from app.schemas.task import TaskCreate, TaskUpdate
+from app.services.event_publisher import dapr_event_publisher
+from app.services.event_logger import event_logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def create_task(db: AsyncSession, task_data: TaskCreate, user_id: str) -> Task:
@@ -38,7 +44,28 @@ async def create_task(db: AsyncSession, task_data: TaskCreate, user_id: str) -> 
     # Re-fetch with eager loading to prevent DetachedInstanceError
     stmt = select(Task).where(Task.id == db_task.id).options(selectinload(Task.priority_obj))
     result = await db.execute(stmt)
-    return result.scalar_one()
+    task = result.scalar_one()
+
+    # Publish task-created event (fire and forget - don't block response)
+    try:
+        event_data = {
+            "task_id": task.id,
+            "user_id": user_id,
+            "title": task.title,
+            "description": task.description,
+            "priority_id": task.priority_id,
+            "due_date": task.due_date.isoformat() if task.due_date else None,
+            "completed": task.completed,
+            "is_recurring": task.is_recurring,
+            "recurrence_pattern": task.recurrence_pattern,
+            "created_at": task.created_at.isoformat()
+        }
+        await dapr_event_publisher.publish_task_created(event_data)
+        await event_logger.log_task_created(db, task.id, event_data)
+    except Exception as e:
+        logger.error(f"Failed to publish task-created event: {e}")
+
+    return task
 
 
 async def get_tasks_by_user(
@@ -152,6 +179,10 @@ async def update_task(
     Returns:
         Updated task instance
     """
+    # Track if task completion status changed
+    was_completed = task.completed
+    completion_changed = False
+
     if task_data.title is not None:
         task.title = task_data.title
     if task_data.description is not None:
@@ -161,6 +192,8 @@ async def update_task(
     if task_data.due_date is not None:
         task.due_date = task_data.due_date
     if task_data.completed is not None:
+        if task_data.completed != was_completed:
+            completion_changed = True
         task.completed = task_data.completed
     if task_data.is_recurring is not None:
         task.is_recurring = task_data.is_recurring
@@ -173,7 +206,35 @@ async def update_task(
     # Re-fetch with eager loading to prevent DetachedInstanceError
     stmt = select(Task).where(Task.id == task.id).options(selectinload(Task.priority_obj))
     result = await db.execute(stmt)
-    return result.scalar_one()
+    updated_task = result.scalar_one()
+
+    # Publish task-updated or task-completed event (fire and forget)
+    try:
+        event_data = {
+            "task_id": updated_task.id,
+            "user_id": str(updated_task.user_id),
+            "title": updated_task.title,
+            "description": updated_task.description,
+            "priority_id": updated_task.priority_id,
+            "due_date": updated_task.due_date.isoformat() if updated_task.due_date else None,
+            "completed": updated_task.completed,
+            "is_recurring": updated_task.is_recurring,
+            "recurrence_pattern": updated_task.recurrence_pattern,
+            "updated_at": updated_task.updated_at.isoformat()
+        }
+
+        # If task was just completed, publish task-completed event
+        if completion_changed and updated_task.completed:
+            event_data["completed_at"] = datetime.utcnow().isoformat()
+            await dapr_event_publisher.publish_task_completed(event_data)
+            await event_logger.log_task_completed(db, updated_task.id, event_data)
+        else:
+            await dapr_event_publisher.publish_task_updated(event_data)
+            await event_logger.log_task_updated(db, updated_task.id, event_data)
+    except Exception as e:
+        logger.error(f"Failed to publish task event: {e}")
+
+    return updated_task
 
 
 async def toggle_task_completion(db: AsyncSession, task: Task) -> Task:
@@ -195,7 +256,35 @@ async def toggle_task_completion(db: AsyncSession, task: Task) -> Task:
     # Re-fetch with eager loading to prevent DetachedInstanceError
     stmt = select(Task).where(Task.id == task.id).options(selectinload(Task.priority_obj))
     result = await db.execute(stmt)
-    return result.scalar_one()
+    updated_task = result.scalar_one()
+
+    # Publish task-completed event if task was just completed
+    try:
+        if updated_task.completed:
+            event_data = {
+                "task_id": updated_task.id,
+                "user_id": str(updated_task.user_id),
+                "title": updated_task.title,
+                "completed": True,
+                "completed_at": datetime.utcnow().isoformat()
+            }
+            await dapr_event_publisher.publish_task_completed(event_data)
+            await event_logger.log_task_completed(db, updated_task.id, event_data)
+        else:
+            # Task was uncompleted - publish update event
+            event_data = {
+                "task_id": updated_task.id,
+                "user_id": str(updated_task.user_id),
+                "title": updated_task.title,
+                "completed": False,
+                "updated_at": updated_task.updated_at.isoformat()
+            }
+            await dapr_event_publisher.publish_task_updated(event_data)
+            await event_logger.log_task_updated(db, updated_task.id, event_data)
+    except Exception as e:
+        logger.error(f"Failed to publish task toggle event: {e}")
+
+    return updated_task
 
 
 async def delete_task(db: AsyncSession, task: Task) -> None:
@@ -206,5 +295,20 @@ async def delete_task(db: AsyncSession, task: Task) -> None:
         db: Database session
         task: Task instance to delete
     """
+    task_id = task.id
+    user_id = str(task.user_id)
+
     await db.delete(task)
     await db.commit()
+
+    # Publish task-deleted event (fire and forget)
+    try:
+        event_data = {
+            "task_id": task_id,
+            "user_id": user_id,
+            "deleted_at": datetime.utcnow().isoformat()
+        }
+        await dapr_event_publisher.publish_task_deleted(event_data)
+        # Note: Can't log to database after delete, so we skip event_logger here
+    except Exception as e:
+        logger.error(f"Failed to publish task-deleted event: {e}")

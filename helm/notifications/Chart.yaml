@@ -1,0 +1,13 @@
+apiVersion: v2
+name: notifications
+description: A Helm chart for Todo Notification Service with Dapr event-driven architecture
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - todo
+  - notifications
+  - dapr
+  - event-driven
+maintainers:
+  - name: Todo App Team

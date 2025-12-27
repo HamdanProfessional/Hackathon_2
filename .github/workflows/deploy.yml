@@ -1,0 +1,97 @@
+name: Deploy to DOKS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: registry.digitalocean.com/todo-chatbot-reg
+  CLUSTER: do-fra1-hackathon2h1
+  REGION: fra1
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DO Container Registry
+        run: doctl registry login
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Image
+        run: |
+          cd backend
+          docker build -t $REGISTRY/todo-backend:${{ github.sha }} .
+          docker tag $REGISTRY/todo-backend:${{ github.sha }} $REGISTRY/todo-backend:latest
+
+      - name: Build Frontend Image
+        run: |
+          cd frontend
+          docker build -t $REGISTRY/todo-frontend:${{ github.sha }} .
+          docker tag $REGISTRY/todo-frontend:${{ github.sha }} $REGISTRY/todo-frontend:latest
+
+      - name: Build Notification Service Image
+        run: |
+          cd services/notifications
+          docker build -t $REGISTRY/todo-notifications:${{ github.sha }} .
+          docker tag $REGISTRY/todo-notifications:${{ github.sha }} $REGISTRY/todo-notifications:latest
+
+      - name: Push Images
+        run: |
+          docker push $REGISTRY/todo-backend:${{ github.sha }}
+          docker push $REGISTRY/todo-backend:latest
+          docker push $REGISTRY/todo-frontend:${{ github.sha }}
+          docker push $REGISTRY/todo-frontend:latest
+          docker push $REGISTRY/todo-notifications:${{ github.sha }}
+          docker push $REGISTRY/todo-notifications:latest
+
+      - name: Save kubeconfig
+        run: doctl kubernetes cluster kubeconfig save $CLUSTER
+
+      - name: Deploy Backend
+        run: |
+          helm upgrade --install todo-backend ./helm/backend \
+            --set image.tag=${{ github.sha }} \
+            --namespace production \
+            --wait \
+            --timeout 5m
+
+      - name: Deploy Frontend
+        run: |
+          helm upgrade --install todo-frontend ./helm/frontend \
+            --set image.tag=${{ github.sha }} \
+            --namespace production \
+            --wait \
+            --timeout 5m
+
+      - name: Deploy Notifications
+        run: |
+          helm upgrade --install todo-notifications ./helm/notifications \
+            --set image.tag=${{ github.sha }} \
+            --namespace production \
+            --wait \
+            --timeout 5m
+
+      - name: Verify Deployment
+        run: |
+          kubectl get pods -n production
+          kubectl rollout status deployment/todo-backend -n production --timeout=3m
+          kubectl rollout status deployment/todo-frontend -n production --timeout=3m
+          kubectl rollout status deployment/todo-notifications -n production --timeout=3m
+
+      - name: Health Check
+        run: |
+          sleep 30
+          kubectl exec -n production deployment/todo-backend -- curl -f http://localhost:8000/health || exit 1

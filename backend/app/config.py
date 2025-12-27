@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     AI_MODEL: str = "gpt-4o-mini"  # OpenAI GPT-4o Mini (affordable and fast)
     MAX_TOKENS_PER_DAY: int = 50000  # Rate limiting
 
+    # Phase V: Dapr Event-Driven Architecture
+    DAPR_HTTP_HOST: str = "localhost"
+    DAPR_HTTP_PORT: str = "3500"
+    DAPR_PUBSUB_NAME: str = "todo-pubsub"
+    DAPR_ENABLED: bool = True
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Load AI API key from environment variables (priority: Groq -> Gemini -> OpenAI -> Grok)
@@ -58,8 +64,8 @@ class Settings(BaseSettings):
         elif os.getenv("GROQ_API_KEY"):
             print("[OK] Using Groq API (FREE - 14,400 req/day)")
             self.AI_BASE_URL = "https://api.groq.com/openai/v1"
-            # Try llama-3.1-8b-instant which is faster and more reliable
-            self.AI_MODEL = "llama-3.1-8b-instant"
+            # Use llama-3.3-70b-versatile for function calling support
+            self.AI_MODEL = "llama-3.3-70b-versatile"
         elif os.getenv("GEMINI_API_KEY"):
             print("[OK] Using Gemini API (FREE - 1,500 req/day)")
             self.AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"

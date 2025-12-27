@@ -1,0 +1,77 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+
+## Notification Service Deployment
+
+The Notification Service has been deployed with Dapr sidecar enabled for event-driven architecture.
+
+1. Get the application URL by running these commands:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+  {{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "notifications.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT/health
+{{- else if contains "LoadBalancer" .Values.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "notifications.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "notifications.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "notifications.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
+{{- end }}
+
+2. Check pod status with Dapr sidecar:
+   $ kubectl get pods -l app.kubernetes.io/name={{ include "notifications.name" . }}
+   # You should see 2/2 containers running (app + dapr sidecar)
+
+3. View logs:
+   $ kubectl logs -l app.kubernetes.io/name={{ include "notifications.name" . }} --tail=100 -f
+   $ kubectl logs -l app.kubernetes.io/name={{ include "notifications.name" . }} -c daprd --tail=100 -f
+
+4. Health check:
+   $ kubectl run -it --rm curl --image=curlimages/curl --restart=Never -- curl http://{{ include "notifications.fullname" . }}:{{ .Values.service.port }}/health
+
+5. Dapr sidecar info:
+   $ kubectl get pods -l app.kubernetes.io/name={{ include "notifications.name" . }} -o jsonpath='{.items[0].metadata.annotations}' | jq .
+
+## Event-Driven Architecture with Dapr
+
+This service is configured to:
+- Subscribe to events from the todo-pubsub component
+- Publish notification events to other microservices
+- Use Dapr for service-to-service communication
+
+To verify Dapr is working:
+  $ kubectl exec -it <pod-name> -c daprd -- curl localhost:3500/v1.0/healthz
+
+## Secrets Management
+
+IMPORTANT: Update the following secrets in production:
+- SMTP credentials for email notifications
+- Pusher credentials for real-time notifications
+- Database connection string
+
+Use sealed-secrets or external secrets operator for production deployments.
+
+## Monitoring
+
+To enable monitoring and observability:
+1. Install Prometheus and Grafana
+2. Configure ServiceMonitors for scraping metrics
+3. Set up alerting rules for notification failures
+
+For more information, see the project documentation.

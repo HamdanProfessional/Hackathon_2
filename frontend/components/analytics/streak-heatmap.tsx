@@ -22,23 +22,14 @@ export function StreakHeatmap() {
     try {
       setLoading(true);
       setError(null);
-      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-      const response = await fetch(`${apiClient.axiosInstance.defaults.baseURL}/api/analytics/streak-heatmap?days=365`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
 
-      if (!response.ok) {
-        throw new Error('Failed to load heatmap data');
-      }
+      // Use apiClient to fetch heatmap data
+      const heatmapData = await apiClient.axiosInstance.get('/api/analytics/streak-heatmap?days=365').then(r => r.data);
 
-      const heatmapData = await response.json();
       setData(heatmapData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to load heatmap data:", error);
-      setError("Unable to load activity data");
+      setError(error.response?.data?.detail || error.message || "Unable to load activity data");
     } finally {
       setLoading(false);
     }

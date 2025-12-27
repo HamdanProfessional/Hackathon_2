@@ -1,0 +1,1 @@
+"""Workers for notification service."""

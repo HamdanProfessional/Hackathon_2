@@ -1,0 +1,22 @@
+# Redpanda values for single-node development cluster
+statefulset:
+  replicas: 1
+  # Disable anti-affinity for single-node cluster
+  podAntiAffinity:
+    type: soft
+  podTemplate:
+    spec:
+      affinity: {}
+
+storage:
+  persistentVolume:
+    enabled: true
+    size: 5Gi
+    storageClass: do-block-storage
+
+# Minimal resources for development (2Gi memory)
+resources:
+  memory:
+    container:
+      max: 2Gi
+      min: 2Gi

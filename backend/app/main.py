@@ -37,20 +37,22 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up application...")
 
     # Run Alembic migrations to ensure database schema is up to date
-    try:
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-        logger.info("Database migrations complete")
-    except Exception as e:
-        error_msg = f"Database migration failed: {e}"
-        if os.getenv("ENVIRONMENT") == "production":
-            # In production, fail loudly - don't start the app with broken migrations
-            logger.error(f"CRITICAL: {error_msg}")
-            logger.error("Application cannot start with failed migrations in production!")
-            raise RuntimeError(error_msg)
-        else:
-            # In development, warn but continue
-            logger.warning(f"{error_msg} - continuing in development mode")
+    # Skip migrations if SKIP_MIGRATIONS is set (useful for local dev)
+    if not os.getenv("SKIP_MIGRATIONS"):
+        try:
+            alembic_cfg = Config("alembic.ini")
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Database migrations complete")
+        except Exception as e:
+            error_msg = f"Database migration failed: {e}"
+            if os.getenv("ENVIRONMENT") == "production":
+                # In production, fail loudly - don't start the app with broken migrations
+                logger.error(f"CRITICAL: {error_msg}")
+                logger.error("Application cannot start with failed migrations in production!")
+                raise RuntimeError(error_msg)
+            else:
+                # In development, warn but continue
+                logger.warning(f"{error_msg} - continuing in development mode")
 
     # Try to create database tables but don't fail if it doesn't work
     try:
@@ -153,8 +155,8 @@ async def root():
     """Root endpoint - API health check."""
     return {
         "message": "Todo AI Assistant API",
-        "version": "3.0.0",
-        "phase": "III - AI Chatbot",
+        "version": "5.0.0",
+        "phase": "V - Event-Driven Architecture",
         "status": "online",
         "docs": "/docs",
     }
@@ -1041,6 +1043,8 @@ async def test_conversation_creation():
 
 # Import routers
 from app.api import auth, tasks, users, chat, analytics, task_templates, subtasks
+from app.api import recurring_tasks
+from app.api import background_jobs
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -1050,3 +1054,7 @@ app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(task_templates.router, prefix="/api/task-templates", tags=["Task Templates"])
+app.include_router(recurring_tasks.router, prefix="/api/recurring-tasks", tags=["Recurring Tasks"])
+
+# Phase V: Background jobs for scheduled tasks and event-driven architecture
+app.include_router(background_jobs.router)

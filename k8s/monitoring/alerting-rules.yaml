@@ -1,0 +1,122 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: todo-app-alerts
+  namespace: production
+  labels:
+    release: prometheus
+    app: todo-application
+spec:
+  groups:
+  - name: todo-app.rules
+    rules:
+    # Pod Crash Loop Alert
+    - alert: PodCrashLooping
+      expr: rate(kube_pod_container_status_restarts_total{namespace="production"}[15m]) > 0
+      for: 5m
+      labels:
+        severity: warning
+        app: todo-application
+      annotations:
+        summary: "Pod {{ $labels.pod }} is crash looping"
+        description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has restarted {{ $value }} times in the last 15 minutes."
+
+    # High CPU Usage Alert
+    - alert: HighCPUUsage
+      expr: rate(container_cpu_usage_seconds_total{namespace="production", container!=""}[5m]) > 0.8
+      for: 10m
+      labels:
+        severity: warning
+        app: todo-application
+      annotations:
+        summary: "High CPU usage detected"
+        description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} CPU."
+
+    # High Memory Usage Alert
+    - alert: HighMemoryUsage
+      expr: container_memory_working_set_bytes{namespace="production", container!=""} / container_spec_memory_limit_bytes{namespace="production", container!=""} > 0.9
+      for: 5m
+      labels:
+        severity: warning
+        app: todo-application
+      annotations:
+        summary: "High memory usage detected"
+        description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of its memory limit."
+
+    # Service Down Alert
+    - alert: ServiceDown
+      expr: up{namespace="production", job="kubernetes-pods"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        app: todo-application
+      annotations:
+        summary: "Service is down"
+        description: "Service {{ $labels.service }} in namespace {{ $labels.namespace }} has been down for more than 5 minutes."
+
+    # Deployment Failure Alert
+    - alert: DeploymentFailure
+      expr: kube_deployment_status_unavailable_replicas{namespace="production"} > 0
+      for: 10m
+      labels:
+        severity: warning
+        app: todo-application
+      annotations:
+        summary: "Deployment has unavailable replicas"
+        description: "Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has {{ $value }} unavailable replicas."
+
+    # Pod Not Ready Alert
+    - alert: PodNotReady
+      expr: kube_pod_status_ready{namespace="production", condition="true"} == 0
+      for: 10m
+      labels:
+        severity: warning
+        app: todo-application
+      annotations:
+        summary: "Pod is not ready"
+        description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been not ready for more than 10 minutes."
+
+    # API Error Rate Alert
+    - alert: HighAPIErrorRate
+      expr: rate(http_requests_total{namespace="production", status=~"5.."}[5m]) / rate(http_requests_total{namespace="production"}[5m]) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+        app: todo-application
+      annotations:
+        summary: "High API error rate detected"
+        description: "API error rate is {{ $value | humanizePercentage }} in namespace {{ $labels.namespace }}."
+
+    # Database Connection Alert
+    - alert: DatabaseConnectionFailure
+      expr: pg_stat_database_numbackends{namespace="production"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        app: todo-application
+      annotations:
+        summary: "Database connection failure"
+        description: "No active database connections detected for {{ $labels.datname }}."
+
+    # Dapr Sidecar Not Ready
+    - alert: DaprSidecarNotReady
+      expr: up{job="kubernetes-pods", container="daprd"} == 0
+      for: 5m
+      labels:
+        severity: warning
+        app: todo-application
+      annotations:
+        summary: "Dapr sidecar is not ready"
+        description: "Dapr sidecar for pod {{ $labels.pod }} is not responding."
+
+    # Redpanda Down Alert
+    - alert: RedpandaBrokerDown
+      expr: up{namespace="redpanda-system", job="redpanda"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        app: todo-application
+      annotations:
+        summary: "Redpanda broker is down"
+        description: "Redpanda broker in namespace {{ $labels.namespace }} is not responding."

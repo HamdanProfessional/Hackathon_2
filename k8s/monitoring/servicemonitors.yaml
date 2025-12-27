@@ -1,0 +1,89 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: todo-backend
+  namespace: production
+  labels:
+    app: todo-backend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+      app.kubernetes.io/managed-by: Helm
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+    - production
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: todo-notifications
+  namespace: production
+  labels:
+    app: todo-notifications
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notifications
+      app.kubernetes.io/managed-by: Helm
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+    - production
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: dapr-sidecars
+  namespace: production
+  labels:
+    app: dapr
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: dapr
+      app.kubernetes.io/name: dapr-sidecar-injector
+  endpoints:
+  - port: metrics
+    path: /
+    interval: 30s
+    scrapeTimeout: 10s
+    scheme: http
+  namespaceSelector:
+    matchNames:
+    - production
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redpanda
+  namespace: redpanda-system
+  labels:
+    app: redpanda
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redpanda
+      app.kubernetes.io/component: redpanda
+  endpoints:
+  - port: prometheus
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+    - redpanda-system

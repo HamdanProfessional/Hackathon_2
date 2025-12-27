@@ -1,0 +1,142 @@
+---
+# Kafka StatefulSet for Production Deployment
+# Using Confluent Kafka 7.7.x with KRaft mode (no ZooKeeper)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: kafka
+  annotations:
+    pod-index.alpha.kubernetes.io/set-pod-index: "0,1,2"
+spec:
+  serviceName: kafka-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+      annotations:
+        pod-index.alpha.kubernetes.io/set-pod-index: "0,1,2"
+    spec:
+      containers:
+      - name: kafka
+        image: confluentinc/cp-kafka:7.7.1
+        ports:
+        - containerPort: 9092
+          name: internal
+        - containerPort: 9093
+          name: controller
+        - containerPort: 9094
+          name: external
+        env:
+        - name: KAFKA_NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+          value: "$(KAFKA_NODE_ID)"
+        - name: KAFKA_PROCESS_ROLES
+          value: "broker,controller"
+        - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+          value: "0@kafka-0.kafka-headless.kafka.svc.cluster.local:9093,1@kafka-1.kafka-headless.kafka.svc.cluster.local:9093,2@kafka-2.kafka-headless.kafka.svc.cluster.local:9093"
+        - name: KAFKA_LISTENERS
+          value: "PLAINTEXT://:9092,CONTROLLER://:9093"
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "PLAINTEXT://$(hostname -f | awk '{print $1}').kafka-headless.kafka.svc.cluster.local:9092"
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+        - name: KAFKA_CONTROLLER_LISTENER_NAMES
+          value: "CONTROLLER"
+        - name: KAFKA_INTER_BROKER_LISTENER_NAME
+          value: "PLAINTEXT"
+        - name: KAFKA_LOG_DIRS
+          value: /var/lib/kafka/data
+        - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+          value: "true"
+        - name: KAFKA_NUM_PARTITIONS
+          value: "3"
+        - name: KAFKA_DEFAULT_REPLICATION_FACTOR
+          value: "3"
+        - name: KAFKA_MIN_INSYNC_REPLICAS
+          value: "2"
+        - name: KAFKA_LOG_RETENTION_HOURS
+          value: "168"
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: "3"
+        - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+          value: "3"
+        - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+          value: "2"
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/kafka/data
+        resources:
+          requests:
+            cpu: 500m
+            memory: "1Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: do-block-storage
+      resources:
+        requests:
+          storage: 20Gi
+---
+# Headless Service for Kafka cluster communication
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  ports:
+  - port: 9092
+    name: internal
+  - port: 9093
+    name: controller
+  clusterIP: None
+  selector:
+    app: kafka
+---
+# LoadBalancer Service for external Kafka access
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-external
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 9092
+    targetPort: 9092
+    name: external
+  selector:
+    app: kafka
+---
+# Kafka Service for internal cluster access
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9092
+    targetPort: 9092
+    name: internal
+  selector:
+    app: kafka

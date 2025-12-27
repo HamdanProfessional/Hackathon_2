@@ -1,0 +1,176 @@
+# Bitnami Kafka Helm Chart - Production Ready Values
+# Apache Kafka 3.7.x with KRaft mode (ZooKeeper-free)
+
+# Number of Kafka controllers (combined broker + controller in KRaft mode)
+replicaCount: 3
+
+# KRaft mode configuration
+kraft:
+  enabled: true
+
+# Image configuration - use chart default
+image:
+  pullPolicy: IfNotPresent
+
+# Authentication (disabled for Dapr simplicity)
+auth:
+  enabled: false
+
+# SASL (disabled for Dapr simplicity)
+sasl:
+  enabled: false
+
+# Enable auto-creation of topics
+autoCreateTopicsEnable: true
+
+# Kafka configuration
+config:
+  ## General Settings
+  auto.create.topics.enable: "true"
+  num.partitions: "3"
+  default.replication.factor: "3"
+  min.insync.replicas: "2"
+
+  ## Log Settings
+  log.retention.hours: "168"  # 7 days
+  log.segment.bytes: "1073741824"  # 1GB
+  log.retention.check.interval.ms: "300000"
+
+  ## Network Settings
+  num.network.threads: "8"
+  num.io.threads: "16"
+  socket.send.buffer.bytes: "102400"
+  socket.receive.buffer.bytes: "102400"
+  socket.request.max.bytes: "104857600"
+
+  ## Performance Settings
+  num.replica.fetchers: "2"
+  replica.fetch.max.bytes: "1048576"
+  replica.fetch.wait.max.ms: "500"
+
+  ## Security Settings (PLAINTEXT for Dapr compatibility)
+  inter.broker.listener.name: "INTERNAL"
+  listeners: "PLAINTEXT://:9092"
+  advertisedListeners: "PLAINTEXT://:9092"
+  listener.security.protocol.map: "INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+
+  ## Process Roles for KRaft
+  process.roles: "broker,controller"
+  controller.quorum.voters: "0@kafka-0.kafka-headless.kafka.svc.cluster.local:9093,1@kafka-1.kafka-headless.kafka.svc.cluster.local:9093,2@kafka-2.kafka-headless.kafka.svc.cluster.local:9093"
+  controller.listener.names: "CONTROLLER"
+  listener.security.protocol.map: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+  initial.broker.registration.timeout.ms: "10000"
+  broker.id: "-1"
+
+# External access (enabled for Dapr and external clients)
+externalAccess:
+  enabled: true
+  controller:
+    service:
+      type: LoadBalancer
+      loadBalancerNames: ["kafka-0", "kafka-1", "kafka-2"]
+  broker:
+    service:
+      type: LoadBalancer
+      loadBalancerNames: ["kafka-0", "kafka-1", "kafka-2"]
+  autoDiscovery:
+    enabled: true
+
+# Service configuration
+service:
+  type: LoadBalancer
+  ports:
+    client: 9092
+    external: 9094
+
+# Resource configuration
+resources:
+  requests:
+    cpu: 500m
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+
+# Persistence
+persistence:
+  size: 20Gi
+  storageClass: "do-block-storage"
+
+# Probes
+livenessProbe:
+  enabled: true
+  failureThreshold: 3
+  periodSeconds: 10
+  timeoutSeconds: 5
+readinessProbe:
+  enabled: true
+  failureThreshold: 3
+  periodSeconds: 10
+  timeoutSeconds: 5
+startupProbe:
+  enabled: true
+  failureThreshold: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+# JMX monitoring
+jmx:
+  enabled: true
+
+# Metrics for Prometheus
+metrics:
+  kafka:
+    enabled: true
+    jmx:
+      enabled: true
+    serviceMonitor:
+      enabled: true
+      namespace: "kafka"
+      interval: 30s
+      scrapeTimeout: 10s
+
+# Update strategy
+updateStrategy:
+  type: RollingUpdate
+
+# Pod management
+podManagementPolicy: "Parallel"
+
+# Anti-affinity for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - kafka
+          topologyKey: kubernetes.io/hostname
+
+# Security context
+securityContext:
+  fsGroup: 1001
+  fsGroupChangePolicy: "Always"
+
+containerSecurityContext:
+  enabled: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+# Logging
+logLevel: "INFO"
+
+# Extra env vars
+extraEnvVars:
+  - name: KAFKA_ENABLE_KRAFT
+    value: "true"
+  - name: KAFKA_CFG_KRAFT_MODE
+    value: "true"

@@ -1,0 +1,23 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: todo-statestore
+  namespace: production
+spec:
+  type: state.redis
+  version: v1
+  metadata:
+    - name: redisHost
+      secretKeyRef:
+        name: redis-secrets
+        key: redis-host
+    - name: redisPassword
+      secretKeyRef:
+        name: redis-secrets
+        key: redis-password
+    - name: redisPort
+      secretKeyRef:
+        name: redis-secrets
+        key: redis-port
+    - name: keyPrefix
+      value: "todo"

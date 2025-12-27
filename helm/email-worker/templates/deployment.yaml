@@ -18,6 +18,7 @@ spec:
         dapr.io/app-id: {{ .Values.dapr.appId }}
         dapr.io/app-port: "{{ .Values.dapr.appPort }}"
         dapr.io/app-protocol: {{ .Values.dapr.appProtocol }}
+        dapr.io/env: "DAPR_UNSAFE_SKIP_CONTAINER_UID_GID_CHECK=true"
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -28,6 +29,8 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      imagePullSecrets:
+      - name: registry-pull-secret
       containers:
       - name: {{ .Chart.Name }}
         {{- with .Values.securityContext }}
@@ -50,7 +53,7 @@ spec:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: todo-secrets
+              name: todo-backend-secrets
               key: database-url
         # Email configuration
         - name: MAIL_SERVER

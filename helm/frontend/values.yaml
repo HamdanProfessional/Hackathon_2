@@ -1,11 +1,12 @@
 replicaCount: 2
 
 image:
-  repository: todo-frontend
-  tag: latest
+  repository: registry.digitalocean.com/todo-chatbot-reg/todo-frontend
+  tag: v2
   pullPolicy: IfNotPresent
 
-imagePullSecrets: []
+imagePullSecrets:
+  - name: registry-pull-secret
 nameOverride: ""
 fullnameOverride: ""
 
@@ -71,7 +72,7 @@ tolerations: []
 affinity: {}
 
 env:
-  NEXT_PUBLIC_API_URL: "http://backend-service:8000"
+  NEXT_PUBLIC_API_URL: "https://api.testservers.online"
 
 envFrom: []
 

@@ -1,0 +1,30 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: todo-pubsub
+  namespace: production
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    - name: brokers
+      value: "10.150.0.73:9093"
+    - name: allowedTopics
+      value: "task-created,task-updated,task-completed,task-deleted,task-due-soon,recurring-task-due"
+    - name: consumerGroup
+      value: "todo-app"
+    - name: authRequired
+      value: "false"
+    # Redpanda compatibility options
+    - name: clientID
+      value: "dapr-todo-notifications"
+    - name: disableTLS
+      value: "true"
+    - name: maxMessageBytes
+      value: "1048576"
+    - name: consumeRetryOnError
+      value: "true"
+    - name: consumeRetryAttempts
+      value: "5"
+    - name: initialOffset
+      value: "newest"

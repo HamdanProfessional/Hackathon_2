@@ -3,9 +3,9 @@
 replicaCount: 2
 
 image:
-  repository: registry.digitalocean.com/hackathon2-hub/email-worker
+  repository: registry.digitalocean.com/todo-chatbot-reg/todo-backend
   pullPolicy: Always
-  tag: "latest"
+  tag: "email-worker"
 
 # Email configuration (Gmail SMTP)
 email:

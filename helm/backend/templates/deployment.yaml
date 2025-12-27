@@ -16,6 +16,13 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- if .Values.dapr.enabled }}
+        dapr.io/enabled: "true"
+        dapr.io/app-id: {{ .Values.dapr.appId | default "todo-backend" }}
+        dapr.io/app-port: {{ .Values.service.port | toString }}
+        dapr.io/enable-app-health-check: "true"
+        dapr.io/app-health-check-path: "/health"
+        {{- end }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

@@ -2,9 +2,12 @@
 
 A modern, full-stack web application showcasing the evolution from a simple CLI todo list to a feature-rich AI-powered task management system with the "Nebula 2025" design aesthetic.
 
-> **Current Status**: Phase III - Production Deployed
+[![Backend CI/CD](https://github.com/YOUR-ORG/YOUR-REPO/actions/workflows/backend-deploy.yml/badge.svg)](https://github.com/YOUR-ORG/YOUR-REPO/actions/workflows/backend-deploy.yml)
+[![Notifications CI/CD](https://github.com/YOUR-ORG/YOUR-REPO/actions/workflows/notifications-deploy.yml/badge.svg)](https://github.com/YOUR-ORG/YOUR-REPO/actions/workflows/notifications-deploy.yml)
+
+> **Current Status**: Phase V - DigitalOcean Cloud Deployment ✅
 >
-> **Live Application**: [Frontend](https://frontend-l0e30jmlq-hamdanprofessionals-projects.vercel.app) | [Backend API](https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app/docs)
+> **Live Application**: [Frontend](https://hackathon2.testservers.online) | [Backend API](https://api.testservers.online/docs)
 
 ## Features
 
@@ -51,9 +54,15 @@ A modern, full-stack web application showcasing the evolution from a simple CLI 
 
 | Service | URL | Docs |
 |---------|-----|------|
-| Frontend | https://frontend-l0e30jmlq-hamdanprofessionals-projects.vercel.app | - |
-| Backend | https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app | /docs |
-| API Docs | https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app/docs | Swagger |
+| Frontend | https://hackathon2.testservers.online | - |
+| Backend | https://api.testservers.online | /docs |
+| API Docs | https://api.testservers.online/docs | Swagger |
+
+### Alternative Deployment (Vercel)
+| Service | URL |
+|---------|-----|
+| Frontend | https://frontend-l0e30jmlq-hamdanprofessionals-projects.vercel.app |
+| Backend | https://backend-p1lx7zgp8-hamdanprofessionals-projects.vercel.app |
 
 ## Quick Start
 
@@ -213,17 +222,48 @@ npm test
 
 ## Deployment
 
-Both frontend and backend are deployed on Vercel:
+### Phase V - DigitalOcean Cloud (Kubernetes + Dapr)
+
+The application is deployed to DigitalOcean Kubernetes (DOKS) with event-driven architecture using Dapr:
+
+**CI/CD Pipeline**:
+- Backend: Automated deployment via GitHub Actions (`.github/workflows/backend-deploy.yml`)
+- Notifications: Automated deployment via GitHub Actions (`.github/workflows/notifications-deploy.yml`)
+- Frontend: Vercel auto-deployment
+
+**Infrastructure**:
+- **Container Registry**: `registry.digitalocean.com/todo-chatbot-reg`
+- **Kubernetes Cluster**: `do-fra1-hackathon2h1` (Frankfurt region)
+- **Namespace**: `production`
+- **Helm Charts**: `helm/backend`, `helm/notifications`
+- **Event Bus**: Dapr + Kafka/Redpanda (for pub/sub)
+
+**Manual Deployment**:
+```bash
+# Build and push image
+docker build -t registry.digitalocean.com/todo-chatbot-reg/todo-backend:latest backend/
+docker push registry.digitalocean.com/todo-chatbot-reg/todo-backend:latest
+
+# Deploy with Helm
+helm upgrade --install todo-backend helm/backend \
+  --namespace production \
+  --set image.tag=latest \
+  --wait
+```
+
+See [docs/GITHUB_ACTIONS_SETUP.md](docs/GITHUB_ACTIONS_SETUP.md) for complete CI/CD configuration.
+
+### Phase III - Vercel Deployment
+
+Frontend is deployed on Vercel with auto-deployment:
 
 ```bash
-# Deploy backend
-cd backend
-vercel --prod
-
 # Deploy frontend
 cd frontend
 vercel --prod
 ```
+
+Backend is also available on Vercel for API access.
 
 ## Contributing
 

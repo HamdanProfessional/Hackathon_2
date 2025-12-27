@@ -1,0 +1,55 @@
+# Dapr Kafka PubSub Component for Redpanda
+# Redpanda is Kafka-compatible and provides the same pub/sub functionality
+# without requiring a separate Kafka deployment
+#
+# NOTE: This configuration is currently not working due to Dapr Kafka client
+# incompatibility with Redpanda v25.3.1. The in-memory pubsub is being used instead.
+# See docs/KAFKA_DEPLOYMENT_STATUS.md for details.
+
+# apiVersion: dapr.io/v1alpha1
+# kind: Component
+# metadata:
+#   name: todo-pubsub
+#   namespace: production
+# spec:
+#   type: pubsub.kafka
+#   version: v1
+#   metadata:
+#     # Redpanda broker address (within the cluster)
+#     - name: brokers
+#       value: "redpanda-0.redpanda.redpanda-system.svc.cluster.local:9093"
+#
+#     # Allowed topics for the Todo application
+#     - name: allowedTopics
+#       value: "task-created,task-updated,task-completed,task-deleted,task-due-soon,recurring-task-due"
+#
+#     # Consumer group for coordinating message consumption
+#     - name: consumerGroup
+#       value: "todo-app"
+#
+#     # Disable TLS (Redpanda supports PLAINTEXT)
+#     - name: disableTLS
+#       value: "true"
+#
+#     # Authentication not required for internal cluster communication
+#     - name: authRequired
+#       value: "false"
+#
+#     # Client identifier for Dapr
+#     - name: clientID
+#       value: "dapr-todo-app"
+#
+#     # Message size configuration
+#     - name: maxMessageBytes
+#       value: "1048576"
+#
+#     # Retry configuration
+#     - name: consumeRetryOnError
+#       value: "true"
+#     - name: consumeRetryAttempts
+#       value: "5"
+#
+#     # Start reading from newest messages
+#     - name: initialOffset
+#       value: "newest"
+

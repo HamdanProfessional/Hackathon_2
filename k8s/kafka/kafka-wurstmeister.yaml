@@ -1,0 +1,101 @@
+---
+# Simple Kafka deployment using wurstmeister/kafka image
+# This image is proven to work well on Kubernetes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: kafka
+  labels:
+    app: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: wurstmeister/kafka:2.13-2.8.1
+        ports:
+        - containerPort: 9092
+        env:
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "PLAINTEXT://kafka.kafka.svc.cluster.local:9092"
+        - name: KAFKA_LISTENERS
+          value: "PLAINTEXT://:9092"
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: "zookeeper:2181"
+        resources:
+          requests:
+            cpu: 250m
+            memory: "512Mi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: kafka
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9092
+    targetPort: 9092
+  selector:
+    app: kafka
+---
+# Deploy ZooKeeper (required for this Kafka version)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zookeeper
+  namespace: kafka
+  labels:
+    app: zookeeper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      containers:
+      - name: zookeeper
+        image: wurstmeister/zookeeper:3.4.6
+        ports:
+        - containerPort: 2181
+        env:
+        - name: ZOOKEEPER_ID
+          value: "1"
+        - name: ZOOKEEPER_SERVER_1
+          value: "zookeeper"
+        resources:
+          requests:
+            cpu: 100m
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: kafka
+spec:
+  type: ClusterIP
+  ports:
+  - port: 2181
+    targetPort: 2181
+  selector:
+    app: zookeeper
