@@ -1,6 +1,6 @@
 """Email Service using FastAPI-Mail."""
 import os
-from fastapi_mail import FastMail, MessageSchema, MessageType
+from fastapi_mail import FastMail, MessageSchema, MessageType, ConnectionConfig
 from fastapi_mail.errors import ConnectionErrors
 from jinja2 import Template
 from typing import List, Dict, Any
@@ -14,18 +14,18 @@ class EmailService:
 
     def __init__(self):
         """Initialize email configuration."""
-        self.conf = {
-            "MAIL_USERNAME": os.getenv("MAIL_USERNAME"),
-            "MAIL_PASSWORD": os.getenv("MAIL_PASSWORD"),
-            "MAIL_FROM": os.getenv("MAIL_FROM", "noreply@hackathon2.testservers.online"),
-            "MAIL_PORT": int(os.getenv("MAIL_PORT", 587)),
-            "MAIL_SERVER": os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-            "MAIL_STARTTLS": True,
-            "MAIL_SSL_TLS": False,
-            "USE_CREDENTIALS": True,
-            "VALIDATE_CERTS": True,
-            "MAIL_FROM_NAME": os.getenv("MAIL_FROM_NAME", "Todo App"),
-        }
+        self.conf = ConnectionConfig(
+            MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+            MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+            MAIL_FROM=os.getenv("MAIL_FROM", "noreply@hackathon2.testservers.online"),
+            MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
+            MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
+            MAIL_STARTTLS=True,
+            MAIL_SSL_TLS=False,
+            USE_CREDENTIALS=True,
+            VALIDATE_CERTS=True,
+            MAIL_FROM_NAME=os.getenv("MAIL_FROM_NAME", "Todo App"),
+        )
         self.fastmail = FastMail(self.conf)
 
     async def send_email(

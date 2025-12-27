@@ -111,6 +111,46 @@ async def dapr_subscribe():
     }
 
 
+@app.post("/test-email")
+async def test_email():
+    """
+    Test email endpoint - sends a test email to verify SMTP configuration.
+
+    This endpoint bypasses Dapr and directly sends an email to verify
+    the Gmail SMTP configuration is working correctly.
+    """
+    from .email_service import email_service
+    from datetime import datetime
+
+    test_context = {
+        "title": "Test Email Notification",
+        "due_date": datetime.now().strftime("%B %d, %Y at %I:%M %p"),
+        "priority": "High",
+        "description": "This is a test email to verify the email worker is correctly configured.",
+        "category": "Testing",
+        "app_url": "https://hackathon2.testservers.online"
+    }
+
+    success = await email_service.send_template_email(
+        template_name="task-due.html",
+        subject="Test Email - Todo App Notification System",
+        email=["n00bi2761@gmail.com"],
+        context=test_context
+    )
+
+    if success:
+        return {
+            "status": "success",
+            "message": "Test email sent successfully to n00bi2761@gmail.com",
+            "timestamp": datetime.now().isoformat()
+        }
+    else:
+        return {
+            "status": "error",
+            "message": "Failed to send test email - check logs for details"
+        }
+
+
 # Exception handlers
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
