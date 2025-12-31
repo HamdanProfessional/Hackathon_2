@@ -1,0 +1,63 @@
+# Dapr Kafka PubSub Component for Local/Minikube Development
+# This configuration uses Apache Kafka 3.5 (Bitnami) which is compatible with Dapr
+#
+# Prerequisites:
+#   1. Deploy Kafka first: kubectl apply -f k8s/kafka/kafka-local.yaml
+#   2. Verify Kafka is running: kubectl get pods -n kafka
+#
+# Deploy:
+#   kubectl apply -f k8s/dapr-components/pubsub-kafka-local.yaml
+#
+# Verify:
+#   kubectl get components -n default
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: todo-pubsub
+  namespace: default
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    # Kafka broker address (within the cluster)
+    - name: brokers
+      value: "kafka.kafka.svc.cluster.local:9092"
+
+    # Allowed topics for the Todo application
+    - name: allowedTopics
+      value: "task-created,task-updated,task-completed,task-deleted,task-due-soon,recurring-task-due"
+
+    # Consumer group for coordinating message consumption
+    - name: consumerGroup
+      value: "todo-app"
+
+    # Disable TLS for local development
+    - name: disableTLS
+      value: "true"
+
+    # Authentication not required for local cluster
+    - name: authRequired
+      value: "false"
+
+    # Client identifier for Dapr
+    - name: clientID
+      value: "dapr-todo-app"
+
+    # Message size configuration (1MB max)
+    - name: maxMessageBytes
+      value: "1048576"
+
+    # Retry configuration
+    - name: consumeRetryOnError
+      value: "true"
+    - name: consumeRetryAttempts
+      value: "5"
+
+    # Start reading from newest messages
+    - name: initialOffset
+      value: "newest"
+
+    # Kafka version
+    - name: version
+      value: "3.5.0"

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-backend-config
+  namespace: default
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/component: backend
+data:
+  cors-origins: "http://localhost:3000,http://frontend:3000"
+  app-name: "Todo CRUD API"
+  debug: "true"
+  jwt-algorithm: "HS256"
+  jwt-access-token-expire-minutes: "1440"
