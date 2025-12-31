@@ -71,7 +71,7 @@ class AgentService:
                 ),
                 "model": "gemini-2.5-flash"
             })
-            print(f"🤖 Added Gemini fallback")
+            print(f"[AI] Added Gemini fallback")
 
         # OpenAI fallback (if not primary)
         openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -84,10 +84,10 @@ class AgentService:
                 ),
                 "model": "gpt-4o-mini"
             })
-            print(f"🤖 Added OpenAI fallback")
+            print(f"[AI] Added OpenAI fallback")
 
-        print(f"🤖 Agent initialized with primary: {self.primary_provider} ({self.primary_model})")
-        print(f"🤖 Fallback providers: {[f['name'] for f in self.fallback_clients]}")
+        print(f"[AI] Agent initialized with primary: {self.primary_provider} ({self.primary_model})")
+        print(f"[AI] Fallback providers: {[f['name'] for f in self.fallback_clients]}")
 
     def _detect_provider(self, base_url: str) -> str:
         """
