@@ -30,14 +30,15 @@ try:
     from app.ai.agent import AgentService
     CHAT_AVAILABLE = True
 
-    # Decide whether to use real or mock service based on API key availability
-    # Check if AI_API_KEY is configured and not empty
-    USE_MOCK_AI = not bool(settings.AI_API_KEY and settings.AI_API_KEY.strip())
+    # Always use real AI service (Groq primary, Gemini fallback)
+    # Mock AI is disabled to ensure chatbot uses configured AI providers
+    USE_MOCK_AI = False
 
     if USE_MOCK_AI:
-        print("[CONFIG] AI_API_KEY not configured - using mock AI service", file=sys.stderr)
+        print("[CONFIG] Mock AI enabled - WARNING: Not recommended for production", file=sys.stderr)
     else:
-        print(f"[CONFIG] AI_API_KEY configured - using real Gemini AI service", file=sys.stderr)
+        provider = "Groq" if "groq.com" in settings.AI_BASE_URL else "AI"
+        print(f"[CONFIG] Real AI service enabled - Primary: {provider}, Fallback: Gemini", file=sys.stderr)
 except ImportError as e:
     raise ImportError(f"Failed to import chat components: {e}")
     CHAT_AVAILABLE = False
@@ -154,7 +155,8 @@ async def send_chat_message(
             print("[MOCK] Using mock AI service for testing", file=sys.stderr)
         else:
             agent = AgentService()
-            print("[AI] Using real Gemini AI service", file=sys.stderr)
+            provider = "Groq" if "groq.com" in settings.AI_BASE_URL else "AI"
+            print(f"[AI] Using real AI service - Primary: {provider}, Fallback: Gemini", file=sys.stderr)
 
         result = await agent.process_message(
             db=db,

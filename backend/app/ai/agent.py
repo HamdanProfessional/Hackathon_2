@@ -15,8 +15,9 @@ Architecture (Stateless Request Cycle):
 Security: user_id is injected into all tool calls from JWT authentication.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 import json
+import os
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -35,23 +36,79 @@ class AgentService:
     - Chat completion with tool calling
     - Tool execution with user_id injection
     - Response formatting
+    - Multi-provider fallback support
 
     The agent does NOT persist state - history is loaded/saved by the endpoint.
     """
 
     def __init__(self):
         """
-        Initialize AgentService with Google Gemini client via OpenAI-compatible interface.
+        Initialize AgentService with primary provider and fallback clients.
+
+        Provider Configuration:
+        - Primary: Uses settings.AI_API_KEY and settings.AI_BASE_URL
+        - Fallbacks: Gemini, OpenAI (if env vars available and not already primary)
         """
-          # For Gemini OpenAI-compatible endpoint, Google provides a direct interface
-        # The API key should be passed as the api_key parameter to OpenAI client
-        # No need to modify the base URL
-        self.client = AsyncOpenAI(
-            api_key=settings.AI_API_KEY,  # Use the actual Google AI API key
+        # Initialize primary client
+        self.primary_client = AsyncOpenAI(
+            api_key=settings.AI_API_KEY,
             base_url=settings.AI_BASE_URL
         )
-        self.model = settings.AI_MODEL
-        print(f"🤖 Agent initialized with model: {self.model}")  # Debug logging
+        self.primary_model = settings.AI_MODEL
+        self.primary_provider = self._detect_provider(settings.AI_BASE_URL)
+
+        # Initialize fallback clients
+        self.fallback_clients = []
+
+        # Gemini fallback (if not primary)
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        if gemini_api_key and self.primary_provider != "gemini":
+            self.fallback_clients.append({
+                "name": "gemini",
+                "client": AsyncOpenAI(
+                    api_key=gemini_api_key,
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+                ),
+                "model": "gemini-2.5-flash"
+            })
+            print(f"🤖 Added Gemini fallback")
+
+        # OpenAI fallback (if not primary)
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if openai_api_key and self.primary_provider != "openai":
+            self.fallback_clients.append({
+                "name": "openai",
+                "client": AsyncOpenAI(
+                    api_key=openai_api_key,
+                    base_url="https://api.openai.com/v1"
+                ),
+                "model": "gpt-4o-mini"
+            })
+            print(f"🤖 Added OpenAI fallback")
+
+        print(f"🤖 Agent initialized with primary: {self.primary_provider} ({self.primary_model})")
+        print(f"🤖 Fallback providers: {[f['name'] for f in self.fallback_clients]}")
+
+    def _detect_provider(self, base_url: str) -> str:
+        """
+        Detect the AI provider from the base URL.
+
+        Args:
+            base_url: The base URL of the AI API
+
+        Returns:
+            Provider name: 'groq', 'gemini', 'openai', or 'unknown'
+        """
+        base_url_lower = base_url.lower()
+
+        if "groq" in base_url_lower:
+            return "groq"
+        elif "googleapis" in base_url_lower or "generativelanguage" in base_url_lower:
+            return "gemini"
+        elif "openai.com" in base_url_lower:
+            return "openai"
+        else:
+            return "unknown"
 
     def _build_system_prompt(self, user_id: str) -> str:
         """
@@ -143,8 +200,8 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
         print(f"[AGENT START] User ID: {user_id}")
         print(f"[AGENT START] Message: {user_message[:50]}...")
         print(f"[AGENT START] History length: {len(history)}")
-        print(f"[AGENT START] Client model: {self.model}")
-        print(f"[AGENT START] Client base URL: {self.client.base_url}")
+        print(f"[AGENT START] Primary provider: {self.primary_provider} ({self.primary_model})")
+        print(f"[AGENT START] Fallback providers: {[f['name'] for f in self.fallback_clients]}")
 
         # Input validation
         if not user_message or not user_message.strip():
@@ -152,7 +209,8 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                 "response": "Please provide a message. How can I help you manage your tasks today?",
                 "tool_calls": [],
                 "messages": [],
-                "error": {"type": "empty_input", "message": "Empty user message"}
+                "error": {"type": "empty_input", "message": "Empty user message"},
+                "provider_used": self.primary_provider
             }
 
         # Enhanced language detection for better Urdu/English handling
@@ -192,12 +250,28 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
 
         for iteration in range(max_iterations):
             try:
-                # Call OpenAI API with enhanced error handling and retry logic
-                response = await self._call_api_with_retry(
+                # Call OpenAI API with fallback support
+                response, provider_used = await self._call_api_with_fallback(
                     messages=messages,
                     tools=tools,
                     max_retries=max_retries
                 )
+                print(f"[AGENT] Using provider: {provider_used}")
+
+                # Debug: Log response structure
+                print(f"[DEBUG] Response type: {type(response)}")
+                print(f"[DEBUG] Response has choices: {hasattr(response, 'choices')}")
+                if hasattr(response, 'choices'):
+                    print(f"[DEBUG] Choices length: {len(response.choices)}")
+                    if len(response.choices) > 0:
+                        print(f"[DEBUG] First choice type: {type(response.choices[0])}")
+                        print(f"[DEBUG] First choice has message: {hasattr(response.choices[0], 'message')}")
+                        if hasattr(response.choices[0], 'message'):
+                            print(f"[DEBUG] Message content: {response.choices[0].message.content}")
+                            print(f"[DEBUG] Message has tool_calls: {hasattr(response.choices[0].message, 'tool_calls')}")
+                            if hasattr(response.choices[0].message, 'tool_calls'):
+                                print(f"[DEBUG] Tool calls: {response.choices[0].message.tool_calls}")
+                                print(f"[DEBUG] Tool calls length: {len(response.choices[0].message.tool_calls) if response.choices[0].message.tool_calls else 0}")
 
             except Exception as e:
                 # Enhanced error handling with categorization
@@ -211,7 +285,7 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                 print(f"[AGENT ERROR] Categorized As: {error_info['type']}")
                 print(f"[AGENT ERROR] Message: {error_info['message']}")
                 print(f"[AGENT CONTEXT] User: {user_id}, Iteration: {iteration}")
-                print(f"[AGENT CONTEXT] Model: {self.model}, Base URL: {self.client.base_url}")
+                print(f"[AGENT CONTEXT] Primary: {self.primary_provider}, Fallbacks: {[f['name'] for f in self.fallback_clients]}")
                 print(f"[AGENT TRACEBACK]:")
                 print(traceback.format_exc())
                 print(f"{'='*80}\n")
@@ -226,7 +300,8 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                         "tool_calls": tool_calls_made,
                         "messages": messages[len(history) + 1:],
                         "error": error_info,
-                        "retry_suggested": wait_time
+                        "retry_suggested": wait_time,
+                        "provider_used": self.primary_provider
                     }
                 elif error_info['type'] in ['connection', 'timeout']:
                     return {
@@ -234,7 +309,8 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                                  else "مجھے کنکشن کی مشکلات ہو رہی ہیں۔ براہ کرم اپنے انٹرنیٹ کو چیک کریں اور دوبارہ کوشش کریں۔",
                         "tool_calls": tool_calls_made,
                         "messages": messages[len(history) + 1:],
-                        "error": error_info
+                        "error": error_info,
+                        "provider_used": self.primary_provider
                     }
                 elif error_info['type'] == 'authentication':
                     return {
@@ -242,11 +318,14 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                                  else "AI سروس کے ساتھ ترتیب کا مسئلہ ہے۔ اس کو لاگ کر دیا گیا ہے اور اس کا حل کیا جائے گا۔",
                         "tool_calls": tool_calls_made,
                         "messages": messages[len(history) + 1:],
-                        "error": error_info
+                        "error": error_info,
+                        "provider_used": self.primary_provider
                     }
                 else:
                     # For unknown errors, try graceful degradation
-                    return await self._graceful_degradation(user_message, detected_language, tool_calls_made, error_info)
+                    result = await self._graceful_degradation(user_message, detected_language, tool_calls_made, error_info)
+                    result["provider_used"] = self.primary_provider
+                    return result
 
             assistant_message = response.choices[0].message
 
@@ -278,8 +357,17 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                         function_name = tool_call.function.name
                         # Parse arguments, default to empty dict if parsing fails or empty
                         try:
-                            function_args = json.loads(tool_call.function.arguments) if tool_call.function.arguments else {}
-                        except (json.JSONDecodeError, TypeError, AttributeError):
+                            if tool_call.function and tool_call.function.arguments:
+                                function_args = json.loads(tool_call.function.arguments)
+                            else:
+                                function_args = {}
+                        except (json.JSONDecodeError, TypeError, AttributeError) as e:
+                            print(f"[WARNING] Failed to parse tool arguments: {e}")
+                            function_args = {}
+
+                        # Ensure function_args is always a dict (defensive)
+                        if not isinstance(function_args, dict):
+                            print(f"[WARNING] function_args is not a dict: {type(function_args)} = {function_args}")
                             function_args = {}
 
                         # Track tool call
@@ -359,14 +447,16 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                 return {
                     "response": final_response,
                     "tool_calls": tool_calls_made,
-                    "messages": messages[len(history) + 1:]  # Only new messages (after history)
+                    "messages": messages[len(history) + 1:],  # Only new messages (after history)
+                    "provider_used": provider_used
                 }
 
         # Max iterations reached (shouldn't happen normally)
         return {
             "response": "I apologize, but I encountered an issue processing your request. Please try again.",
             "tool_calls": tool_calls_made,
-            "messages": messages[len(history) + 1:]
+            "messages": messages[len(history) + 1:],
+            "provider_used": self.primary_provider
         }
 
     def _detect_language(self, text: str) -> str:
@@ -394,37 +484,73 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
         # Default to English
         return 'en'
 
-    async def _call_api_with_retry(
+    async def _call_api_with_fallback(
         self,
         messages: List[Dict[str, str]],
         tools: List[Dict],
         max_retries: int = 2
-    ) -> Any:
+    ) -> Tuple[Any, str]:
         """
-        Call the OpenAI API with retry logic and exponential backoff.
+        Call the AI API with fallback support across multiple providers.
+
+        Tries primary provider first, then falls back to secondary providers on
+        specific errors (403, 401, Authentication, Connection, Timeout).
+
+        Args:
+            messages: Message history to send
+            tools: Tool definitions for function calling
+            max_retries: Number of retries per provider
+
+        Returns:
+            Tuple of (response, provider_name)
         """
         import asyncio
 
-        for attempt in range(max_retries + 1):
-            try:
-                print(f"[API CALL] Attempt {attempt + 1}/{max_retries + 1} - Model: {self.model}, Base URL: {self.client.base_url}")
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    tools=tools,
-                    tool_choice="auto"
-                )
-                print(f"[API SUCCESS] Response received successfully")
-                return response
-            except Exception as e:
-                print(f"[API RETRY] Attempt {attempt + 1} failed: {type(e).__name__}: {str(e)}")
-                if attempt == max_retries:
-                    raise  # Re-raise if we've exhausted retries
+        # Define providers to try in order
+        providers = [
+            {"name": self.primary_provider, "client": self.primary_client, "model": self.primary_model}
+        ] + self.fallback_clients
 
-                # Wait before retry (exponential backoff)
-                wait_time = 2 ** attempt
-                print(f"[API RETRY] Waiting {wait_time}s before retry...")
-                await asyncio.sleep(wait_time)
+        # Define errors that should trigger fallback
+        fallback_error_types = {"authentication", "connection", "timeout"}
+
+        for provider in providers:
+            provider_name = provider["name"]
+            client = provider["client"]
+            model = provider["model"]
+
+            for attempt in range(max_retries + 1):
+                try:
+                    print(f"[API CALL] Provider: {provider_name}, Attempt {attempt + 1}/{max_retries + 1}, Model: {model}")
+                    response = await client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        tools=tools,
+                        tool_choice="auto"
+                    )
+                    print(f"[API SUCCESS] Response received from {provider_name}")
+                    return response, provider_name
+
+                except Exception as e:
+                    error_info = self._categorize_error(e)
+                    print(f"[API ERROR] Provider: {provider_name}, Attempt {attempt + 1} failed: {error_info['type']} - {str(e)}")
+
+                    # Check if this is a fatal error that should trigger fallback
+                    if attempt == max_retries:
+                        if error_info['type'] in fallback_error_types:
+                            print(f"[API FALLBACK] Switching from {provider_name} to next provider")
+                            break  # Break retry loop, move to next provider
+                        else:
+                            # Non-fallback error, raise immediately
+                            raise
+
+                    # Wait before retry (exponential backoff)
+                    wait_time = 2 ** attempt
+                    print(f"[API RETRY] Waiting {wait_time}s before retry...")
+                    await asyncio.sleep(wait_time)
+
+        # All providers failed
+        raise Exception(f"All AI providers failed. Tried: {[p['name'] for p in providers]}")
 
     def _categorize_error(self, error: Exception) -> Dict[str, Any]:
         """
