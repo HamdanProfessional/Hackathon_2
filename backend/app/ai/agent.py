@@ -376,51 +376,61 @@ Current User ID: {user_id} (for internal use only, don't mention this to the use
                             "arguments": function_args
                         })
 
-                        # Execute tool (inject user_id and db)
-                        if function_name == "add_task":
-                            result = await add_task(
-                                title=function_args.get("title"),
-                                description=function_args.get("description"),
-                                priority=function_args.get("priority"),
-                                due_date=function_args.get("due_date"),
-                                db=db,
-                                user_id=user_id  # Injected from JWT
-                            )
-                        elif function_name == "list_tasks":
-                            result = await list_tasks(
-                                db=db,
-                                user_id=user_id,  # Injected from JWT
-                                status=function_args.get("status"),
-                                priority=function_args.get("priority"),
-                                date_filter=function_args.get("date_filter")
-                            )
-                        elif function_name == "complete_task":
-                            # complete_task has task_id as first parameter
-                            result = await complete_task(
-                                task_id=function_args.get("task_id"),
-                                db=db,
-                                user_id=user_id  # Injected from JWT
-                            )
-                        elif function_name == "update_task":
-                            # update_task has task_id as first parameter
-                            result = await update_task(
-                                task_id=function_args.get("task_id"),
-                                title=function_args.get("title"),
-                                description=function_args.get("description"),
-                                priority=function_args.get("priority"),
-                                due_date=function_args.get("due_date"),
-                                db=db,
-                                user_id=user_id  # Injected from JWT
-                            )
-                        elif function_name == "delete_task":
-                            # delete_task has task_id as first parameter
-                            result = await delete_task(
-                                task_id=function_args.get("task_id"),
-                                db=db,
-                                user_id=user_id  # Injected from JWT
-                            )
-                        else:
-                            result = {"status": "error", "message": f"Unknown tool: {function_name}"}
+                        # Execute tool (inject user_id and db) with error handling
+                        try:
+                            if function_name == "add_task":
+                                result = await add_task(
+                                    title=function_args.get("title"),
+                                    description=function_args.get("description"),
+                                    priority=function_args.get("priority"),
+                                    due_date=function_args.get("due_date"),
+                                    db=db,
+                                    user_id=user_id  # Injected from JWT
+                                )
+                            elif function_name == "list_tasks":
+                                result = await list_tasks(
+                                    db=db,
+                                    user_id=user_id,  # Injected from JWT
+                                    status=function_args.get("status"),
+                                    priority=function_args.get("priority"),
+                                    date_filter=function_args.get("date_filter")
+                                )
+                            elif function_name == "complete_task":
+                                # complete_task has task_id as first parameter
+                                result = await complete_task(
+                                    task_id=function_args.get("task_id"),
+                                    db=db,
+                                    user_id=user_id  # Injected from JWT
+                                )
+                            elif function_name == "update_task":
+                                # update_task has task_id as first parameter
+                                result = await update_task(
+                                    task_id=function_args.get("task_id"),
+                                    title=function_args.get("title"),
+                                    description=function_args.get("description"),
+                                    priority=function_args.get("priority"),
+                                    due_date=function_args.get("due_date"),
+                                    db=db,
+                                    user_id=user_id  # Injected from JWT
+                                )
+                            elif function_name == "delete_task":
+                                # delete_task has task_id as first parameter
+                                result = await delete_task(
+                                    task_id=function_args.get("task_id"),
+                                    db=db,
+                                    user_id=user_id  # Injected from JWT
+                                )
+                            else:
+                                result = {"status": "error", "message": f"Unknown tool: {function_name}"}
+                        except Exception as tool_error:
+                            # Catch any errors during tool execution
+                            print(f"[ERROR] Tool execution failed for {function_name}: {tool_error}")
+                            import traceback
+                            print(f"[ERROR] Traceback: {traceback.format_exc()}")
+                            result = {
+                                "status": "error",
+                                "message": f"Tool {function_name} failed: {str(tool_error)}"
+                            }
 
                     # Add tool result to messages
                     messages.append({
