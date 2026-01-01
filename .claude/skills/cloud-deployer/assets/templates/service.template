@@ -1,0 +1,30 @@
+[Unit]
+Description={{APP_NAME}} Service
+After=network.target {{AFTER_SERVICES}}
+
+[Service]
+Type=simple
+User={{SERVICE_USER}}
+Group={{SERVICE_GROUP}}
+WorkingDirectory={{WORK_DIR}}
+Environment="PATH={{VENV_DIR}}/bin:/usr/local/bin"
+EnvironmentFile={{ENV_FILE}}
+ExecStart={{VENV_DIR}}/bin/{{START_COMMAND}}
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{LOG_DIR}}
+
+# Resource limits
+MemoryMax={{MAX_MEMORY}}
+CPUQuota={{CPU_QUOTA}}
+
+[Install]
+WantedBy=multi-user.target

@@ -1,550 +1,358 @@
 ---
 name: cloud-deployer
-description: Cloud deployment automation skills for CI/CD pipelines, container registry management, and production deployments. Use when setting up GitHub Actions workflows, automating deployments to cloud platforms (DOKS/GKE/AKS), configuring build pipelines, or implementing continuous delivery. Essential for Phase V automated deployment.
+description: Comprehensive deployment automation for local development, backend services, and cloud platforms. Use when deploying applications: (1) Local development (Docker Compose, Minikube/k3s), (2) Backend deployment (systemd, PM2, Gunicorn), (3) Cloud deployment (Vercel, Kubernetes/DOKS/GKE/AKS), (4) CI/CD pipelines (GitHub Actions), (5) Container registry management, (6) Infrastructure setup (Helm charts, Terraform). Includes automated scripts for all deployment types, reference documentation, and asset templates.
 ---
 
-# Cloud Deployment Automation
+# Cloud Deployer
 
-This skill provides guidance for automating deployments to cloud platforms using CI/CD pipelines.
+Comprehensive deployment automation covering local development, backend services, and cloud infrastructure.
 
-## When to Use This Skill
+## Deployment Types
 
-Use this skill when:
-- Creating GitHub Actions workflows
-- Setting up CI/CD pipelines
-- Automating deployments to Kubernetes
-- Configuring container registries
-- Implementing continuous delivery
-- Managing production deployments
+### Local Development
+- **Docker Compose**: Full local stack with containers
+- **Minikube/k3s**: Local Kubernetes for testing
+
+### Backend Deployment
+- **systemd**: Linux service management
+- **PM2**: Process manager with monitoring
+- **Gunicorn**: Production WSGI server
+
+### Cloud Deployment
+- **Vercel**: Serverless deployment
+- **Kubernetes**: DOKS, GKE, AKS
+- **Helm Charts**: Package management
+
+### CI/CD
+- **GitHub Actions**: Automated pipelines
+- **Container Registries**: DO, GCR, ACR
 
 ## Quick Reference
 
-### GitHub Actions Workflow
+| Deployment | Script | Reference |
+|------------|--------|-----------|
+| Docker Compose | `scripts/local/deploy-docker-compose.sh` | `references/local-deployment.md` |
+| Minikube | `scripts/local/deploy-minikube.sh` | `references/local-deployment.md` |
+| systemd | `scripts/backend/deploy-systemd.sh` | `references/backend-deployment.md` |
+| PM2 | `scripts/backend/deploy-pm2.sh` | `references/backend-deployment.md` |
+| Kubernetes | `scripts/cloud/deploy-kubernetes.sh` | `references/cloud-deployment.md` |
+| Vercel | `scripts/cloud/deploy-vercel.sh` | `references/cloud-deployment.md` |
+| CI/CD | `scripts/cloud/deploy-cicd.sh` | `references/cloud-deployment.md` |
 
-```yaml
-name: Build and Deploy
+## Deployment Workflows
 
-on:
-  push:
-    branches: [main]
+### 1. Local Development (Docker Compose)
 
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Build images
-      run: |
-        docker build -t image:tag ./path
-
-    - name: Login to registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Push images
-      run: docker push image:tag
-
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Configure kubectl
-      run: |
-        echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
-        export KUBECONFIG=kubeconfig
-
-    - name: Deploy
-      run: |
-        helm upgrade --install release-name chart-name \
-          --set image.tag=${{ github.sha }}
-```
-
-### Container Registry Commands
+**When to use**: Daily development, testing full stack locally
 
 ```bash
-# GitHub Container Registry
-docker tag image:tag ghcr.io/owner/image:tag
-docker push ghcr.io/owner/image:tag
+# Start all services
+./scripts/local/deploy-docker-compose.sh up
 
-# Docker Hub
-docker tag image:tag username/image:tag
-docker push username/image:tag
+# View logs
+./scripts/local/deploy-docker-compose.sh logs
 
-# Google Container Registry
-docker tag image:tag gcr.io/project/image:tag
-docker push gcr.io/project/image:tag
-
-# Azure Container Registry
-docker tag image:tag registry.azurecr.io/image:tag
-docker push registry.azurecr.io/image:tag
+# Stop services
+./scripts/local/deploy-docker-compose.sh down
 ```
 
-### Kubernetes Deployment Commands
+**Requirements**: Docker, Docker Compose
+
+**Key files**:
+- `docker-compose.yml` - Service orchestration
+- `.env` - Environment configuration
+- `assets/templates/docker-compose.yml` - Template
+
+### 2. Local Kubernetes (Minikube)
+
+**When to use**: Testing K8s manifests before production
 
 ```bash
-# Set context
-kubectl config use-context context-name
+# Start Minikube
+./scripts/local/deploy-minikube.sh start
 
-# Get contexts
-kubectl config get-contexts
+# Deploy to Minikube
+./scripts/local/deploy-minikube.sh deploy
 
-# Verify cluster
-kubectl cluster-info
-kubectl get nodes
-
-# Deploy with Helm
-helm upgrade --install release chart -f values.yaml
-
-# Verify deployment
-kubectl rollout status deployment/deployment-name
-
-# Get pods
-kubectl get pods -l app=app-name
+# Access via tunnel
+./scripts/local/deploy-minikube.sh tunnel
 ```
 
-## GitHub Actions Patterns
+**Requirements**: Minikube, kubectl
 
-### Multi-Stage Pipeline
+**See**: `references/local-deployment.md` for Minikube setup and troubleshooting
 
-```yaml
-name: CI/CD Pipeline
+### 3. Backend Deployment (systemd)
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: my-app
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Run tests
-      run: |
-        pip install pytest
-        pytest tests/
-
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
-      image-digest: ${{ steps.build.outputs.digest }}
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Login to registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Build and push
-      uses: docker/build-push-action@v5
-      with:
-        context: ./app
-        push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-  deploy-staging:
-    needs: build
-    if: github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Configure kubectl
-      run: |
-        echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > kubeconfig
-        export KUBECONFIG=kubeconfig
-    - name: Deploy to staging
-      run: |
-        helm upgrade --install myapp ./helm/myapp \
-          --set image.tag=${{ github.sha }} \
-          --namespace staging \
-          --create-namespace
-
-  deploy-production:
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Configure kubectl
-      run: |
-        echo "${{ secrets.KUBECONFIG_PROD }}" | base64 -d > kubeconfig
-        export KUBECONFIG=kubeconfig
-    - name: Deploy to production
-      run: |
-        helm upgrade --install myapp ./helm/myapp \
-          --set image.tag=${{ github.sha }} \
-          --namespace production \
-          --create-namespace
-    - name: Health check
-      run: |
-        kubectl wait --for=condition=ready pod -l app=myapp -n production --timeout=300s
-        curl -f https://api.example.com/health
-```
-
-## DigitalOcean Deployment
-
-### Create Cluster via CLI
+**When to use**: Production Linux servers, VPS deployment
 
 ```bash
-# Install doctl
-brew install doctl
+# Install systemd service
+sudo ./scripts/backend/deploy-systemd.sh install
 
-# Authenticate
-doctl auth init
+# Start service
+sudo ./scripts/backend/deploy-systemd.sh start
 
-# Create cluster
-doctl kubernetes cluster create todo-cluster \
-  --region nyc1 \
-  --version 1.29.0 \
-  --node-pool "name=pool-1;size=s-4vcpu-8gb;count=3"
-
-# Get kubeconfig
-doctl kubernetes cluster kubeconfig save todo-cluster
-
-# Verify
-kubectl get nodes
+# Check status
+sudo ./scripts/backend/deploy-systemd.sh status
 ```
 
-### DOKS CI/CD
+**Requirements**: Linux with systemd, Python 3.13+
 
-```yaml
-- name: Deploy to DigitalOcean
-  run: |
-    # Get cluster credentials
-    doctl kubernetes cluster kubeconfig save todo-cluster
+**Key variables**:
+- `SERVICE_NAME` - Service name (default: todo-backend)
+- `WORK_DIR` - Application directory (default: /opt/todo-backend)
+- `VENV_DIR` - Virtual environment path
 
-    # Deploy with Helm
-    helm upgrade --install todo-app ./helm/todo-app \
-      --set image.tag=${{ github.sha }} \
-      --set image.registry=registry.digitalocean.com/todo-app \
-      --namespace production
-```
+**See**: `references/backend-deployment.md` for systemd configuration and Nginx reverse proxy
 
-## Google Cloud Deployment
+### 4. Backend Deployment (PM2)
 
-### Create Cluster via CLI
+**When to use**: Node.js environments, need process monitoring
 
 ```bash
-# Set project
-gcloud config set project project-id
+# Start with PM2
+./scripts/backend/deploy-pm2.sh start
 
-# Create cluster
-gcloud container clusters create todo-cluster \
-  --region=us-central1 \
-  --num-nodes=3 \
-  --machine-type=e2-medium \
-  --enable-autoscaling \
-  --min-nodes=2 \
-  --max-nodes=5
+# Monitor
+./scripts/backend/deploy-pm2.sh monit
 
-# Get credentials
-gcloud container clusters get-credentials todo-cluster \
-  --region=us-central1
+# Zero-downtime reload
+./scripts/backend/deploy-pm2.sh reload
 ```
 
-### GCR Push
+**Requirements**: Node.js, PM2
+
+**See**: `references/backend-deployment.md` for PM2 ecosystem configuration
+
+### 5. Cloud Deployment (Kubernetes)
+
+**When to use**: Production cloud deployment, scalable infrastructure
 
 ```bash
-# Tag for GCR
-docker tag image:tag gcr.io/project-id/image:tag
+# Deploy to cluster
+CLUSTER=do-fra1-hackathon2 ./scripts/cloud/deploy-kubernetes.sh deploy
 
-# Push to GCR
-docker push gcr.io/project-id/image:tag
+# Check status
+CLUSTER=do-fra1-hackathon2 ./scripts/cloud/deploy-kubernetes.sh status
+
+# Rollback
+CLUSTER=do-fra1-hackathon2 ./scripts/cloud/deploy-kubernetes.sh rollback 2
 ```
 
-### GKE CI/CD
+**Requirements**: kubectl configured for target cluster
 
-```yaml
-- name: Authenticate to GCR
-  uses: google-github-actions/auth@v2
-  with:
-    credentials_json: ${{ secrets.GCR_JSON_KEY }}
+**Key variables**:
+- `CLUSTER` - Kubernetes cluster context
+- `NAMESPACE` - Target namespace (default: default)
+- `REGISTRY` - Container registry URL
 
-- name: Configure gcloud
-  uses: google-github-actions/setup-gcloud@v2
+**See**: `references/cloud-deployment.md` for cluster setup, Helm charts, and troubleshooting
 
-- name: Deploy to GKE
-  run: |
-    gcloud container clusters get-credentials todo-cluster \
-      --region=us-central1
+### 6. Cloud Deployment (Vercel)
 
-    helm upgrade --install todo-app ./helm/todo-app \
-      --set image.tag=${{ github.sha }} \
-      --set image.registry=gcr.io/project-id
-```
-
-## Azure Deployment
-
-### Create Cluster via CLI
+**When to use**: Serverless deployment, quick prototyping
 
 ```bash
-# Create resource group
-az group create --name todo-rg --location eastus
+# Deploy frontend to production
+./scripts/cloud/deploy-vercel.sh frontend prod
 
-# Create cluster
-az aks create \
-  --resource-group todo-rg \
-  --name todo-cluster \
-  --node-count 3 \
-  --node-vm-size Standard_B4ms \
-  --enable-managed-identity \
-  --enable-cluster-autoscaler \
-  --min-count 2 \
-  --max-count 5
+# Deploy backend preview
+./scripts/cloud/deploy-vercel.sh backend preview
 
-# Get credentials
-az aks get-credentials \
-  --resource-group todo-rg \
-  --name todo-cluster
+# List deployments
+./scripts/cloud/deploy-vercel.sh list
 ```
 
-### ACR Push
+**Requirements**: Vercel CLI, Vercel token
+
+**See**: `references/cloud-deployment.md` for Vercel configuration
+
+### 7. CI/CD Setup (GitHub Actions)
+
+**When to use**: Automated testing and deployment
 
 ```bash
-# Login to ACR
-az acr login --name registry
+# Setup workflow
+./scripts/cloud/deploy-cicd.sh setup
 
-# Tag for ACR
-docker tag image:tag registry.azurecr.io/image:tag
-
-# Push to ACR
-docker push registry.azurecr.io/image:tag
+# Validate workflow
+./scripts/cloud/deploy-cicd.sh validate
 ```
 
-### AKS CI/CD
+**Creates**: `.github/workflows/ci-cd.yml`
 
-```yaml
-- name: Login to Azure
-  uses: azure/login@v2
-  with:
-    creds: ${{ secrets.AZURE_CREDENTIALS }}
+**Required secrets**:
+- `DIGITALOCEAN_ACCESS_TOKEN`
+- `DOCKER_USERNAME` / `DOCKER_PASSWORD`
+- `KUBERNETES_CLUSTER` / `KUBERNETES_NAMESPACE`
+- `VERCEL_TOKEN` (optional)
 
-- name: Deploy to AKS
-  run: |
-    az aks get-credentials \
-      --resource-group todo-rg \
-      --name todo-cluster
+**See**: `references/cloud-deployment.md` for workflow customization
 
-    helm upgrade --install todo-app ./helm/todo-app \
-      --set image.tag=${{ github.sha }} \
-      --set image.registry=registry.azurecr.io
-```
+## Deployment Selection Guide
 
-## Secrets Management
+Choose deployment type based on your needs:
 
-### GitHub Secrets Required
+| Scenario | Recommended Deployment |
+|----------|----------------------|
+| Local development | Docker Compose |
+| Testing K8s manifests | Minikube |
+| Production server | systemd + Gunicorn |
+| Need process monitoring | PM2 |
+| Cloud production | Kubernetes (Helm) |
+| Quick deployment | Vercel |
+| Automated pipeline | GitHub Actions |
 
-```
-# Container Registry
-- GITHUB_TOKEN (automatic)
-- REGISTRY_PASSWORD (if using private registry)
+## Common Patterns
 
-# Kubernetes
-- KUBECONFIG (base64 encoded kubeconfig file)
-- KUBECONFIG_STAGING (staging cluster)
-- KUBECONFIG_PROD (production cluster)
+### Multi-Environment Setup
 
-# Cloud Providers
-- GCR_JSON_KEY (Google Cloud)
-- AZURE_CREDENTIALS (Azure)
-- DIGITALOCEAN_TOKEN (DigitalOcean)
+1. **Development**: Docker Compose locally
+2. **Staging**: Minikube or small K8s cluster
+3. **Production**: Kubernetes with HPA
 
-# Application Secrets
-- DATABASE_URL
-- JWT_SECRET_KEY
-- GROQ_API_KEY
-- GEMINI_API_KEY
-```
-
-### Create KUBECONFIG Secret
+### Blue-Green Deployment
 
 ```bash
-# Get kubeconfig
-kubectl config view --minify --flatten > kubeconfig
+# Deploy blue
+kubectl apply -f k8s/blue-deployment.yaml
 
-# Base64 encode
-cat kubeconfig | base64 -w 0
+# Test blue
+# ... run tests ...
 
-# Add to GitHub Secrets
-# Repository > Settings > Secrets > New secret
-# Name: KUBECONFIG
-# Value: <base64-output>
+# Switch traffic to blue
+kubectl apply -f k8s/service-blue.yaml
+
+# Deploy green
+kubectl apply -f k8s/green-deployment.yaml
 ```
 
-## Health Checks
-
-### Kubernetes Readiness Probe
-
-```yaml
-readinessProbe:
-  httpGet:
-    path: /health
-    port: http
-  initialDelaySeconds: 5
-  periodSeconds: 5
-  timeoutSeconds: 3
-  failureThreshold: 3
-```
-
-### CI/CD Health Check
-
-```yaml
-- name: Health check
-  run: |
-    # Wait for rollout
-    kubectl rollout status deployment/backend -n production --timeout=300s
-
-    # Check pod readiness
-    kubectl wait --for=condition=ready pod -l app=backend -n production --timeout=300s
-
-    # Test endpoint
-    kubectl run -it --rm health-check --image=curlimages/curl --restart=Never \
-      -- curl -f http://backend-service:8000/health
-```
-
-## Rollback Strategies
-
-### Automatic Rollback on Failure
-
-```yaml
-- name: Deploy with rollback
-  run: |
-    # Deploy
-    helm upgrade --install todo-app ./helm/todo-app \
-      --set image.tag=${{ github.sha }} \
-      --namespace production || \
-    (helm rollback todo-app --namespace production && exit 1)
-```
-
-### Manual Rollback
+### Canary Deployment
 
 ```bash
-# List revisions
-helm history todo-app --namespace production
+# Initial deployment (90% old, 10% new)
+kubectl apply -f k8s/canary-deployment.yaml
 
-# Rollback to previous
-helm rollback todo-app --namespace production
-
-# Rollback to specific revision
-helm rollback todo-app 2 --namespace production
+# Gradually increase traffic
+kubectl scale deployment/new-version --replicas=2
+kubectl scale deployment/old-version --replicas=8
 ```
 
-## Monitoring Deployments
+## Asset Templates
 
-### Deployment Status
+Use templates in `assets/templates/`:
 
+- **Dockerfile.backend** - Multi-stage FastAPI build
+- **Dockerfile.frontend** - Multi-stage Next.js build
+- **docker-compose.yml** - Full stack orchestration
+- **service.template** - systemd service template
+- **k8s-deployment.yaml** - Kubernetes manifest template
+
+## Troubleshooting
+
+### Docker Compose Issues
+
+**Port conflicts**:
 ```bash
-# Check rollout status
-kubectl rollout status deployment/backend
-
-# Check rollout history
-kubectl rollout history deployment/backend
-
-# Get recent pods
-kubectl get pods -l app=backend --sort-by=.metadata.creationTimestamp
+# Check ports
+netstat -tulpn | grep :3000
+# Change ports in docker-compose.yml
 ```
 
-### Deployment Metrics
-
+**Volume errors**:
 ```bash
-# Pod resource usage
-kubectl top pods -l app=backend
+docker-compose down -v
+docker volume prune
+docker-compose up -d
+```
 
-# Node resource usage
-kubectl top nodes
+### Backend Service Issues
 
-# Events
-kubectl get events --sort-by=.metadata.creationTimestamp
+**Service won't start**:
+```bash
+sudo systemctl status todo-backend
+sudo journalctl -u todo-backend -n 50
+```
+
+**Permission errors**:
+```bash
+sudo chown -R www-data:www-data /opt/todo-backend
+```
+
+### Kubernetes Issues
+
+**Pods not starting**:
+```bash
+kubectl describe pod <pod-name>
+kubectl logs <pod-name>
+```
+
+**Image pull errors**:
+```bash
+kubectl get secret registry-pull-secret -o yaml
+# Verify credentials
+```
+
+**DNS issues**:
+```bash
+kubectl run debug --image=nicolaka/netshoot -it --rm
+# Inside pod: nslookup todo-backend
 ```
 
 ## Best Practices
 
-### Branch Strategy
+1. **Always test locally first** - Use Docker Compose before cloud deployment
+2. **Use environment variables** - Never hardcode credentials
+3. **Secure secrets** - Use Kubernetes secrets or external secret managers
+4. **Resource limits** - Set memory/CPU limits in Kubernetes
+5. **Health checks** - Always define liveness and readiness probes
+6. **Log rotation** - Prevent disk filling with logs
+7. **Monitoring** - Set up logging and metrics for production
+8. **Rollback plan** - Always know how to rollback quickly
 
-- `main` - Production deployments
-- `develop` - Staging deployments
-- `feature/*` - PR testing only
+## Environment Variables
 
-### Tagging Strategy
-
-```bash
-# Use git SHA for immutable tags
-IMAGE_TAG=${{ github.sha }}
-
-# Use semantic versioning for releases
-IMAGE_TAG=${{ github.ref_name }} # v1.0.0
-```
-
-### Blue-Green Deployment
-
-```yaml
-- name: Blue-Green Deploy
-  run: |
-    # Deploy to green
-    helm upgrade --install todo-app-green ./helm/todo-app \
-      --set image.tag=${{ github.sha }}
-
-    # Wait for green ready
-    kubectl wait --for=condition=ready pod -l app=todo-app-green
-
-    # Switch service to green
-    kubectl patch service todo-app \
-      -p '{"spec":{"selector":{"app":"todo-app-green"}}}'
-
-    # Clean up blue
-    helm uninstall todo-app-blue
-```
-
-## Troubleshooting
-
-### Pipeline Failures
+Create `.env` file in project root:
 
 ```bash
-# Check workflow logs in GitHub Actions
-# Repository > Actions > Workflow Run > Job > Step
+# Database
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=password
+POSTGRES_DB=tododb
+DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/tododb
 
-# Test locally
-act -j test-job  # using act CLI
+# Backend
+JWT_SECRET_KEY=your-secret-key-min-32-chars
+JWT_ALGORITHM=HS256
+GROQ_API_KEY=your-groq-key
+CORS_ORIGINS=http://localhost:3000,https://yourdomain.com
 
-# Debug deployment
-helm template --debug chart-name
-helm install --dry-run --debug chart-name
+# Deployment
+CLUSTER=do-fra1-hackathon2
+NAMESPACE=default
+REGISTRY=registry.digitalocean.com
 ```
 
-### Registry Issues
+## Quick Start Commands
 
 ```bash
-# Test registry access
-docker pull registry/image:tag
+# Local development
+docker-compose up -d
 
-# Verify authentication
-docker login registry
+# Deploy to local Kubernetes
+eval $(minikube docker-env)
+kubectl apply -f k8s/
 
-# Check image exists
-helm repo update
-helm search repo chart-name
+# Deploy to cloud
+CLUSTER=do-fra1-hackathon2 ./scripts/cloud/deploy-kubernetes.sh deploy
+
+# Setup CI/CD
+./scripts/cloud/deploy-cicd.sh setup
 ```
 
-## For More Information
+## Related Skills
 
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Helm Best Practices](https://helm.sh/docs/chart_best_practices/)
-- [Kubernetes Deployment Strategies](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+- **cloud-ops**: Infrastructure operations and DevOps automation (merged into this skill)
+- **deployment-validator**: Validate deployments before going live
+- **dapr-events**: Event-driven architecture for microservices
