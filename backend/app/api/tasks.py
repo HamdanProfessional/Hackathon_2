@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 import json
 import os
+import sys
 import asyncio
 
 from app.database import get_db
@@ -116,6 +117,9 @@ async def create_task(
 
     Returns the created task with completed=False by default.
     """
+    print("=" * 60, file=sys.stderr)
+    print("CREATE_TASK CALLED - NEW CODE WITH BackgroundTasks", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
     new_task = await task_crud.create_task(db, task_data, str(current_user.id))
 
     # Log event to database
