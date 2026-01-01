@@ -24,7 +24,7 @@ task_logger = logging.getLogger(__name__)
 
 async def _publish_event_later(event_type: str, task_data: Dict[str, Any]):
     """Publish event in background without blocking response."""
-    task_logger.info(f"[EVENT] Publishing {event_type} event for task {task_data.get('id')}")
+    print(f"[EVENT] Publishing {event_type} event for task {task_data.get('id')}", file=sys.stderr)
     try:
         from app.services.event_publisher import dapr_event_publisher
         if event_type == "created":
@@ -39,12 +39,14 @@ async def _publish_event_later(event_type: str, task_data: Dict[str, Any]):
             result = False
 
         if result:
-            task_logger.info(f"[EVENT] Successfully published {event_type} event")
+            print(f"[EVENT] Successfully published {event_type} event", file=sys.stderr)
         else:
-            task_logger.warning(f"[EVENT] Failed to publish {event_type} event (returned False)")
+            print(f"[EVENT] Failed to publish {event_type} event (returned False)", file=sys.stderr)
     except Exception as e:
         # Log but don't fail the request
-        task_logger.error(f"[EVENT] Event publishing failed for {event_type}: {e}", exc_info=True)
+        print(f"[EVENT] Event publishing failed for {event_type}: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
 
 async def _log_event(db: AsyncSession, task_id: int, event_type: str, event_data: Dict[str, Any]):
     """Log event to TaskEventLog table."""
@@ -129,12 +131,9 @@ async def create_task(
     print("_log_event completed", file=sys.stderr)
 
     # Publish event (fire and forget - don't block response)
-    print("About to log [EVENT] Scheduling...", file=sys.stderr)
-    task_logger.info(f"[EVENT] Scheduling background task for event publishing")
-    print("About to call background_tasks.add_task...", file=sys.stderr)
+    print("[EVENT] Scheduling background task for event publishing", file=sys.stderr)
     background_tasks.add_task(_publish_event_later, "created", task_dict)
-    print("background_tasks.add_task completed", file=sys.stderr)
-    task_logger.info(f"[EVENT] Background task scheduled")
+    print("[EVENT] Background task scheduled", file=sys.stderr)
 
     return new_task
 
