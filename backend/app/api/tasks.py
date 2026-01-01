@@ -124,11 +124,16 @@ async def create_task(
 
     # Log event to database
     task_dict = _task_to_dict(new_task)
+    print("About to call _log_event...", file=sys.stderr)
     await _log_event(db, new_task.id, "created", task_dict)
+    print("_log_event completed", file=sys.stderr)
 
     # Publish event (fire and forget - don't block response)
+    print("About to log [EVENT] Scheduling...", file=sys.stderr)
     task_logger.info(f"[EVENT] Scheduling background task for event publishing")
+    print("About to call background_tasks.add_task...", file=sys.stderr)
     background_tasks.add_task(_publish_event_later, "created", task_dict)
+    print("background_tasks.add_task completed", file=sys.stderr)
     task_logger.info(f"[EVENT] Background task scheduled")
 
     return new_task
