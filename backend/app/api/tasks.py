@@ -1,6 +1,6 @@
 """Task API endpoints."""
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, status, Query, Body
+from fastapi import APIRouter, Depends, status, Query, Body, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 import json
@@ -18,23 +18,32 @@ from app.utils.exceptions import NotFoundException, ForbiddenException, Validati
 router = APIRouter()
 
 # Event publishing helper (fire and forget)
+import logging
+task_logger = logging.getLogger(__name__)
+
 async def _publish_event_later(event_type: str, task_data: Dict[str, Any]):
     """Publish event in background without blocking response."""
+    task_logger.info(f"[EVENT] Publishing {event_type} event for task {task_data.get('id')}")
     try:
         from app.services.event_publisher import dapr_event_publisher
         if event_type == "created":
-            await dapr_event_publisher.publish_task_created(task_data)
+            result = await dapr_event_publisher.publish_task_created(task_data)
         elif event_type == "updated":
-            await dapr_event_publisher.publish_task_updated(task_data)
+            result = await dapr_event_publisher.publish_task_updated(task_data)
         elif event_type == "completed":
-            await dapr_event_publisher.publish_task_completed(task_data)
+            result = await dapr_event_publisher.publish_task_completed(task_data)
         elif event_type == "deleted":
-            await dapr_event_publisher.publish_task_deleted(task_data)
+            result = await dapr_event_publisher.publish_task_deleted(task_data)
+        else:
+            result = False
+
+        if result:
+            task_logger.info(f"[EVENT] Successfully published {event_type} event")
+        else:
+            task_logger.warning(f"[EVENT] Failed to publish {event_type} event (returned False)")
     except Exception as e:
         # Log but don't fail the request
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(f"Event publishing failed for {event_type}: {e}")
+        task_logger.error(f"[EVENT] Event publishing failed for {event_type}: {e}", exc_info=True)
 
 async def _log_event(db: AsyncSession, task_id: int, event_type: str, event_data: Dict[str, Any]):
     """Log event to TaskEventLog table."""
@@ -95,6 +104,7 @@ class SubtaskResponse(BaseModel):
 )
 async def create_task(
     task_data: TaskCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -113,7 +123,9 @@ async def create_task(
     await _log_event(db, new_task.id, "created", task_dict)
 
     # Publish event (fire and forget - don't block response)
-    asyncio.create_task(_publish_event_later("created", task_dict))
+    task_logger.info(f"[EVENT] Scheduling background task for event publishing")
+    background_tasks.add_task(_publish_event_later, "created", task_dict)
+    task_logger.info(f"[EVENT] Background task scheduled")
 
     return new_task
 
@@ -200,6 +212,7 @@ async def get_task(
 async def update_task(
     task_id: int,
     task_data: TaskUpdate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -230,7 +243,7 @@ async def update_task(
     await _log_event(db, updated_task.id, "updated", task_dict)
 
     # Publish event (fire and forget)
-    asyncio.create_task(_publish_event_later("updated", task_dict))
+    background_tasks.add_task(_publish_event_later, "updated", task_dict)
 
     return updated_task
 
@@ -243,6 +256,7 @@ async def update_task(
 )
 async def toggle_task_completion(
     task_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -269,7 +283,7 @@ async def toggle_task_completion(
         await _log_event(db, updated_task.id, "completed", task_dict)
 
         # Publish event (fire and forget)
-        asyncio.create_task(_publish_event_later("completed", task_dict))
+        background_tasks.add_task(_publish_event_later, "completed", task_dict)
 
     return updated_task
 
@@ -282,6 +296,7 @@ async def toggle_task_completion(
 )
 async def delete_task(
     task_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -308,7 +323,7 @@ async def delete_task(
     await _log_event(db, task_id, "deleted", task_dict)
 
     # Publish event (fire and forget)
-    asyncio.create_task(_publish_event_later("deleted", task_dict))
+    background_tasks.add_task(_publish_event_later, "deleted", task_dict)
 
 
 @router.post(
