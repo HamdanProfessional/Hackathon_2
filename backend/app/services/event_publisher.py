@@ -57,7 +57,8 @@ class DaprEventPublisher:
                 print(f"[DAPR-PUB] Response status: {response.status_code}", file=sys.stderr)
                 print(f"[DAPR-PUB] Response body: {response.text[:200]}", file=sys.stderr)
 
-                if response.status_code == 200:
+                # Dapr HTTP publish returns 204 No Content on success
+                if response.status_code in (200, 204):
                     print(f"[DAPR-PUB] Event published successfully to topic '{topic}': {data.get('task_id', 'N/A')}", file=sys.stderr)
                     return True
                 else:
