@@ -24,7 +24,7 @@ task_logger = logging.getLogger(__name__)
 
 async def _publish_event_later(event_type: str, task_data: Dict[str, Any]):
     """Publish event in background without blocking response."""
-    print(f"[EVENT] Publishing {event_type} event for task {task_data.get('id')}", file=sys.stderr)
+    print(f"[EVENT] Publishing {event_type} event for task {task_data.get('task_id')}", file=sys.stderr)
     try:
         from app.services.event_publisher import dapr_event_publisher
         if event_type == "created":
