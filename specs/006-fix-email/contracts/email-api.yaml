@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: Custom Email API
+  description: HTTP API for sending email notifications
+  version: 1.0.0
+  contact:
+    url: https://email.testservers.online
+
+servers:
+  - url: https://email.testservers.online/api
+    description: Production server
+
+paths:
+  /send:
+    post:
+      summary: Send email
+      description: Send an HTML or plain text email to a recipient
+      operationId: sendEmail
+      tags:
+        - Email
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - to
+                - subject
+                - body
+              properties:
+                to:
+                  type: string
+                  format: email
+                  description: Recipient email address
+                  example: user@example.com
+                is_html:
+                  type: boolean
+                  description: Whether body is HTML (true) or plain text (false)
+                  default: true
+                  example: true
+                subject:
+                  type: string
+                  description: Email subject line
+                  maxLength: 500
+                  example: Task Created: Buy groceries
+                body:
+                  type: string
+                  description: Email body content (HTML or plain text)
+                  maxLength: 100000
+                  example: <!DOCTYPE html><html>...</html>
+            examples:
+              htmlEmail:
+                summary: HTML email notification
+                value:
+                  to: n00bi2761@gmail.com
+                  is_html: true
+                  subject: Task Created: Buy groceries
+                  body: |
+                    <!DOCTYPE html>
+                    <html>
+                    <body>
+                      <h1>Task Created</h1>
+                      <p>Buy groceries</p>
+                    </body>
+                    </html>
+              plainTextEmail:
+                summary: Plain text email
+                value:
+                  to: n00bi2761@gmail.com
+                  is_html: false
+                  subject: Task Created
+                  body: Task created successfully
+      responses:
+        '200':
+          description: Email sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Email sent successfully
+        '401':
+          description: Unauthorized - invalid or missing API key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: Valid API token required
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad Request
+                  message:
+                    type: string
+                    example: Invalid email address
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Internal Server Error
+                  message:
+                    type: string
+                    example: Failed to send email
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Bearer token authentication for API access
+
+  schemas: {}
+  parameters: {}

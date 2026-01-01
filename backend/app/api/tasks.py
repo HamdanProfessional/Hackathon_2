@@ -18,33 +18,34 @@ from app.utils.exceptions import NotFoundException, ForbiddenException, Validati
 
 router = APIRouter()
 
-# Event publishing helper (fire and forget)
+# Email notification helper (fire and forget)
 import logging
 task_logger = logging.getLogger(__name__)
 
-async def _publish_event_later(event_type: str, task_data: Dict[str, Any]):
-    """Publish event in background without blocking response."""
-    print(f"[EVENT] Publishing {event_type} event for task {task_data.get('task_id')}", file=sys.stderr)
+async def _send_email_notification(event_type: str, task_data: Dict[str, Any], user_email: str):
+    """Send email notification in background without blocking response."""
+    print(f"[EMAIL] Sending {event_type} email to {user_email} for task {task_data.get('task_id')}", file=sys.stderr)
     try:
-        from app.services.event_publisher import dapr_event_publisher
+        from app.utils.email_notifier import send_task_created_email, send_task_updated_email, send_task_completed_email, send_task_deleted_email
+
         if event_type == "created":
-            result = await dapr_event_publisher.publish_task_created(task_data)
+            result = await send_task_created_email(user_email, task_data)
         elif event_type == "updated":
-            result = await dapr_event_publisher.publish_task_updated(task_data)
+            result = await send_task_updated_email(user_email, task_data)
         elif event_type == "completed":
-            result = await dapr_event_publisher.publish_task_completed(task_data)
+            result = await send_task_completed_email(user_email, task_data)
         elif event_type == "deleted":
-            result = await dapr_event_publisher.publish_task_deleted(task_data)
+            result = await send_task_deleted_email(user_email, task_data)
         else:
             result = False
 
         if result:
-            print(f"[EVENT] Successfully published {event_type} event", file=sys.stderr)
+            print(f"[EMAIL] Successfully sent {event_type} email to {user_email}", file=sys.stderr)
         else:
-            print(f"[EVENT] Failed to publish {event_type} event (returned False)", file=sys.stderr)
+            print(f"[EMAIL] Failed to send {event_type} email to {user_email}", file=sys.stderr)
     except Exception as e:
         # Log but don't fail the request
-        print(f"[EVENT] Event publishing failed for {event_type}: {e}", file=sys.stderr)
+        print(f"[EMAIL] Email sending failed for {event_type}: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)
 
@@ -130,10 +131,10 @@ async def create_task(
     await _log_event(db, new_task.id, "created", task_dict)
     print("_log_event completed", file=sys.stderr)
 
-    # Publish event (fire and forget - don't block response)
-    print("[EVENT] Scheduling background task for event publishing", file=sys.stderr)
-    background_tasks.add_task(_publish_event_later, "created", task_dict)
-    print("[EVENT] Background task scheduled", file=sys.stderr)
+    # Send email notification (fire and forget - don't block response)
+    print("[EMAIL] Scheduling background task for email notification", file=sys.stderr)
+    background_tasks.add_task(_send_email_notification, "created", task_dict, current_user.email)
+    print("[EMAIL] Background task scheduled", file=sys.stderr)
 
     return new_task
 
@@ -250,8 +251,8 @@ async def update_task(
     task_dict = _task_to_dict(updated_task)
     await _log_event(db, updated_task.id, "updated", task_dict)
 
-    # Publish event (fire and forget)
-    background_tasks.add_task(_publish_event_later, "updated", task_dict)
+    # Send email notification (fire and forget)
+    background_tasks.add_task(_send_email_notification, "updated", task_dict, current_user.email)
 
     return updated_task
 
@@ -290,8 +291,8 @@ async def toggle_task_completion(
         task_dict = _task_to_dict(updated_task)
         await _log_event(db, updated_task.id, "completed", task_dict)
 
-        # Publish event (fire and forget)
-        background_tasks.add_task(_publish_event_later, "completed", task_dict)
+        # Send email notification (fire and forget)
+        background_tasks.add_task(_send_email_notification, "completed", task_dict, current_user.email)
 
     return updated_task
 
@@ -330,8 +331,8 @@ async def delete_task(
     # Log event to database (after task is deleted from tasks table but event log remains)
     await _log_event(db, task_id, "deleted", task_dict)
 
-    # Publish event (fire and forget)
-    background_tasks.add_task(_publish_event_later, "deleted", task_dict)
+    # Send email notification (fire and forget)
+    background_tasks.add_task(_send_email_notification, "deleted", task_dict, current_user.email)
 
 
 @router.post(
