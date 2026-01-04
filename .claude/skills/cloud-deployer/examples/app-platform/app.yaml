@@ -1,0 +1,315 @@
+# DigitalOcean App Platform Example - Full Stack Application
+#
+# This app.yaml demonstrates a complete full-stack application deployment
+# with frontend (Next.js), backend (FastAPI), worker, and database.
+#
+# Features:
+# - Frontend: Next.js static site
+# - Backend: FastAPI with managed PostgreSQL
+# - Worker: Background job processing
+# - Database: Managed PostgreSQL
+# - Crons: Scheduled tasks
+# - Environment variables
+# - Health checks
+# - Auto-scaling
+# - Custom domains
+#
+# Deployment:
+#   doctl apps create --spec app.yaml
+#   doctl apps update <app-id> --spec app.yaml
+
+---
+name: todo-app
+region: nyc
+domains:
+  - domain: app.example.com
+    type: PRIMARY
+    zone: example.com
+  - domain: api.example.com
+    type: SPECIFIED
+    zone: example.com
+
+# =============================================================================
+# Static Site (Frontend - Next.js export)
+# =============================================================================
+
+static_sites:
+  - name: frontend
+    environment_slug: node-js
+    build_command: npm run build
+    output_dir: out
+    github:
+      repo: your-username/todo-app
+      branch: main
+      deploy_on_push: true
+    routes:
+      - path: /
+    env_vars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: ${backend.API_URL}
+      - key: NEXT_PUBLIC_APP_NAME
+        value: "Todo App"
+    # CDN caching
+    cache:
+      paths:
+        - /_next/static/*
+        - /static/*
+        - /images/*
+      default_ttl: 3600
+      forced_ttl: 86400
+    # Health check
+    check_path: /
+
+# =============================================================================
+# Backend Service (FastAPI)
+# =============================================================================
+
+services:
+  - name: backend
+    environment_slug: python
+    github:
+      repo: your-username/todo-app
+      branch: main
+      deploy_on_push: true
+    # Build configuration
+    build_command: pip install -r requirements.txt
+    run_command: uvicorn app.main:app --host 0.0.0.0 --port 8080
+    # Instance size and scaling
+    instance_size_slug: basic-xxs
+    instance_count: 2
+    # HTTP port
+    http_port: 8080
+    # Routes (for api.example.com)
+    routes:
+      - path: /api
+        presign: true
+      - path: /docs
+        presign: true
+      - path: /health
+        presign: true
+    # Environment variables
+    env_vars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: DB_HOST
+        value: ${db.DATABASE_HOST}
+      - key: DB_PORT
+        value: ${db.DATABASE_PORT}
+      - key: DB_NAME
+        value: ${db.DATABASE_NAME}
+      - key: DB_USER
+        value: ${db.DATABASE_USER}
+      - key: DB_PASSWORD
+        value: ${db.DATABASE_PASSWORD}
+      - key: JWT_SECRET
+        value: ${backend.JWT_SECRET}
+      - key: SPACES_ENDPOINT
+        value: ${backend.SPACES_ENDPOINT}
+      - key: SPACES_BUCKET
+        value: ${backend.SPACES_BUCKET}
+      - key: SPACES_ACCESS_KEY
+        value: ${backend.SPACES_ACCESS_KEY}
+      - key: SPACES_SECRET_KEY
+        value: ${backend.SPACES_SECRET_KEY}
+      - key: CORS_ORIGINS
+        value: "https://app.example.com,https://*.example.com"
+      - key: REDIS_HOST
+        value: ${redis.REDIS_HOST}
+      - key: REDIS_PORT
+        value: ${redis.REDIS_PORT}
+    # Health check
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    # Auto-scaling
+    autoscaling:
+      min_instance_count: 2
+      max_instance_count: 10
+      metrics:
+        - type: CPU
+          target: 70
+        - type: MEMORY
+          target: 80
+
+# =============================================================================
+# Worker Service (Background Jobs)
+# =============================================================================
+
+  - name: worker
+    environment_slug: python
+    github:
+      repo: your-username/todo-app
+      branch: main
+      deploy_on_push: true
+    build_command: pip install -r requirements.txt
+    run_command: python -m app.worker
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    # No routes for worker (internal service)
+    env_vars:
+      - key: APP_ENV
+        value: production
+      - key: DB_HOST
+        value: ${db.DATABASE_HOST}
+      - key: DB_PORT
+        value: ${db.DATABASE_PORT}
+      - key: DB_NAME
+        value: ${db.DATABASE_NAME}
+      - key: DB_USER
+        value: ${db.DATABASE_USER}
+      - key: DB_PASSWORD
+        value: ${db.DATABASE_PASSWORD}
+      - key: REDIS_HOST
+        value: ${redis.REDIS_HOST}
+      - key: REDIS_PORT
+        value: ${redis.REDIS_PORT}
+    # Auto-scaling for worker
+    autoscaling:
+      min_instance_count: 1
+      max_instance_count: 5
+      metrics:
+        - type: CPU
+          target: 70
+
+# =============================================================================
+# Databases
+# =============================================================================
+
+databases:
+  - name: db
+    engine: PG
+    version: "16"
+    size: db-s-2vcpu-4gb
+    # Production: Use 2-3 nodes for HA
+    num_nodes: 2
+    # Production settings
+    production: true
+    # Backup configuration
+    backups:
+      - name: daily-backup
+        schedule: "0 2 * * *"  # 2 AM UTC daily
+        retention_days: 7
+
+# =============================================================================
+# Redis (Cache)
+# =============================================================================
+
+  - name: redis
+    engine: REDIS
+    version: "7"
+    size: db-s-1vcpu-1gb
+    # Redis doesn't support HA in App Platform yet
+    num_nodes: 1
+    production: true
+
+# =============================================================================
+# Cron Jobs
+# =============================================================================
+
+crons:
+  - name: cleanup-expired-tokens
+    schedule: "0 */6 * * *"  # Every 6 hours
+    command: python -m app.scripts.cleanup_tokens
+    run_command: python -m app.scripts.cleanup_tokens
+    env_vars:
+      - key: DB_HOST
+        value: ${db.DATABASE_HOST}
+      - key: DB_PORT
+        value: ${db.DATABASE_PORT}
+      - key: DB_NAME
+        value: ${db.DATABASE_NAME}
+      - key: DB_USER
+        value: ${db.DATABASE_USER}
+      - key: DB_PASSWORD
+        value: ${db.DATABASE_PASSWORD}
+
+  - name: send-daily-summary
+    schedule: "0 9 * * *"  # 9 AM UTC daily
+    command: python -m app.scripts.send_daily_summary
+    run_command: python -m app.scripts.send_daily_summary
+    env_vars:
+      - key: DB_HOST
+        value: ${db.DATABASE_HOST}
+      - key: DB_PORT
+        value: ${db.DATABASE_PORT}
+      - key: DB_NAME
+        value: ${db.DATABASE_NAME}
+      - key: DB_USER
+        value: ${db.DATABASE_USER}
+      - key: DB_PASSWORD
+        value: ${db.DATABASE_PASSWORD}
+      - key: SMTP_HOST
+        value: ${backend.SMTP_HOST}
+      - key: SMTP_USER
+        value: ${backend.SMTP_USER}
+      - key: SMTP_PASSWORD
+        value: ${backend.SMTP_PASSWORD}
+
+  - name: generate-analytics
+    schedule: "0 3 * * 0"  # 3 AM UTC every Sunday
+    command: python -m app.scripts.generate_analytics
+    run_command: python -m app.scripts.generate_analytics
+    env_vars:
+      - key: DB_HOST
+        value: ${db.DATABASE_HOST}
+      - key: DB_PORT
+        value: ${db.DATABASE_PORT}
+      - key: DB_NAME
+        value: ${db.DATABASE_NAME}
+      - key: DB_USER
+        value: ${db.DATABASE_USER}
+      - key: DB_PASSWORD
+        value: ${db.DATABASE_PASSWORD}
+
+# =============================================================================
+# Alerts and Monitoring
+# =============================================================================
+
+alerts:
+  - rule: HIGH_CPU_90
+    operator: GREATER_THAN
+    threshold: 90
+    window: "5m"
+    count: 3
+    disabled: false
+
+  - rule: HIGH_MEMORY_90
+    operator: GREATER_THAN
+    threshold: 90
+    window: "5m"
+    count: 3
+    disabled: false
+
+  - rule: HIGH_RESTART_COUNT
+    operator: GREATER_THAN
+    threshold: 5
+    window: "5m"
+    count: 1
+    disabled: false
+
+# =============================================================================
+# Features and Features Flags
+# =============================================================================
+
+features:
+  - name: buildpack-stack
+    value = "ubuntu-22"
+
+# =============================================================================
+# Log Export (Optional)
+# =============================================================================
+
+# log_destinations:
+#   - name: log-shipping
+#     type: datadog
+#     datadog:
+#       api_key: ${datadog.API_KEY}
+#       site: US1

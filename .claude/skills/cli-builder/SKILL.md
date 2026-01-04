@@ -1,7 +1,6 @@
 ---
-name: "cli-builder"
-description: "Builds command-line interface (CLI) applications using Click, Typer, or argparse. Creates commands, subcommands, options, arguments, and help documentation. Use when building CLI tools, scripts, or Phase I applications."
-version: "1.0.0"
+name: cli-builder
+description: Build CLI applications using Typer with @app.command() decorators and type hints for automatic --help, create Click apps with @click.command() and @click.option() for parameter validation, or use argparse for zero-dependency scripts. Add Rich tables with Table(), progress bars with Progress(), and syntax highlighting with Syntax() in terminal output. Use when creating Phase I console apps like todo add/list/complete commands, developer automation tools, or scripts with colored terminal output.
 ---
 
 # CLI Builder Skill

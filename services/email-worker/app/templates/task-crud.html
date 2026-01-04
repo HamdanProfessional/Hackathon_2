@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task {{ action|title }} - Todo App</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f4f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 32px;
+        }
+        .task-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+        }
+        .task-description {
+            color: #4a4a4a;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .info-row {
+            display: flex;
+            margin-bottom: 12px;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #6b7280;
+            min-width: 100px;
+        }
+        .info-value {
+            color: #1a1a1a;
+        }
+        .action-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+        .action-created {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .action-updated {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .action-completed {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .action-deleted {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .footer {
+            background-color: #f9fafb;
+            padding: 20px 32px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Todo App</h1>
+        </div>
+
+        <div class="content">
+            <span class="action-badge action-{{ action }}">
+                Task {{ action }}
+            </span>
+
+            <div class="task-title">{{ title }}</div>
+
+            {% if description %}
+            <div class="task-description">
+                {{ description }}
+            </div>
+            {% endif %}
+
+            {% if priority %}
+            <div class="info-row">
+                <span class="info-label">Priority:</span>
+                <span class="info-value">{{ priority }}</span>
+            </div>
+            {% endif %}
+
+            {% if due_date %}
+            <div class="info-row">
+                <span class="info-label">Due Date:</span>
+                <span class="info-value">{{ due_date }}</span>
+            </div>
+            {% endif %}
+
+            {% if action == 'completed' %}
+            <div style="margin-top: 24px; padding: 16px; background-color: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 4px;">
+                <p style="margin: 0; color: #166534; font-weight: 600;">Great job! 🎉</p>
+                <p style="margin: 8px 0 0 0; color: #15803d;">You've completed this task.</p>
+            </div>
+            {% endif %}
+
+            {% if action == 'deleted' %}
+            <div style="margin-top: 24px; padding: 16px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">
+                <p style="margin: 0; color: #991b1b;">This task has been permanently deleted.</p>
+            </div>
+            {% endif %}
+
+            <div style="text-align: center;">
+                <a href="{{ app_url }}" class="btn">View My Tasks</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>You're receiving this email because a task was {{ action }} in your Todo App.</p>
+            <p style="margin: 8px 0 0 0;">Visit <a href="{{ app_url }}" style="color: #667eea; text-decoration: none;">{{ app_url }}</a> to manage your tasks.</p>
+        </div>
+    </div>
+</body>
+</html>

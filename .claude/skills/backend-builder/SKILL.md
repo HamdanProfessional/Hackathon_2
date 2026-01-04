@@ -1,46 +1,64 @@
 ---
 name: backend-builder
-description: Complete FastAPI backend scaffolding including vertical slices (Model, Schema, Router), CRUD generation, endpoint creation, SQLModel models, JWT authentication, and pytest tests. Ideal for Phase II backend implementations.
-version: 1.0.0
-category: backend
-tags: [fastapi, backend, crud, sqlmodel, scaffolding, python, jwt, authentication]
-dependencies: [fastapi, sqlmodel, uvicorn, pytest, pydantic]
+description: Scaffold complete FastAPI backend features by creating vertical slices: SQLModel in backend/app/models/[resource].py with user_id foreign key, Pydantic schemas in backend/app/schemas/[resource].py (Create, Update, Response classes), FastAPI routers in backend/app/routers/[resource].py with GET/POST/PATCH/DELETE endpoints protected by Depends(get_current_user), and pytest tests in backend/tests/test_[resource].py. Use when adding resources like tasks, comments, tags that need POST /api/tasks, GET /api/tasks, PATCH /api/tasks/{id}, DELETE /api/tasks/{id} endpoints with JWT authentication from Authorization headers.
 ---
 
 # Backend Builder Skill
 
-Comprehensive FastAPI backend development and scaffolding.
+Scaffold complete FastAPI backend features with vertical slices: Model → Schema → Router → Tests.
+
+## File Structure
+
+```
+backend/
+├── app/
+│   ├── models/
+│   │   └── task.py          # SQLModel: Task table definition
+│   ├── schemas/
+│   │   └── task.py          # Pydantic: TaskCreate, TaskUpdate, TaskResponse
+│   ├── routers/
+│   │   └── task.py          # FastAPI: POST/GET/PATCH/DELETE endpoints
+│   ├── auth/
+│   │   └── jwt.py           # get_current_user dependency
+│   └── main.py              # Router registration
+├── tests/
+│   └── test_task.py         # pytest tests
+└── alembic/
+    └── versions/            # Database migrations
+```
+
+## Quick Reference
+
+| Action | Command | File |
+|--------|---------|------|
+| Create model file | `touch backend/app/models/task.py` | `backend/app/models/task.py` |
+| Create schema file | `touch backend/app/schemas/task.py` | `backend/app/schemas/task.py` |
+| Create router file | `touch backend/app/routers/task.py` | `backend/app/routers/task.py` |
+| Generate migration | `alembic revision --autogenerate -m "Add tasks"` | `alembic/versions/XXX_add_tasks.py` |
+| Apply migration | `alembic upgrade head` | PostgreSQL database |
+| Run tests | `pytest backend/tests/test_task.py -v` | Test output |
+| Register router | Add `app.include_router(task.router)` to main.py | `backend/app/main.py` |
+| View docs | Open `http://localhost:8000/docs` | Swagger UI |
 
 ## When to Use This Skill
 
-Use this skill when:
-- Scaffolding complete backend features (Model, Schema, Router)
-- Creating CRUD endpoints with SQLModel
-- Generating custom FastAPI endpoints
-- Implementing JWT authentication
-- Adding database models and migrations
-- Writing pytest tests for backend
+| User Request | Action | Files to Create |
+|--------------|--------|-----------------|
+| "Add tasks resource" | Create Task CRUD | `backend/app/models/task.py`, `backend/app/schemas/task.py`, `backend/app/routers/task.py` |
+| "Add comments to tasks" | Create Comment with FK | `backend/app/models/comment.py`, etc. |
+| "Add bulk update endpoint" | Add custom router method | `backend/app/routers/task.py` |
+| "Fix 404 on tasks endpoint" | Check router registration | `backend/app/main.py` |
+| "Run tests for tasks" | Execute pytest | `backend/tests/test_task.py` |
+| "Create migration" | Generate Alembic migration | `alembic/versions/` |
 
 ---
 
-## Scaffolding Workflow
-
-1. Read Spec: Read `@specs/features/[feature-name].md` for data model and API contract
-2. Model Generation: Create SQLModel class in `backend/app/models/[feature].py`
-3. Schema Generation: Create Pydantic DTOs in `backend/app/schemas/[feature].py`
-4. Router Creation: Create FastAPI router in `backend/app/routers/[feature].py`
-5. Security Integration: Inject `Depends(get_current_user)` on ALL endpoints
-6. Multi-User Isolation: Filter queries by `user_id` from JWT
-7. Test Generation: Create pytest tests in `backend/tests/test_[feature].py`
-8. Registration: Update `backend/app/main.py` to include router
-
----
-
-## Model Template
+## Part 1: SQLModel (backend/app/models/task.py)
 
 ```python
 """
-[Feature] SQLModel for TODO application.
+Task SQLModel for TODO application.
+File: backend/app/models/task.py
 """
 from datetime import datetime
 from typing import Optional
@@ -48,11 +66,22 @@ from uuid import UUID
 from sqlmodel import Field, SQLModel, Index
 
 
-class [FeatureName](SQLModel, table=True):
+class Task(SQLModel, table=True):
     """
-    [Feature] model for multi-user TODO application.
+    Task model for multi-user TODO application.
+
+    Attributes:
+        id: Primary key
+        user_id: Foreign key to users table (owner)
+        title: Task title
+        description: Optional detailed description
+        status: Task status (pending, in_progress, completed)
+        priority: Task priority (low, normal, high, urgent)
+        due_date: Optional due date
+        created_at: Timestamp when task was created
+        updated_at: Timestamp when task was last modified
     """
-    __tablename__ = "[table_name]"
+    __tablename__ = "tasks"
 
     # Primary key
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -61,210 +90,713 @@ class [FeatureName](SQLModel, table=True):
     user_id: UUID = Field(
         foreign_key="users.id",
         index=True,
-        description="User who owns this resource"
+        description="User who owns this task"
     )
 
-    # Feature-specific fields
-    [field_name]: [type] = Field(
-        [constraints],
-        description="[description]"
-    )
+    # Task fields
+    title: str = Field(max_length=255, description="Task title")
+    description: Optional[str] = Field(default=None, description="Task description")
+    status: str = Field(default="pending", description="pending, in_progress, or completed")
+    priority: str = Field(default="normal", description="low, normal, high, or urgent")
+    due_date: Optional[datetime] = Field(default=None, description="Task due date")
 
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Indexes for performance
+    __table_args__ = (
+        Index("ix_tasks_user_status", "user_id", "status"),
+        Index("ix_tasks_user_created", "user_id", "created_at"),
+    )
+```
+
+### Create Migration
+
+```bash
+cd backend
+alembic revision --autogenerate -m "Add tasks table"
+alembic upgrade head
 ```
 
 ---
 
-## Schema Template
+## Part 2: Pydantic Schemas (backend/app/schemas/task.py)
 
 ```python
 """
-[Feature] Pydantic schemas for API validation.
+Task Pydantic schemas for API validation.
+File: backend/app/schemas/task.py
 """
-from pydantic import BaseModel, Field, validator
+from datetime import datetime
 from typing import Optional
+from uuid import UUID
+from pydantic import BaseModel, Field, validator
 
 
-class [Feature]Base(BaseModel):
+class TaskBase(BaseModel):
     """Base schema with common fields."""
-    [field]: [type] = Field(..., description="[description]")
+    title: str = Field(..., min_length=1, max_length=255, description="Task title")
+    description: Optional[str] = Field(None, description="Task description")
+    status: str = Field("pending", description="pending, in_progress, or completed")
+    priority: str = Field("normal", description="low, normal, high, or urgent")
+    due_date: Optional[datetime] = Field(None, description="Task due date")
 
+    @validator("status")
+    def validate_status(cls, v):
+        """Validate status is one of the allowed values."""
+        allowed = ["pending", "in_progress", "completed"]
+        if v not in allowed:
+            raise ValueError(f"Status must be one of {allowed}")
+        return v
 
-class [Feature]Create([Feature]Base):
-    """Schema for creating a new resource."""
-    @validator('[field]')
-    def validate_[field](cls, v):
-        if [condition]:
-            raise ValueError('[error message]')
+    @validator("priority")
+    def validate_priority(cls, v):
+        """Validate priority is one of the allowed values."""
+        allowed = ["low", "normal", "high", "urgent"]
+        if v not in allowed:
+            raise ValueError(f"Priority must be one of {allowed}")
         return v
 
 
-class [Feature]Update(BaseModel):
-    """Schema for updating (all fields optional)."""
-    [field]: Optional[type] = Field(None)
+class TaskCreate(TaskBase):
+    """Schema for creating a new task."""
+    pass  # All fields from TaskBase are required/optional as defined
 
 
-class [Feature]Read([Feature]Base):
-    """Schema for responses (includes auto-generated fields)."""
+class TaskUpdate(BaseModel):
+    """Schema for updating a task (all fields optional)."""
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    due_date: Optional[datetime] = None
+
+
+class TaskResponse(TaskBase):
+    """Schema for task responses (includes auto-generated fields)."""
     id: int
-    user_id: str  # UUID as string
+    user_id: str  # UUID as string for JSON serialization
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True  # Pydantic v2: allows ORM mode
+
+
+class TaskListResponse(BaseModel):
+    """Schema for paginated task list."""
+    items: list[TaskResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class TaskStatsResponse(BaseModel):
+    """Schema for task statistics."""
+    total: int
+    pending: int
+    in_progress: int
+    completed: int
+    completion_rate: float
 ```
 
 ---
 
-## Router Template (CRUD)
+## Part 3: FastAPI Router (backend/app/routers/task.py)
 
 ```python
 """
-[Feature] API routes with CRUD operations.
+Task API routes with CRUD operations.
+File: backend/app/routers/task.py
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlmodel import Session, select, func
 from uuid import UUID
 
 from app.database import get_session
-from app.models.[feature] import [Feature]
-from app.schemas.[feature] import [Feature]Read, [Feature]Create, [Feature]Update
-from app.auth.dependencies import get_current_user
+from app.models.task import Task
+from app.schemas.task import (
+    TaskCreate,
+    TaskUpdate,
+    TaskResponse,
+    TaskListResponse,
+    TaskStatsResponse
+)
+from app.auth.jwt import get_current_user
 
-router = APIRouter(prefix="/api", tags=["[Features]"])
+router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 
 
-@router.get("/{user_id}/[features]", response_model=list[[Feature]Read])
-async def get_[features](
-    user_id: UUID,
-    current_user: UUID = Depends(get_current_user),
-    session: Session = Depends(get_session)
+# === CREATE ===
+@router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+async def create_task(
+    data: TaskCreate,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
 ):
-    """Get all resources for a user."""
-    if user_id != current_user:
-        raise HTTPException(status_code=403, detail="Access forbidden")
+    """
+    Create a new task for authenticated user.
 
-    statement = select([Feature]).where([Feature].user_id == user_id)
-    [features] = session.exec(statement).all()
-    return [features]
+    Endpoint: POST /api/tasks
 
-
-@router.post("/{user_id}/[features]", response_model=[Feature]Read, status_code=201)
-async def create_[feature](
-    user_id: UUID,
-    data: [Feature]Create,
-    current_user: UUID = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    """Create a new resource."""
-    if user_id != current_user:
-        raise HTTPException(status_code=403, detail="Access forbidden")
-
-    new_[feature] = [Feature](user_id=current_user, **data.dict())
-    session.add(new_[feature])
+    Flow:
+    1. Extract user_id from JWT token
+    2. Create Task instance with user_id and form data
+    3. Save to database
+    4. Return created task with id and timestamps
+    """
+    task = Task(user_id=current_user["id"], **data.model_dump())
+    session.add(task)
     session.commit()
-    session.refresh(new_[feature])
-    return new_[feature]
+    session.refresh(task)
+    return task
 
 
-@router.put("/{user_id}/[features]/{[feature]_id}", response_model=[Feature]Read)
-async def update_[feature](
-    user_id: UUID,
-    [feature]_id: int,
-    data: [Feature]Update,
-    current_user: UUID = Depends(get_current_user),
-    session: Session = Depends(get_session)
+# === READ LIST ===
+@router.get("/", response_model=TaskListResponse)
+async def list_tasks(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    status_filter: Optional[str] = Query(None, description="Filter by status"),
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing resource."""
-    if user_id != current_user:
-        raise HTTPException(status_code=403, detail="Access forbidden")
+    """
+    List all tasks for authenticated user with pagination.
 
-    statement = select([Feature]).where(
-        [Feature].id == [feature]_id,
-        [Feature].user_id == user_id
+    Endpoint: GET /api/tasks?page=1&page_size=20&status_filter=pending
+
+    Returns paginated list of user's tasks.
+    """
+    # Build query
+    statement = select(Task).where(Task.user_id == current_user["id"])
+
+    # Apply status filter if provided
+    if status_filter:
+        statement = statement.where(Task.status == status_filter)
+
+    # Get total count
+    total_statement = select(func.count()).select_from(Task).where(Task.user_id == current_user["id"])
+    if status_filter:
+        total_statement = total_statement.where(Task.status == status_filter)
+    total = session.exec(total_statement).one()
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    statement = statement.order_by(Task.created_at.desc()).offset(offset).limit(page_size)
+
+    tasks = session.exec(statement).all()
+
+    return TaskListResponse(
+        items=tasks,
+        total=total,
+        page=page,
+        page_size=page_size
     )
-    [feature] = session.exec(statement).first()
-
-    if not [feature]:
-        raise HTTPException(status_code=404, detail="Not found")
-
-    for field, value in data.dict(exclude_unset=True).items():
-        setattr([feature], field, value)
-
-    session.add([feature])
-    session.commit()
-    session.refresh([feature])
-    return [feature]
 
 
-@router.delete("/{user_id}/[features]/{[feature]_id}")
-async def delete_[feature](
-    user_id: UUID,
-    [feature]_id: int,
-    current_user: UUID = Depends(get_current_user),
-    session: Session = Depends(get_session)
+# === READ SINGLE ===
+@router.get("/{task_id}", response_model=TaskResponse)
+async def get_task(
+    task_id: int,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
 ):
-    """Delete a resource."""
-    if user_id != current_user:
-        raise HTTPException(status_code=403, detail="Access forbidden")
+    """
+    Get a single task by ID.
 
-    statement = select([Feature]).where(
-        [Feature].id == [feature]_id,
-        [Feature].user_id == user_id
+    Endpoint: GET /api/tasks/{task_id}
+
+    Returns task only if it belongs to authenticated user.
+    """
+    statement = select(Task).where(
+        Task.id == task_id,
+        Task.user_id == current_user["id"]
     )
-    [feature] = session.exec(statement).first()
+    task = session.exec(statement).first()
 
-    if not [feature]:
-        raise HTTPException(status_code=404, detail="Not found")
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
 
-    session.delete([feature])
+    return task
+
+
+# === UPDATE ===
+@router.patch("/{task_id}", response_model=TaskResponse)
+async def update_task(
+    task_id: int,
+    data: TaskUpdate,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Update an existing task.
+
+    Endpoint: PATCH /api/tasks/{task_id}
+
+    Only updates fields provided in request body.
+    """
+    statement = select(Task).where(
+        Task.id == task_id,
+        Task.user_id == current_user["id"]
+    )
+    task = session.exec(statement).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Update only provided fields
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(task, field, value)
+
+    # Update timestamp
+    from datetime import datetime
+    task.updated_at = datetime.utcnow()
+
+    session.add(task)
     session.commit()
-    return {"detail": "Deleted"}
-```
+    session.refresh(task)
 
----
+    return task
 
-## Custom Endpoints
 
-### Statistics Endpoint
+# === DELETE ===
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_task(
+    task_id: int,
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Delete a task.
 
-```python
-@router.get("/stats", response_model=TaskStatsResponse)
+    Endpoint: DELETE /api/tasks/{task_id}
+
+    Permanently removes task from database.
+    """
+    statement = select(Task).where(
+        Task.id == task_id,
+        Task.user_id == current_user["id"]
+    )
+    task = session.exec(statement).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    session.delete(task)
+    session.commit()
+
+    return None  # 204 No Content
+
+
+# === STATISTICS ===
+@router.get("/stats/summary", response_model=TaskStatsResponse)
 async def get_task_statistics(
     session: Session = Depends(get_session),
-    user_id: UUID = Depends(get_current_user_id)
+    current_user: dict = Depends(get_current_user)
 ):
-    """Get task statistics for the current user."""
-    from sqlmodel import func
+    """
+    Get task statistics for authenticated user.
 
+    Endpoint: GET /api/tasks/stats/summary
+
+    Returns counts by status and completion rate.
+    """
+    # Total tasks
     total = session.exec(
-        select(func.count(Task.id)).where(Task.user_id == user_id)
+        select(func.count(Task.id)).where(Task.user_id == current_user["id"])
+    ).one()
+
+    # Count by status
+    pending = session.exec(
+        select(func.count(Task.id)).where(
+            Task.user_id == current_user["id"],
+            Task.status == "pending"
+        )
+    ).one()
+
+    in_progress = session.exec(
+        select(func.count(Task.id)).where(
+            Task.user_id == current_user["id"],
+            Task.status == "in_progress"
+        )
     ).one()
 
     completed = session.exec(
         select(func.count(Task.id)).where(
-            Task.user_id == user_id,
+            Task.user_id == current_user["id"],
             Task.status == "completed"
         )
     ).one()
 
+    # Calculate completion rate
     completion_rate = (completed / total * 100) if total > 0 else 0.0
 
     return TaskStatsResponse(
         total=total,
+        pending=pending,
+        in_progress=in_progress,
         completed=completed,
         completion_rate=round(completion_rate, 2)
     )
+
+
+# === SEARCH ===
+@router.get("/search", response_model=TaskListResponse)
+async def search_tasks(
+    query: str = Query(..., min_length=1, description="Search query"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Search tasks by title or description.
+
+    Endpoint: GET /api/tasks/search?query=keyword&page=1
+
+    Case-insensitive search in title and description fields.
+    """
+    from sqlmodel import or_
+
+    # Build search query
+    statement = select(Task).where(
+        Task.user_id == current_user["id"],
+        or_(
+            Task.title.ilike(f"%{query}%"),
+            Task.description.ilike(f"%{query}%")
+        )
+    )
+
+    # Get total
+    total = len(session.exec(statement).all())
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    tasks = session.exec(
+        statement.offset(offset).limit(page_size)
+    ).all()
+
+    return TaskListResponse(
+        items=tasks,
+        total=total,
+        page=page,
+        page_size=page_size
+    )
 ```
 
-### Batch Operations
+---
+
+## Part 4: Register Router (backend/app/main.py)
 
 ```python
+"""
+FastAPI application main entry point.
+File: backend/app/main.py
+"""
+from fastapi import FastAPI
+from app.routers import task  # Import task router
+
+# ... other imports
+
+app = FastAPI(title="TODO API")
+
+# Include task router
+app.include_router(task.router)
+
+# ... other routers and middleware
+
+@app.get("/")
+def read_root():
+    return {"message": "TODO API"}
+```
+
+---
+
+## Part 5: Authentication Dependency (backend/app/auth/jwt.py)
+
+```python
+"""
+JWT authentication utilities.
+File: backend/app/auth/jwt.py
+"""
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
+from app.config import settings
+
+security = HTTPBearer()
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    """
+    Extract and verify JWT token from Authorization header.
+
+    Returns user dict with id and email if token is valid.
+    Raises 401 if token is invalid or expired.
+    """
+    token = credentials.credentials
+
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return {"id": user_id, "email": payload.get("email")}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+```
+
+---
+
+## Part 6: Pytest Tests (backend/tests/test_task.py)
+
+```python
+"""
+Tests for Task API endpoints.
+File: backend/tests/test_task.py
+"""
+import pytest
+from httpx import AsyncClient
+from app.models.task import Task
+
+
+class TestTaskCRUD:
+    """Test CRUD operations for tasks."""
+
+    @pytest.mark.asyncio
+    async def test_create_task(
+        self,
+        async_client: AsyncClient,
+        auth_headers: dict
+    ):
+        """Test POST /api/tasks creates a new task."""
+        response = await async_client.post(
+            "/api/tasks/",
+            json={
+                "title": "Test Task",
+                "description": "Test description",
+                "priority": "high"
+            },
+            headers=auth_headers
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["title"] == "Test Task"
+        assert data["status"] == "pending"
+        assert "id" in data
+        assert "created_at" in data
+
+    @pytest.mark.asyncio
+    async def test_list_tasks(
+        self,
+        async_client: AsyncClient,
+        auth_headers: dict,
+        test_task: Task
+    ):
+        """Test GET /api/tasks returns user's tasks."""
+        response = await async_client.get(
+            "/api/tasks/",
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data
+        assert "total" in data
+        assert isinstance(data["items"], list)
+
+    @pytest.mark.asyncio
+    async def test_get_task_by_id(
+        self,
+        async_client: AsyncClient,
+        auth_headers: dict,
+        test_task: Task
+    ):
+        """Test GET /api/tasks/{id} returns task."""
+        response = await async_client.get(
+            f"/api/tasks/{test_task.id}",
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == test_task.id
+
+    @pytest.mark.asyncio
+    async def test_update_task(
+        self,
+        async_client: AsyncClient,
+        auth_headers: dict,
+        test_task: Task
+    ):
+        """Test PATCH /api/tasks/{id} updates task."""
+        response = await async_client.patch(
+            f"/api/tasks/{test_task.id}",
+            json={"status": "completed"},
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "completed"
+
+    @pytest.mark.asyncio
+    async def test_delete_task(
+        self,
+        async_client: AsyncClient,
+        auth_headers: dict,
+        test_task: Task
+    ):
+        """Test DELETE /api/tasks/{id} removes task."""
+        response = await async_client.delete(
+            f"/api/tasks/{test_task.id}",
+            headers=auth_headers
+        )
+
+        assert response.status_code == 204
+
+        # Verify task is deleted
+        get_response = await async_client.get(
+            f"/api/tasks/{test_task.id}",
+            headers=auth_headers
+        )
+        assert get_response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_unauthorized_access(
+        self,
+        async_client: AsyncClient
+    ):
+        """Test that requests without JWT token are rejected."""
+        response = await async_client.get("/api/tasks/")
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_task_statistics(
+        self,
+        async_client: AsyncClient,
+        auth_headers: dict
+    ):
+        """Test GET /api/tasks/stats/summary returns stats."""
+        response = await async_client.get(
+            "/api/tasks/stats/summary",
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "total" in data
+        assert "completion_rate" in data
+
+    @pytest.mark.asyncio
+    async def test_search_tasks(
+        self,
+        async_client: AsyncClient,
+        auth_headers: dict,
+        test_task: Task
+    ):
+        """Test GET /api/tasks/search finds tasks by title."""
+        response = await async_client.get(
+            f"/api/tasks/search?query={test_task.title}",
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) > 0
+
+
+# === Fixtures ===
+@pytest.fixture
+async def test_task(
+    async_session,
+    test_user_id: str
+) -> Task:
+    """Create a test task in database."""
+    task = Task(
+        title="Test Task",
+        description="Test description",
+        user_id=test_user_id
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+    return task
+```
+
+### Run Tests
+
+```bash
+cd backend
+pytest tests/test_task.py -v
+```
+
+---
+
+## Part 7: Common Scenarios
+
+### Scenario 1: Add a "Comment" Resource
+
+**User Request**: "Allow users to add comments to tasks"
+
+**Commands**:
+```bash
+# Create files
+touch backend/app/models/comment.py
+touch backend/app/schemas/comment.py
+touch backend/app/routers/comment.py
+
+# Generate migration
+cd backend
+alembic revision --autogenerate -m "Add comments table"
+alembic upgrade head
+
+# Run tests
+pytest tests/test_comment.py -v
+```
+
+**File: backend/app/models/comment.py**
+```python
+from sqlmodel import Field, SQLModel
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+
+class Comment(SQLModel, table=True):
+    __tablename__ = "comments"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(foreign_key="users.id", index=True)
+    task_id: int = Field(foreign_key="tasks.id", index=True)
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+```
+
+### Scenario 2: Add Bulk Operations
+
+**User Request**: "Add endpoint to mark multiple tasks complete at once"
+
+**Add to backend/app/routers/task.py**:
+```python
+from pydantic import BaseModel
+
+class TaskBulkCompleteRequest(BaseModel):
+    task_ids: list[int]
+
+class TaskBulkCompleteResponse(BaseModel):
+    updated_count: int
+    failed_ids: list[int]
+
 @router.post("/bulk-complete", response_model=TaskBulkCompleteResponse)
 async def bulk_complete_tasks(
     request: TaskBulkCompleteRequest,
     session: Session = Depends(get_session),
-    user_id: UUID = Depends(get_current_user_id)
+    current_user: dict = Depends(get_current_user)
 ):
     """Mark multiple tasks as completed."""
     updated_count = 0
@@ -273,7 +805,7 @@ async def bulk_complete_tasks(
     for task_id in request.task_ids:
         statement = select(Task).where(
             Task.id == task_id,
-            Task.user_id == user_id
+            Task.user_id == current_user["id"]
         )
         task = session.exec(statement).first()
 
@@ -292,134 +824,41 @@ async def bulk_complete_tasks(
     )
 ```
 
-### Search Endpoint
+### Scenario 3: Add Foreign Key Relationship
 
-```python
-@router.get("/search", response_model=TaskListResponse)
-async def search_tasks(
-    query: str = Query(..., min_length=1),
-    status: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    session: Session = Depends(get_session),
-    user_id: UUID = Depends(get_current_user_id)
-):
-    """Search tasks by title and description."""
-    from sqlmodel import or_
+**User Request**: "Tasks should have a category"
 
-    statement = select(Task).where(Task.user_id == user_id)
-
-    search_filter = or_(
-        Task.title.ilike(f"%{query}%"),
-        Task.description.ilike(f"%{query}%")
-    )
-    statement = statement.where(search_filter)
-
-    if status:
-        statement = statement.where(Task.status == status)
-
-    total = len(session.exec(statement).all())
-
-    offset = (page - 1) * page_size
-    tasks = session.exec(
-        statement.offset(offset).limit(page_size)
-    ).all()
-
-    return TaskListResponse(items=tasks, total=total, page=page)
-```
-
----
-
-## Test Template
-
-```python
-"""
-Tests for [Feature] API endpoints.
-"""
-import pytest
-from httpx import AsyncClient
-
-
-class Test[Feature]Operations:
-    """Test CRUD operations."""
-
-    @pytest.mark.asyncio
-    async def test_create_[feature](
-        self,
-        client: AsyncClient,
-        auth_headers: dict,
-        test_user
-    ):
-        """Test creating a new resource."""
-        response = await client.post(
-            f"/api/{test_user.id}/[features]",
-            json={"[field]": "value"},
-            headers=auth_headers
-        )
-
-        assert response.status_code == 201
-        data = response.json()
-        assert data["[field]"] == "value"
-
-    @pytest.mark.asyncio
-    async def test_list_[features](
-        self,
-        client: AsyncClient,
-        auth_headers: dict,
-        test_user
-    ):
-        """Test listing resources."""
-        response = await client.get(
-            f"/api/{test_user.id}/[features]",
-            headers=auth_headers
-        )
-
-        assert response.status_code == 200
-        assert isinstance(response.json(), list)
-
-    @pytest.mark.asyncio
-    async def test_unauthorized_access(self, client: AsyncClient):
-        """Test that unauthorized requests are rejected."""
-        response = await client.get("/api/some-user-id/[features]")
-        assert response.status_code == 401
-```
-
----
-
-## Post-Scaffolding Steps
-
-1. Update main.py:
-```python
-from app.routers import [feature]
-app.include_router([feature].router)
-```
-
-2. Restart backend:
+**Commands**:
 ```bash
-cd backend
-uvicorn app.main:app --reload
-```
+# Create category model first
+touch backend/app/models/category.py
 
-3. Run tests:
-```bash
-cd backend
-pytest tests/test_[feature].py -v
-```
+# Add category to Task model
+# Edit backend/app/models/task.py: add category_id: int = Field(foreign_key="categories.id")
 
-4. Test with Swagger: http://localhost:8000/docs
+# Generate migration
+alembic revision --autogenerate -m "Add categories to tasks"
+alembic upgrade head
+```
 
 ---
 
 ## Quality Checklist
 
-Before finalizing:
-- [ ] All fields in model match the spec
-- [ ] All endpoints have `Depends(get_current_user)`
-- [ ] All queries filter by `user_id`
-- [ ] Authorization check compares path `user_id` with JWT
-- [ ] Timestamps (created_at, updated_at) included
-- [ ] Response schemas convert UUID to string
-- [ ] Error handling with appropriate HTTP codes
-- [ ] Pytest tests cover main CRUD operations
-- [ ] Router registered in main.py
-- [ ] Swagger docs accessible at /docs
+Before finalizing backend resource:
+
+- [ ] **Model**: SQLModel with `user_id` foreign key and proper Field constraints
+- [ ] **Timestamps**: `created_at` and `updated_at` fields included
+- [ ] **Indexes**: Added on `user_id` and frequently queried columns
+- [ ] **Schemas**: Create, Update, Response classes defined in schemas file
+- [ ] **Validation**: Pydantic validators for enum values (status, priority)
+- [ ] **Router**: All endpoints use `Depends(get_current_user)`
+- [ ] **Tenant Isolation**: All queries filter by `user_id`
+- [ ] **Error Handling**: HTTPException with appropriate status codes
+- [ ] **Tests**: pytest tests for CRUD operations
+- [ ] **Migration**: `alembic upgrade head` applied successfully
+- [ ] **Router Registration**: `app.include_router(router)` in main.py
+- [ ] **Swagger Docs**: Accessible at `http://localhost:8000/docs`
+- [ ] **UUID Serialization**: Response schemas convert UUID to string
+- [ ] **Pagination**: List endpoints support page/page_size parameters
+- [ ] **Soft Delete**: If applicable, use `deleted_at` instead of hard delete

@@ -1,7 +1,6 @@
 ---
 name: phase-transition
-description: Guide architectural phase transitions in Evolution of TODO project. Validates current phase completion, creates migration ADRs, updates constitution, and generates transition plans. Use when Claude needs to transition between phases (CLI → Web App → AI Chatbot → Kubernetes → Cloud), validate phase readiness, or create migration strategies for architectural upgrades.
-license: Complete terms in LICENSE.txt
+description: Validate phase completion by reading specs/[phase]/spec.md and checking all acceptance criteria in tests/ are passing, create migration ADRs in docs/adr/XXX-phase-migration.md with Context/Decision/Consequences for CLI→Web→AI→Kubernetes→Cloud transitions, update CLAUDE.md constitution with new Phase constraints, and generate transition checklists with Pre/Migration/Post sections. Use when moving from Phase I CLI to Phase II Web, validating Phase III AI readiness, or planning Phase V event-driven architecture.
 ---
 
 # Phase Transition

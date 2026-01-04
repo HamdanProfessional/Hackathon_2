@@ -140,6 +140,162 @@ async def handle_recurring_task_event(event_data: Dict[str, Any]):
         logger.error(f"Error processing recurring-task-due event: {e}")
 
 
+async def handle_task_created_event(event_data: Dict[str, Any]):
+    """Handle task-created events."""
+    try:
+        task_id = event_data.get("task_id")
+        user_id = event_data.get("user_id")
+        title = event_data.get("title", "Untitled Task")
+
+        logger.info(f"Processing task-created event for task {task_id}")
+
+        async for db in get_db():
+            user = await get_user_by_id(db, user_id)
+            if not user:
+                logger.error(f"User {user_id} not found")
+                return
+
+            context = {
+                "title": title,
+                "description": event_data.get("description", ""),
+                "priority": event_data.get("priority", "medium").capitalize(),
+                "due_date": event_data.get("due_date"),
+                "app_url": "https://hackathon2.testservers.online",
+                "action": "created"
+            }
+
+            success = await email_service.send_template_email(
+                template_name="task-crud.html",
+                subject=f"Task Created: {title}",
+                email=[user.email],
+                context=context
+            )
+
+            if success:
+                logger.info(f"Task created email sent to {user.email}")
+            else:
+                logger.error(f"Failed to send task created email to {user.email}")
+
+    except Exception as e:
+        logger.error(f"Error processing task-created event: {e}")
+
+
+async def handle_task_updated_event(event_data: Dict[str, Any]):
+    """Handle task-updated events."""
+    try:
+        task_id = event_data.get("task_id")
+        user_id = event_data.get("user_id")
+        title = event_data.get("title", "Untitled Task")
+
+        logger.info(f"Processing task-updated event for task {task_id}")
+
+        async for db in get_db():
+            user = await get_user_by_id(db, user_id)
+            if not user:
+                logger.error(f"User {user_id} not found")
+                return
+
+            context = {
+                "title": title,
+                "description": event_data.get("description", ""),
+                "priority": event_data.get("priority", "medium").capitalize(),
+                "due_date": event_data.get("due_date"),
+                "completed": event_data.get("completed", False),
+                "app_url": "https://hackathon2.testservers.online",
+                "action": "updated"
+            }
+
+            success = await email_service.send_template_email(
+                template_name="task-crud.html",
+                subject=f"Task Updated: {title}",
+                email=[user.email],
+                context=context
+            )
+
+            if success:
+                logger.info(f"Task updated email sent to {user.email}")
+            else:
+                logger.error(f"Failed to send task updated email to {user.email}")
+
+    except Exception as e:
+        logger.error(f"Error processing task-updated event: {e}")
+
+
+async def handle_task_completed_event(event_data: Dict[str, Any]):
+    """Handle task-completed events."""
+    try:
+        task_id = event_data.get("task_id")
+        user_id = event_data.get("user_id")
+        title = event_data.get("title", "Untitled Task")
+
+        logger.info(f"Processing task-completed event for task {task_id}")
+
+        async for db in get_db():
+            user = await get_user_by_id(db, user_id)
+            if not user:
+                logger.error(f"User {user_id} not found")
+                return
+
+            context = {
+                "title": title,
+                "description": event_data.get("description", ""),
+                "app_url": "https://hackathon2.testservers.online",
+                "action": "completed"
+            }
+
+            success = await email_service.send_template_email(
+                template_name="task-crud.html",
+                subject=f"Task Completed: {title}",
+                email=[user.email],
+                context=context
+            )
+
+            if success:
+                logger.info(f"Task completed email sent to {user.email}")
+            else:
+                logger.error(f"Failed to send task completed email to {user.email}")
+
+    except Exception as e:
+        logger.error(f"Error processing task-completed event: {e}")
+
+
+async def handle_task_deleted_event(event_data: Dict[str, Any]):
+    """Handle task-deleted events."""
+    try:
+        task_id = event_data.get("task_id")
+        user_id = event_data.get("user_id")
+        title = event_data.get("title", "Untitled Task")
+
+        logger.info(f"Processing task-deleted event for task {task_id}")
+
+        async for db in get_db():
+            user = await get_user_by_id(db, user_id)
+            if not user:
+                logger.error(f"User {user_id} not found")
+                return
+
+            context = {
+                "title": title,
+                "app_url": "https://hackathon2.testservers.online",
+                "action": "deleted"
+            }
+
+            success = await email_service.send_template_email(
+                template_name="task-crud.html",
+                subject=f"Task Deleted: {title}",
+                email=[user.email],
+                context=context
+            )
+
+            if success:
+                logger.info(f"Task deleted email sent to {user.email}")
+            else:
+                logger.error(f"Failed to send task deleted email to {user.email}")
+
+    except Exception as e:
+        logger.error(f"Error processing task-deleted event: {e}")
+
+
 def register_subscribers(app):
     """
     Register Dapr event subscribers with the FastAPI app.
@@ -162,6 +318,34 @@ def register_subscribers(app):
     async def recurring_task_subscriber(event_data: Dict[str, Any]):
         """Dapr subscriber for recurring-task-due events."""
         await handle_recurring_task_event(event_data)
+        return {"status": "processed"}
+
+    # Subscribe to task-created events
+    @dapr_app.subscribe(pubsub="todo-pubsub", topic="task-created")
+    async def task_created_subscriber(event_data: Dict[str, Any]):
+        """Dapr subscriber for task-created events."""
+        await handle_task_created_event(event_data)
+        return {"status": "processed"}
+
+    # Subscribe to task-updated events
+    @dapr_app.subscribe(pubsub="todo-pubsub", topic="task-updated")
+    async def task_updated_subscriber(event_data: Dict[str, Any]):
+        """Dapr subscriber for task-updated events."""
+        await handle_task_updated_event(event_data)
+        return {"status": "processed"}
+
+    # Subscribe to task-completed events
+    @dapr_app.subscribe(pubsub="todo-pubsub", topic="task-completed")
+    async def task_completed_subscriber(event_data: Dict[str, Any]):
+        """Dapr subscriber for task-completed events."""
+        await handle_task_completed_event(event_data)
+        return {"status": "processed"}
+
+    # Subscribe to task-deleted events
+    @dapr_app.subscribe(pubsub="todo-pubsub", topic="task-deleted")
+    async def task_deleted_subscriber(event_data: Dict[str, Any]):
+        """Dapr subscriber for task-deleted events."""
+        await handle_task_deleted_event(event_data)
         return {"status": "processed"}
 
     logger.info("Dapr event subscribers registered successfully")

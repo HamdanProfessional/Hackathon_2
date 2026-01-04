@@ -1,63 +1,217 @@
 ---
-name: "db-migration-wizard"
-description: "Automates Alembic database migrations: generates migration scripts, handles schema changes, converts data types, and ensures database-code alignment. Use when database schema needs to evolve."
-version: "1.0.0"
+name: db-migration-wizard
+description: Generate Alembic migrations with alembic revision --autogenerate -m 'description', handle schema changes by adding nullable columns first (op.add_column() then op.alter_column(nullable=False)), rename fields with op.alter_column(new_column_name='name'), convert types with op.execute() data migration then op.alter_column(type_=sa.Integer()), and apply via alembic upgrade head to PostgreSQL. Use when SQLModel definitions in backend/app/models/ change, adding foreign keys, or fixing column type mismatches.
 ---
 
 # Database Migration Wizard Skill
 
-## When to Use
-- User asks to "add a new database column" or "change column type"
-- User says "Run database migration" or "Fix schema mismatch"
-- Backend models updated and database needs syncing
-- Data type conversions needed (e.g., string → integer)
-- Column renames or constraint changes
-- Error messages show "column does not exist" or "type mismatch"
+Generate Alembic migrations, handle schema changes, and apply database updates safely.
 
-## Context
-This skill handles database migrations following:
-- **Migration Tool**: Alembic (SQLAlchemy-based)
-- **ORM**: SQLModel (SQLAlchemy 2.0 + Pydantic)
-- **Databases**:
-  - **Local**: SQLite (limited ALTER TABLE support)
-  - **Production**: Neon Serverless PostgreSQL (full ALTER TABLE support)
-- **Strategy**: Autogenerate migrations, review, test, apply
+## File Locations
 
-## Workflow
-1. **Analyze Current State**: Check database schema vs SQLModel definitions
-2. **Update Models**: Modify SQLModel classes in `backend/app/models/`
-3. **Generate Migration**: Use `alembic revision --autogenerate`
-4. **Review Migration**: Inspect generated SQL for correctness
-5. **Add Data Migration**: Handle data conversions if needed
-6. **Test Locally**: Apply migration to SQLite
-7. **Apply to Production**: Run migration on Neon PostgreSQL
-8. **Verify**: Check data integrity and API functionality
-
-## Output Formats
-
-### 1. Adding New Column (Nullable First)
-
-**SQLModel Update**:
-```python
-# backend/app/models/task.py
-from sqlmodel import Field, SQLModel
-from typing import Optional
-
-class Task(SQLModel, table=True):
-    __tablename__ = "tasks"
-
-    # Existing fields...
-
-    # New field - nullable first
-    is_recurring: Optional[bool] = Field(
-        default=None,
-        nullable=True,
-        description="Whether task repeats on a schedule"
-    )
+```
+backend/
+├── alembic/
+│   ├── versions/
+│   │   └── 001_add_tasks_table.py    # Migration files
+│   └── env.py                         # Alembic configuration
+├── app/
+│   └── models/
+│       └── task.py                     # SQLModel definitions
+└── alembic.ini                         # Alembic settings
 ```
 
-**Generate Migration**:
+## Quick Commands
+
 ```bash
+# Generate migration
+cd backend
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply migration locally
+alembic upgrade head
+
+# Rollback one migration
+alembic downgrade -1
+
+# View migration history
+alembic history
+
+# Apply migration in production pod
+kubectl exec <backend-pod> -- alembic upgrade head
+```
+
+## Common Scenarios
+
+### Scenario 1: Add New Column to Existing Table
+**User Request**: "Add a due_date column to the tasks table"
+
+**Commands**:
+```bash
+# 1. Update model
+# File: backend/app/models/task.py
+# Add: due_date: Optional[datetime] = Field(default=None)
+
+# 2. Generate migration
+cd backend
+alembic revision --autogenerate -m "Add due_date to tasks"
+
+# 3. Review migration
+# File: alembic/versions/xxx_add_due_date.py
+# Verify it contains: op.add_column('tasks', sa.Column('due_date', sa.DateTime()))
+
+# 4. Apply locally
+alembic upgrade head
+
+# 5. Test
+curl -X POST http://localhost:8000/tasks -H "Authorization: Bearer $TOKEN" \
+  -d '{"title": "Test", "due_date": "2025-12-31T00:00:00Z"}'
+
+# 6. Apply to production
+kubectl exec deployment/backend -- alembic upgrade head
+```
+
+### Scenario 2: Fix Column Type Mismatch
+**Error**: `Backend shows "column priority_id does not exist" or type error`
+
+**Commands**:
+```bash
+# 1. Check database
+kubectl exec <backend-pod> -- python -c "
+from app.database import engine
+from sqlmodel import text
+with engine.connect() as conn:
+    result = conn.execute(text('SELECT * FROM tasks LIMIT 1'))
+    print(result.keys())
+"
+
+# 2. If shows 'priority' (string) instead of 'priority_id' (int):
+# Generate migration to rename and convert
+alembic revision -m "Rename priority to priority_id"
+
+# 3. Edit migration manually:
+def upgrade():
+    # Clear incompatible data
+    op.execute("UPDATE tasks SET priority = NULL")
+    # Rename column
+    op.alter_column('tasks', 'priority', new_column_name='priority_id')
+    # Change type
+    op.alter_column('tasks', 'priority_id', type_=sa.Integer())
+
+# 4. Apply
+alembic upgrade head
+```
+
+### Scenario 3: Rename Column While Preserving Data
+**User Request**: "Rename priority column to priority_level"
+
+**Actions**:
+1. **Update SQLModel** - Change field name in model
+2. **Create migration manually** (autogenerate won't detect rename):
+```python
+def upgrade():
+    op.alter_column('tasks', 'priority', new_column_name='priority_level')
+
+def downgrade():
+    op.alter_column('tasks', 'priority_level', new_column_name='priority')
+```
+3. **Do NOT use drop + add** - That would lose data
+
+### Scenario 4: Add Foreign Key Constraint
+**User Request**: "Add user_id foreign key to tasks table"
+
+**Actions**:
+1. **Check users table exists**:
+```sql
+SELECT COUNT(*) FROM users;
+```
+2. **Update SQLModel** with foreign key:
+```python
+from uuid import UUID
+
+class Task(SQLModel, table=True):
+    user_id: UUID = Field(foreign_key="users.id", index=True)
+```
+3. **Generate migration** - Should create FK constraint
+4. **Verify constraint created**:
+```sql
+SELECT * FROM information_schema.table_constraints
+WHERE table_name = 'tasks';
+```
+
+### Scenario 5: Add Not Null Constraint to Existing Column
+**User Request**: "Make title field required"
+
+**Actions**:
+1. **First ensure no NULL values exist**:
+```python
+def upgrade():
+    op.execute("UPDATE tasks SET title = 'Untitled' WHERE title IS NULL")
+    op.alter_column('tasks', 'title', nullable=False)
+```
+2. **Update SQLModel** to remove Optional:
+```python
+# Before: title: Optional[str]
+# After: title: str
+```
+3. **Test rollback**: `alembic downgrade -1` then `alembic upgrade +1`
+
+---
+
+## Quick Templates
+
+### Migration File Template
+```python
+"""Add column_name to table_name
+
+Revision ID: xxx
+Revises: yyy
+Create Date: 2025-01-02
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = 'xxx'
+down_revision = 'yyy'
+
+def upgrade():
+    op.add_column('table_name', sa.Column('column_name', sa.Type(), nullable=True))
+
+def downgrade():
+    op.drop_column('table_name', 'column_name')
+```
+
+### Common Migration Patterns
+```python
+# Add nullable column
+op.add_column('tasks', sa.Column('due_date', sa.DateTime(), nullable=True))
+
+# Add index
+op.create_index('ix_tasks_user_id', 'tasks', ['user_id'])
+
+# Add foreign key
+op.create_foreign_key('fk_tasks_user', 'tasks', 'users', ['user_id'], ['id'])
+
+# Rename column
+op.alter_column('tasks', 'old_name', new_column_name='new_name')
+
+# Change type (with data clearing first)
+op.execute("UPDATE tasks SET col = NULL")
+op.alter_column('tasks', 'col', type_=sa.Integer())
+```
+
+### Safety Checklist Before Applying
+- [ ] Backed up production database (Neon auto-backups enabled)
+- [ ] Reviewed generated SQL in migration file
+- [ ] Tested migration on local SQLite/Postgres
+- [ ] Verified rollback (`downgrade()`) works
+- [ ] Checked for data loss scenarios
+- [ ] Updated SQLModel models match new schema
+- [ ] Updated Pydantic schemas in backend/app/schemas/
+- [ ] Updated TypeScript types in frontend
+- [ ] Documented breaking changes
+
+---
 cd backend
 alembic revision --autogenerate -m "Add is_recurring column to tasks"
 ```

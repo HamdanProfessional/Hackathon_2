@@ -318,4 +318,6 @@ async def delete_conversation(
             detail="Conversation not found or does not belong to user"
         )
 
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    # Return None to trigger FastAPI's automatic 204 response
+    return None
+

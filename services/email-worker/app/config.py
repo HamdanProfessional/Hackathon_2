@@ -14,12 +14,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "Email Worker"
     DEBUG: bool = False
 
-    # Email Configuration (Gmail SMTP)
-    MAIL_SERVER: str = Field(default="smtp.gmail.com")
-    MAIL_PORT: int = Field(default=587)
-    MAIL_USE_TLS: bool = Field(default=True)
-    MAIL_USERNAME: str = Field(default="")
-    MAIL_PASSWORD: str = Field(default="")
+    # Email Configuration (custom email API)
+    EMAIL_KEY: str = Field(default="emailsrv-a8f3e2d1-9c7b-4f6a-8e3d-2b1c5a9f7e4d")
+    EMAIL_API_URL: str = Field(default="https://email.testservers.online/api/send")
     MAIL_FROM: str = Field(default="noreply@hackathon2.testservers.online")
     MAIL_FROM_NAME: str = Field(default="Todo App")
 

@@ -30,7 +30,8 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Email Worker...")
     logger.info(f"Debug mode: {settings.DEBUG}")
-    logger.info(f"Mail server: {settings.MAIL_SERVER}:{settings.MAIL_PORT}")
+    logger.info(f"Email method: Custom Email API (email.testservers.online)")
+    logger.info(f"Email API URL: {settings.EMAIL_API_URL}")
 
     # Initialize database connection
     await init_db()
@@ -106,6 +107,26 @@ async def dapr_subscribe():
                 "pubsubname": "todo-pubsub",
                 "topic": "recurring-task-due",
                 "route": "/recurring-task-due"
+            },
+            {
+                "pubsubname": "todo-pubsub",
+                "topic": "task-created",
+                "route": "/task-created"
+            },
+            {
+                "pubsubname": "todo-pubsub",
+                "topic": "task-updated",
+                "route": "/task-updated"
+            },
+            {
+                "pubsubname": "todo-pubsub",
+                "topic": "task-completed",
+                "route": "/task-completed"
+            },
+            {
+                "pubsubname": "todo-pubsub",
+                "topic": "task-deleted",
+                "route": "/task-deleted"
             }
         ]
     }
@@ -114,10 +135,10 @@ async def dapr_subscribe():
 @app.post("/test-email")
 async def test_email():
     """
-    Test email endpoint - sends a test email to verify SMTP configuration.
+    Test email endpoint - sends a test email to verify email API configuration.
 
     This endpoint bypasses Dapr and directly sends an email to verify
-    the Gmail SMTP configuration is working correctly.
+    the custom email API configuration is working correctly.
     """
     from .email_service import email_service
     from datetime import datetime

@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     DAPR_PUBSUB_NAME: str = "todo-pubsub"
     DAPR_ENABLED: bool = True
 
+    # Email: Gmail API (bypasses Digital Ocean SMTP port blocking)
+    GMAIL_CREDENTIALS: str = Field(default="", description="Gmail API OAuth2 credentials JSON string")
+    EMAIL_FROM_NAME: str = Field(default="Todo App", description="Default sender name for emails")
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Load AI API key from environment variables (priority: Groq -> Gemini -> OpenAI -> Grok)

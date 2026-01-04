@@ -1,10 +1,6 @@
 ---
 name: documentation
-description: Comprehensive documentation generation including doc-generator (README, API docs, architecture diagrams), ADR generator (Architecture Decision Records with context/options/rationale), and PHR documenter (Prompt History Records with routing and metadata). Use when documentation is missing, needs updating, or architectural decisions require formal documentation.
-version: 2.0.0
-category: documentation
-tags: [documentation, readme, adr, phr, architecture, api-docs]
-dependencies: []
+description: Generate README.md with # Project Name, ## Installation, ## Usage sections using pip install/npm install commands, create ADR (Architecture Decision Records) in docs/adr/XXX-title.md with Context/Decision/Consequences sections, and record PHR (Prompt History Records) in history/prompts/XXX/ with routing metadata, timestamp, and conversation summary. Use when documenting API endpoints at /docs, capturing architectural decisions like 'chose PostgreSQL over MongoDB', or creating AI conversation traceability.
 ---
 
 # Documentation Skill

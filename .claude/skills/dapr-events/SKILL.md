@@ -1,32 +1,155 @@
 ---
 name: dapr-events
-description: Dapr event-driven architecture skills for pub/sub, state management, and service-to-service communication. Use when implementing event-driven microservices, configuring Dapr components, setting up Kafka/Redpanda, or creating event publishers and subscribers. Essential for Phase V cloud deployment with event streaming.
+description: Configure Dapr sidecars by adding dapr.io/enabled annotations to Kubernetes deployment.yaml, publish events to Kafka/Redpanda via dapr_client.publish_event(pubsub_name='todo-pubsub', topic_name='task-created'), subscribe with @dapr_app.subscribe(pubsub='todo-pubsub', topic='task-created') decorators, and manage state with dapr_client.save_state(store_name='todo-state', key=f'task:{id}'). Use when implementing event-driven microservices, creating task notification workflows, or building email workers that listen to task-created events.
 ---
 
 # Dapr Event-Driven Architecture
 
-This skill provides guidance for implementing event-driven architecture using Dapr, Kafka/Redpanda, and event publishing/subscriptions.
+Configure Dapr pub/sub, state management, and service-to-service communication for event-driven microservices.
 
-## When to Use This Skill
+## File Structure
 
-Use this skill when:
-- Configuring Dapr sidecars for applications
-- Creating Dapr pub/sub components
-- Publishing events to Kafka/Redpanda
-- Subscribing to events from Kafka/Redpanda
-- Setting up event-driven microservices
-- Troubleshooting Dapr integration
+```
+k8s/dapr/
+├── pubsub.yaml           # Kafka/Redpanda pubsub component
+├── statestore.yaml       # Redis state store
+└── subscriptions.yaml    # Declarative subscriptions
 
-## Quick Reference
+docker-compose.yml         # Local Kafka/Redpanda setup
 
-### Dapr CLI Commands
+backend/
+├── app/
+│   ├── events/           # Event publishers
+│   │   ├── publisher.py   # Dapr publish wrapper
+│   │   └── subscribers.py # Event handlers
+│   └── main.py           # Dapr FastAPI integration
+```
+
+## Quick Commands
 
 ```bash
-# Initialize Dapr in Kubernetes
-dapr init --kubernetes
+# Install Dapr CLI
+wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash
+dapr init
 
-# Uninstall Dapr
-dapr uninstall --kubernetes
+# Start Kafka with Docker Compose
+docker-compose up -d kafka redpanda
+
+# Deploy Dapr components
+kubectl apply -f k8s/dapr/
+
+# Run service with Dapr sidecar locally
+dapr run --app-id backend --app-port 8000 --dapr-http-port 3500 \
+  uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# Publish test event
+curl -X POST http://localhost:3500/v1.0/publish/kafka-pubsub/task-created \
+  -H "Content-Type: application/json" \
+  -d '{"id": 1, "title": "Test Task"}'
+```
+
+## Common Scenarios
+
+### Scenario 1: Setup Dapr Pub/Sub with Kafka
+**User Request**: "Setup event streaming with Dapr and Kafka"
+
+**File: `k8s/dapr/pubsub.yaml`**
+```yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: kafka-pubsub
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+  - name: brokers
+    value: kafka:9092
+  - name: consumerGroup
+    value: task-processing-group
+  - name: authRequired
+    value: "false"
+```
+
+**Apply Commands**:
+```bash
+kubectl apply -f k8s/dapr/pubsub.yaml
+
+# Add Dapr sidecar annotation to deployment
+# In k8s/backend/deployment.yaml:
+annotations:
+  dapr.io/enabled: "true"
+  dapr.io/app-id: "backend"
+  dapr.io/app-port: "8000"
+```
+
+### Scenario 2: Publish Events from FastAPI
+**User Request**: "Publish events when tasks are created"
+
+**File: `backend/app/events/publisher.py`**
+```python
+import httpx
+import os
+
+DAPR_HTTP_PORT = os.getenv("DAPR_HTTP_PORT", "3500")
+DAPR_HOST = os.getenv("DAPR_HOST", "localhost")
+
+async def publish_event(pubsub_name: str, topic_name: str, data: dict):
+    """Publish event via Dapr sidecar."""
+    url = f"http://{DAPR_HOST}:{DAPR_HTTP_PORT}/v1.0/publish/{pubsub_name}/{topic_name}"
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=data)
+        response.raise_for_status()
+
+# Usage in router
+@router.post("/tasks/", status_code=201)
+async def create_task(task: TaskCreate, user_id: UUID = Depends(get_current_user)):
+    task = Task(user_id=user_id, **task.dict())
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+
+    # Publish event
+    await publish_event(
+        pubsub_name="kafka-pubsub",
+        topic_name="task-created",
+        data={"id": task.id, "title": task.title, "user_id": str(user_id)}
+    )
+    return task
+```
+
+### Scenario 3: Subscribe to Events
+**File: `backend/app/events/subscribers.py`**
+```python
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+class TaskCreatedEvent(BaseModel):
+    id: int
+    title: str
+    user_id: str
+
+def register_subscriptions(app: FastAPI):
+    @app.post("/events/task-created")
+    async def handle_task_created(event: TaskCreatedEvent):
+        print(f"Received event: task {event.id} created")
+        # Process event (send email, update cache)
+        return {"status": "processed"}
+```
+
+### Scenario 4: Fix Event Not Received
+**Troubleshooting Commands**:
+```bash
+# Check Dapr sidecar
+kubectl get pods -l app=backend-dapr
+
+# Check component
+kubectl get components
+kubectl describe component kafka-pubsub
+
+# View Dapr logs
+kubectl logs -l app=backend -c daprd
+```
 
 # List Dapr instances
 dapr list

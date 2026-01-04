@@ -1,0 +1,120 @@
+# Terraform Variables Example for Load Balancer Setup
+# Copy this file to terraform.tfvars and fill in your values
+
+# =============================================================================
+# REQUIRED: DigitalOcean API Token
+# =============================================================================
+# Get your token at: https://cloud.digitalocean.com/settings/api/tokens
+do_token = "dop_v1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# =============================================================================
+# Project Configuration
+# =============================================================================
+project_name = "todo-app"
+environment   = "production"
+region        = "nyc1"  # nyc1, nyc2, nyc3, ams3, sfo2, sfo3, fra1, sgp1
+
+# =============================================================================
+# Droplet Configuration
+# =============================================================================
+
+# Number of web server droplets (recommended: 2-3 for production)
+droplet_count = 2
+
+# Droplet size
+droplet_size = "s-2vcpu-4gb"  # s-2vcpu-4gb, s-4vcpu-8gb
+
+# Droplet image
+droplet_image = "ubuntu-22-04-x64"
+
+# SSH public key path
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# SSH access (restrict to your IP for security)
+# Use ["0.0.0.0/0"] for anywhere (not recommended for production)
+ssh_allowed_ips = ["1.2.3.4/32", "5.6.7.8/32"]
+
+# Tags for organization
+droplet_tags = ["web", "production", "ubuntu"]
+
+# Enable automatic backups ($5/month per droplet)
+enable_backups = true
+
+# =============================================================================
+# Application Configuration
+# =============================================================================
+
+# Port the application listens on
+app_port = 80
+
+# JWT secret key
+jwt_secret = "change-me-to-a-strong-random-secret-in-production"
+
+# =============================================================================
+# Database Configuration
+# =============================================================================
+
+# PostgreSQL version
+postgres_version = "16"
+
+# Database size
+db_size = "db-s-2vcpu-4gb"  # db-s-2vcpu-4gb, db-s-4vcpu-16gb
+
+# Number of database nodes (1 for standalone, 2-3 for HA)
+db_node_count = 2
+
+# Enable high availability
+db_ha_enabled = true
+
+# Database credentials
+db_name = "appdb"
+db_user = "appuser"
+
+# Backup retention (1-28 days)
+db_backup_retention_days = 7
+
+# Additional IPs allowed to connect to database
+db_allowed_ips = []
+
+# =============================================================================
+# Redis Configuration
+# =============================================================================
+
+# Deploy managed Redis
+deploy_redis = true
+
+# Redis version
+redis_version = "7"
+
+# Redis size
+redis_size = "db-s-1vcpu-1gb"
+
+# If NOT deploying managed Redis, specify external Redis
+# redis_host = ""
+# redis_port = 6379
+
+# =============================================================================
+# Load Balancer Configuration
+# =============================================================================
+
+# Redirect HTTP to HTTPS
+redirect_http_to_https = true
+
+# =============================================================================
+# VPC Configuration
+# =============================================================================
+vpc_ip_range = "10.20.0.0/16"
+
+# =============================================================================
+# Optional Features
+# =============================================================================
+
+# Create a floating IP for the first droplet (failover)
+create_floating_ip = false
+
+# Create DNS records (requires domain managed by DO)
+create_dns_records = false
+
+# Domain configuration (if create_dns_records = true)
+domain_name = "example.com"
+subdomain   = "app"

@@ -1,7 +1,6 @@
 ---
-name: "console-ui-builder"
-description: "Builds rich, interactive console UIs using Rich, Textual, and other terminal UI libraries. Creates progress bars, tables, panels, syntax highlighting, interactive menus, and TUI applications. Use when building CLI tools that need visual polish or full terminal UIs."
-version: "1.0.0"
+name: console-ui-builder
+description: Build terminal UIs with Rich using console.print(), Table() with add_column(), Progress() for task tracking, and Syntax() for code highlighting, create TUI apps with Textual App() classes and widgets like DataTable/Header/Footer, and design interactive prompts with Questionary prompt() for select/confirm/password inputs. Use when displaying SQL query results in tables, showing deployment progress with spinbars, or creating monitoring dashboards with live updates.
 ---
 
 # Console UI Builder Skill

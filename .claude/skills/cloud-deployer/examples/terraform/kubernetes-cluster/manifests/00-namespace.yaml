@@ -1,0 +1,21 @@
+# =============================================================================
+# Namespace Configuration
+# =============================================================================
+
+# Application namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: todo-app
+  labels:
+    name: todo-app
+    environment: production
+
+---
+# Monitoring namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring

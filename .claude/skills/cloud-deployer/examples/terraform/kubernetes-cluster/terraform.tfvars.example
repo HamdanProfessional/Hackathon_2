@@ -1,0 +1,106 @@
+# Terraform Variables Example for Kubernetes Cluster
+# Copy this file to terraform.tfvars and fill in your values
+
+# =============================================================================
+# REQUIRED: DigitalOcean API Token
+# =============================================================================
+# Get your token at: https://cloud.digitalocean.com/settings/api/tokens
+# Required scopes: Read & Write (full access)
+do_token = "dop_v1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# =============================================================================
+# Project Configuration
+# =============================================================================
+project_name = "todo-app"
+environment   = "production"
+
+# =============================================================================
+# Region Configuration
+# =============================================================================
+# For Kubernetes cluster
+region = "nyc1"  # nyc1, nyc2, nyc3, ams3, sfo2, sfo3, fra1, sgp1, lon1, tor1, bangalore
+
+# For Spaces (must be a region that supports Spaces)
+spaces_region = "nyc3"  # nyc3, ams3, sfo2, sfo3, sgp1, fra1
+
+# =============================================================================
+# Kubernetes Configuration
+# =============================================================================
+kubernetes_version = "1.28.2-do.0"  # Leave empty for latest stable version
+
+# =============================================================================
+# Node Pool Configuration
+# =============================================================================
+
+# Default node pool for general workloads
+default_node_size = "s-2vcpu-4gb"  # s-2vcpu-4gb, s-4vcpu-8gb, s-8vcpu-16gb
+default_node_count = 2
+min_nodes = 1
+max_nodes = 5
+
+# Database node pool (memory optimized)
+database_node_size = "s-4vcpu-16gb"
+database_node_count = 1
+
+# GPU node pool for ML/AI workloads (optional)
+enable_gpu_nodes = false
+
+# =============================================================================
+# High Availability Configuration
+# =============================================================================
+# Enable HA control plane with 3 replicas (recommended for production)
+ha_enabled = true
+
+# =============================================================================
+# Database Configuration
+# =============================================================================
+
+# Managed PostgreSQL database
+postgres_version = "16"  # 14, 15, or 16
+db_size = "db-s-2vcpu-4gb"  # db-s-1vcpu-2gb, db-s-2vcpu-4gb, db-s-4vcpu-16gb, db-g-8vcpu-32gb
+db_node_count = 2  # 1 for standalone, 2-3 for HA
+db_ha_enabled = true
+
+# Database credentials
+db_name = "appdb"
+db_user = "appuser"
+
+# Backup retention (1-28 days)
+db_backup_retention_days = 7
+
+# Additional IP addresses allowed to connect to database
+db_allowed_ips = []
+
+# =============================================================================
+# Spaces (Object Storage) Configuration
+# =============================================================================
+
+spaces_cdn_enabled = true
+
+# Allowed CORS origins for Spaces bucket
+spaces_cors_origins = [
+  "https://example.com",
+  "https://*.example.com",
+]
+
+# =============================================================================
+# Load Balancer Configuration
+# =============================================================================
+
+# Redirect HTTP to HTTPS
+redirect_http_to_https = true
+
+# =============================================================================
+# VPC Configuration
+# =============================================================================
+vpc_ip_range = "10.10.0.0/16"  # Private network IP range
+
+# =============================================================================
+# Tags
+# =============================================================================
+# Tags applied to all resources for organization and cost tracking
+cluster_tags = [
+  "kubernetes",
+  "production",
+  "todo-app",
+]

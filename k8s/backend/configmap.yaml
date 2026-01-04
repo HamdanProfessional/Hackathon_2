@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/name: backend
     app.kubernetes.io/component: backend
 data:
-  cors-origins: "http://localhost:3000,http://frontend:3000"
+  cors-origins: "http://localhost:3000,http://frontend:3000,http://167.71.45.19:30030,https://hackathon2.testservers.online,https://api.testservers.online"
   app-name: "Todo CRUD API"
   debug: "true"
   jwt-algorithm: "HS256"

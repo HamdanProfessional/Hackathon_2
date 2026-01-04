@@ -1,71 +1,176 @@
 ---
 name: project-setup
-description: Complete project initialization with monorepo-setup (workspace management, build orchestration), python-uv-setup (fast Python 3.13+ project scaffolding), and Phase I CLI app initialization. Use when starting new projects, setting up development environments, or configuring monorepo architecture.
-version: 2.0.0
-category: setup
-tags: [setup, monorepo, python, cli, project-init]
-dependencies: [uv, node, git]
+description: Initialize monorepo structure with mkdir -p backend frontend && touch pyproject.toml package.json, scaffold Python 3.13+ via uv init --package backend && uv add fastapi sqlmodel uvicorn, create Next.js apps via npx create-next-app@latest --typescript --tailwind, and set up Phase I CLI apps via Typer with @app.command() and Rich for tables/progress bars. Use when starting new projects with .gitignore (node_modules/__pycache__/.env), configuring development environments with virtualenvs, or scaffolding workspace management.
 ---
 
 # Project Setup Skill
 
 Complete project initialization and scaffolding.
 
-## Quick Reference
+## Quick Commands
 
-| Feature | Location | Description |
-|---------|----------|-------------|
-| Examples | `examples/` | Project structure templates |
-| Scripts | `scripts/` | Setup automation scripts |
-| Templates | `references/templates.md` | Reusable templates |
-| Links | `references/links.md` | External resources |
-
-## When to Use This Skill
-
-Use this skill when:
-- User says "Initialize project" or "Set up new repo"
-- Creating new Python projects with uv
-- Setting up monorepo structure
-- Configuring development environments
-- Scaffolding Phase I console apps
-
-## Common Issues & Troubleshooting
-
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| uv not found | Not installed | Install with `pip install uv` |
-| Node modules large | Missing .gitignore | Add node_modules to .gitignore |
-| Build failures | Missing dependencies | Run `uv sync` or `npm install` |
-
----
-
-## Part 1: Monorepo Setup
-
-See main SKILL.md (already comprehensive) for complete monorepo structure.
-
----
-
-## Part 2: Python UV Setup
-
-**Quick init**:
 ```bash
+# Initialize monorepo
+mkdir -p backend frontend tests
+cd .
+
+# Setup Python backend with uv
+cd backend
 uv init --package backend
-uv add fastapi sqlmodel uvicorn
+uv add fastapi sqlmodel uvicorn alembic
+
+# Setup Next.js frontend
+cd ../frontend
+npx create-next-app@latest . --typescript --tailwind --app-dir --no-src-dir --import-alias "@/*"
+npm install @types/node
+
+# Setup Git
+cd ..
+git init
+echo "node_modules
+__pycache__
+*.pyc
+.env
+.venv
+dist
+build" > .gitignore
+
+# Initial commit
+git add .
+git commit -m "chore: initialize project structure"
 ```
 
----
+## File Structure
 
-## Part 3: CLI App Setup (Phase I)
+```
+project-root/
+├── backend/
+│   ├── app/
+│   │   ├── main.py          # FastAPI app entry
+│   │   ├── models/          # SQLModel tables
+│   │   ├── schemas/         # Pydantic schemas
+│   │   ├── routers/         # API routes
+│   │   └── config.py        # Settings
+│   ├── alembic/             # Database migrations
+│   ├── tests/               # Backend tests
+│   └── pyproject.toml       # Python dependencies
+├── frontend/
+│   ├── app/                 # Next.js App Router
+│   ├── components/          # React components
+│   ├── lib/                 # Utilities
+│   ├── package.json         # Node dependencies
+│   └── next.config.js       # Next.js config
+├── tests/                   # E2E tests
+├── .gitignore
+└── README.md
+```
 
-**Rich CLI template** with Click/Typer
+## Backend Setup (Python 3.13+)
 
----
+```bash
+# Create backend
+mkdir backend
+cd backend
 
-## Quality Checklist
+# Initialize with uv
+uv init --package backend
 
-- [ ] .gitignore configured
-- [ ] README.md created
-- [ ] Dependencies installed
-- [ ] Linting configured (ruff, eslint)
-- [ ] Tests scaffolded
-- [ ] CI/CD pipeline ready
+# Add dependencies
+uv add fastapi sqlmodel uvicorn[standard] alembic psycopg2-binary pydantic
+uv add --dev pytest pytest-cov ruff mypy
+
+# Create app structure
+mkdir -p app/models app/schemas app/routers
+
+# Initialize Alembic
+alembic init alembic
+
+# Update alembic.ini
+# sqlalchemy.url = driver://user:pass@localhost/dbname
+```
+
+**File: `backend/app/main.py`**
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="My API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def root():
+    return {"message": "API is running"}
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+```
+
+## Frontend Setup (Next.js 16+)
+
+```bash
+cd frontend
+
+# Create Next.js app
+npx create-next-app@latest . --typescript --tailwind --app-dir --no-src-dir
+
+# Install additional dependencies
+npm install axios
+
+# Run dev server
+npm run dev
+```
+
+**File: `frontend/app/page.tsx`**
+```typescript
+export default function Home() {
+  return (
+    <main className="min-h-screen p-8">
+      <h1 className="text-3xl font-bold">Welcome</h1>
+    </main>
+  );
+}
+```
+
+## Phase I CLI Setup (Typer)
+
+```bash
+# Create CLI app
+mkdir cli
+cd cli
+uv init
+
+# Add dependencies
+uv add typer[all] rich
+
+# Create CLI file
+touch cli.py
+```
+
+**File: `cli/cli.py`**
+```python
+import typer
+from rich.console import Console
+
+app = typer.Typer()
+console = Console()
+
+@app.command()
+def hello(name: str = typer.Argument(...)):
+    """Say hello to someone."""
+    console.print(f"[bold green]Hello, {name}![/bold green]")
+
+if __name__ == "__main__":
+    app()
+```
+
+**Run CLI**:
+```bash
+python cli/cli.py hello World
+```

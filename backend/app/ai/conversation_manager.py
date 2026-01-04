@@ -289,6 +289,6 @@ class ConversationManager:
 
         # Delete conversation (messages will cascade delete due to FK constraint)
         await self.db.delete(conversation)
-        await self.db.flush()
+        await self.db.commit()
 
         return True

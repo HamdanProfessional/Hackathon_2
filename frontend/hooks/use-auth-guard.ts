@@ -29,8 +29,8 @@ export function useAuthGuard() {
       return;
     }
 
-    // Check for token in localStorage
-    const token = localStorage.getItem("todo_access_token");
+    // Check for token in localStorage (check both keys for compatibility)
+    const token = localStorage.getItem("access_token") || localStorage.getItem("todo_access_token");
 
     if (!token) {
       // Redirect to login page with return URL
@@ -43,7 +43,8 @@ export function useAuthGuard() {
     const tokenParts = token.split(".");
     if (tokenParts.length !== 3) {
       console.error("Invalid token format");
-      localStorage.removeItem("token");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("todo_access_token");
       router.push("/login");
       return;
     }
@@ -55,13 +56,15 @@ export function useAuthGuard() {
 
       if (payload.exp && payload.exp < currentTime) {
         console.log("Token expired");
-        localStorage.removeItem("token");
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("todo_access_token");
         router.push("/login");
         return;
       }
     } catch (error) {
       console.error("Error parsing token:", error);
-      localStorage.removeItem("token");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("todo_access_token");
       router.push("/login");
       return;
     }

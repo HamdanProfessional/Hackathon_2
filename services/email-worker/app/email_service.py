@@ -1,8 +1,6 @@
-"""Email Service using FastAPI-Mail."""
+"""Email Service using custom email.testservers.online API."""
 import os
-from fastapi_mail import FastMail, MessageSchema, MessageType, ConnectionConfig
-from fastapi_mail.errors import ConnectionErrors
-from jinja2 import Template
+import httpx
 from typing import List, Dict, Any
 import logging
 
@@ -10,23 +8,13 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Email service for sending notifications."""
+    """Email service using custom email API."""
 
     def __init__(self):
-        """Initialize email configuration."""
-        self.conf = ConnectionConfig(
-            MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-            MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-            MAIL_FROM=os.getenv("MAIL_FROM", "noreply@hackathon2.testservers.online"),
-            MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
-            MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-            MAIL_STARTTLS=True,
-            MAIL_SSL_TLS=False,
-            USE_CREDENTIALS=True,
-            VALIDATE_CERTS=True,
-            MAIL_FROM_NAME=os.getenv("MAIL_FROM_NAME", "Todo App"),
-        )
-        self.fastmail = FastMail(self.conf)
+        """Initialize email client."""
+        self.api_key = os.getenv("EMAIL_KEY", "emailsrv-a8f3e2d1-9c7b-4f6a-8e3d-2b1c5a9f7e4d")
+        self.api_url = os.getenv("EMAIL_API_URL", "https://email.testservers.online/api/send")
+        self.from_email = os.getenv("MAIL_FROM", "noreply@hackathon2.testservers.online")
 
     async def send_email(
         self,
@@ -36,7 +24,7 @@ class EmailService:
         html: bool = False
     ) -> bool:
         """
-        Send an email.
+        Send an email using custom email API.
 
         Args:
             subject: Email subject
@@ -48,22 +36,31 @@ class EmailService:
             True if sent successfully
         """
         try:
-            message = MessageSchema(
-                subject=subject,
-                recipients=email,
-                body=body,
-                subtype=MessageType.html if html else MessageType.plain
-            )
+            # Build request payload
+            payload = {
+                "to": email[0] if len(email) == 1 else ", ".join(email),
+                "is_html": True,
+                "subject": subject,
+                "body": body
+            }
 
-            await self.fastmail.send_message(message)
-            logger.info(f"Email sent successfully to {email}")
-            return True
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
 
-        except ConnectionErrors as e:
-            logger.error(f"Failed to send email: {e}")
-            return False
+            async with httpx.AsyncClient() as client:
+                response = await client.post(self.api_url, json=payload, headers=headers, timeout=30.0)
+
+                if response.status_code == 200:
+                    logger.info(f"Email sent successfully to {email}")
+                    return True
+                else:
+                    logger.error(f"Email API error: {response.status_code} - {response.text}")
+                    return False
+
         except Exception as e:
-            logger.error(f"Unexpected error sending email: {e}")
+            logger.error(f"Error sending email: {e}")
             return False
 
     def render_template(self, template_name: str, context: Dict[str, Any]) -> str:
@@ -77,6 +74,8 @@ class EmailService:
         Returns:
             Rendered HTML string
         """
+        from jinja2 import Template
+
         template_path = os.path.join(
             os.path.dirname(__file__),
             "templates",

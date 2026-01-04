@@ -1,0 +1,206 @@
+# =============================================================================
+# Horizontal Pod Autoscaler for Backend
+# =============================================================================
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: todo-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 15
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max
+
+---
+
+# =============================================================================
+# Horizontal Pod Autoscaler for Frontend
+# =============================================================================
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend-hpa
+  namespace: todo-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 15
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+      selectPolicy: Max
+
+---
+
+# =============================================================================
+# Vertical Pod Autoscaler (Optional - for right-sizing resources)
+# =============================================================================
+
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: backend-vpa
+  namespace: todo-app
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: backend
+        minAllowed:
+          cpu: "100m"
+          memory: "128Mi"
+        maxAllowed:
+          cpu: "1000m"
+          memory: "1Gi"
+        controlledResources: ["cpu", "memory"]
+
+---
+
+# =============================================================================
+# Pod Priority Class
+# =============================================================================
+
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+  value: 1000
+  globalDefault: false
+  description: "High priority class for critical pods"
+
+---
+
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: medium-priority
+  value: 500
+  globalDefault: false
+  description: "Medium priority class for regular pods"
+
+---
+
+# =============================================================================
+# Resource Quota for Namespace
+# =============================================================================
+
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: todo-app
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "4"
+  scopes:
+    - NotTerminating
+
+---
+
+# =============================================================================
+# Limit Range for Container Defaults
+# =============================================================================
+
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: todo-app
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "250m"
+        memory: "256Mi"
+      type: Container
+    - max:
+        cpu: "2000m"
+        memory: "2Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+
+---
+
+# =============================================================================
+# Cluster Autoscaler Configuration (via annotation on node pool)
+# =============================================================================
+# Note: This is configured via Terraform in the node pool definition
+# The annotations below are for reference and can be added to node pools
+
+# digitalocean_kubernetes_node_pool.default:
+#   annotations:
+#     cluster-autoscaler.kubernetes.io/safe-to-evict: "true"

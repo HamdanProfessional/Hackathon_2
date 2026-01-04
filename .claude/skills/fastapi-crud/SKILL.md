@@ -1,10 +1,6 @@
 ---
 name: fastapi-crud
-description: Complete FastAPI CRUD generation including backend scaffolding (Model, Schema, Router with JWT auth), CRUD builder (standard database operations), and SQLModel schema management. Use when scaffolding new resources, adding CRUD endpoints, or implementing standard database operations with SQLModel and Pydantic.
-version: 1.0.0
-category: backend
-tags: [fastapi, crud, sqlmodel, pydantic, database, rest-api, scaffolding]
-dependencies: [fastapi, sqlmodel, pydantic, alembic, pytest]
+description: Scaffold complete CRUD operations: SQLModel in backend/app/models/[resource].py with Field() constraints and user_id FK, Pydantic schemas in backend/app/schemas/[resource].py with Create/Update/Response classes using validator() decorators, FastAPI routers in backend/app/routers/[resource].py with @router.post() for create, @router.get() for list with pagination, @router.patch() for update, @router.delete() for delete, and Alembic migrations via alembic revision --autogenerate. Use when adding tasks, comments, tags resources with REST endpoints at /api/tasks.
 ---
 
 # FastAPI CRUD Skill

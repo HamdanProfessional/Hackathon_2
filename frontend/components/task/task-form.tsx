@@ -16,6 +16,9 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ErrorMessage } from "@/components/ui/error-message";
 import { toast } from "sonner";
 
+// Import getApiBaseUrl for proper API URL resolution
+import { getApiBaseUrl } from "@/lib/api";
+
 interface TaskFormProps {
   task?: Task | null;
   isOpen: boolean;
@@ -141,9 +144,6 @@ export default function TaskForm({
     return new Date().toISOString().split('T')[0];
   };
 
-  // Get API base URL from environment or use default
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
   const handleAIBreakdown = async () => {
     if (!formData.title || formData.title.length < 10) {
       toast.error("Enter a more detailed task title (at least 10 characters) for AI breakdown");
@@ -160,7 +160,7 @@ export default function TaskForm({
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/tasks/breakdown`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/tasks/breakdown`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

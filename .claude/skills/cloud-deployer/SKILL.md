@@ -1,358 +1,603 @@
 ---
 name: cloud-deployer
-description: Comprehensive deployment automation for local development, backend services, and cloud platforms. Use when deploying applications: (1) Local development (Docker Compose, Minikube/k3s), (2) Backend deployment (systemd, PM2, Gunicorn), (3) Cloud deployment (Vercel, Kubernetes/DOKS/GKE/AKS), (4) CI/CD pipelines (GitHub Actions), (5) Container registry management, (6) Infrastructure setup (Helm charts, Terraform). Includes automated scripts for all deployment types, reference documentation, and asset templates.
+description: Deploy and manage applications on DigitalOcean DOKS with Docker, Kubernetes, Helm, Dapr, Kafka, and monitoring. Use when containerizing applications, creating Kubernetes manifests, deploying with Helm charts, integrating Dapr sidecars for event-driven architecture, deploying Kafka/Redpanda for pub/sub, setting up monitoring with Prometheus/Grafana, or using AIOps tools (kubectl-ai, kagent, Docker AI). Complete DigitalOcean-focused deployment patterns for production workloads.
 ---
 
 # Cloud Deployer
 
-Comprehensive deployment automation covering local development, backend services, and cloud infrastructure.
+Deploy and manage applications across container platforms, Kubernetes clusters, and DigitalOcean cloud services.
 
-## Deployment Types
+## When to Use This Skill
 
-### Local Development
-- **Docker Compose**: Full local stack with containers
-- **Minikube/k3s**: Local Kubernetes for testing
+| User Request | Action | Deployment Type |
+|--------------|--------|------------------|
+| "Deploy this to production" | Choose deployment target based on requirements | Multi-environment |
+| "Containerize the application" | Create Dockerfile and docker-compose.yml | Docker |
+| "Set up Kubernetes cluster" | Configure DOKS with doctl or Minikube locally | Kubernetes |
+| "Package as Helm chart" | Create Chart.yaml, values.yaml, templates/ | Helm |
+| "Add event-driven architecture" | Integrate Dapr sidecars and pub/sub | Dapr |
+| "Set up message queue" | Deploy Kafka/Redpanda for pub/sub | Event Streaming |
+| "Add monitoring" | Install Prometheus, Grafana, Loki | Observability |
+| "Use AI for deployment" | Configure kubectl-ai, kagent, Docker AI | AIOps |
 
-### Backend Deployment
-- **systemd**: Linux service management
-- **PM2**: Process manager with monitoring
-- **Gunicorn**: Production WSGI server
+## Common Scenarios
 
-### Cloud Deployment
-- **Vercel**: Serverless deployment
-- **Kubernetes**: DOKS, GKE, AKS
-- **Helm Charts**: Package management
+### Scenario 1: Containerize and Deploy Full-Stack Application
+**User Request**: "Containerize the todo app and deploy it"
 
-### CI/CD
-- **GitHub Actions**: Automated pipelines
-- **Container Registries**: DO, GCR, ACR
-
-## Quick Reference
-
-| Deployment | Script | Reference |
-|------------|--------|-----------|
-| Docker Compose | `scripts/local/deploy-docker-compose.sh` | `references/local-deployment.md` |
-| Minikube | `scripts/local/deploy-minikube.sh` | `references/local-deployment.md` |
-| systemd | `scripts/backend/deploy-systemd.sh` | `references/backend-deployment.md` |
-| PM2 | `scripts/backend/deploy-pm2.sh` | `references/backend-deployment.md` |
-| Kubernetes | `scripts/cloud/deploy-kubernetes.sh` | `references/cloud-deployment.md` |
-| Vercel | `scripts/cloud/deploy-vercel.sh` | `references/cloud-deployment.md` |
-| CI/CD | `scripts/cloud/deploy-cicd.sh` | `references/cloud-deployment.md` |
-
-## Deployment Workflows
-
-### 1. Local Development (Docker Compose)
-
-**When to use**: Daily development, testing full stack locally
-
+**Workflow**:
 ```bash
-# Start all services
-./scripts/local/deploy-docker-compose.sh up
+# 1. Create Dockerfile for backend
+# File: backend/Dockerfile
+FROM python:3.13-alpine AS builder
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
 
-# View logs
-./scripts/local/deploy-docker-compose.sh logs
+FROM python:3.13-slim
+WORKDIR /app
+COPY --from=builder /root/.local /root/.local
+COPY . .
+ENV PATH=/root/.local/bin:$PATH
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
-# Stop services
-./scripts/local/deploy-docker-compose.sh down
+# 2. Create Dockerfile for frontend
+# File: frontend/Dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+EXPOSE 3000
+CMD ["node", "server.js"]
+
+# 3. Create docker-compose.yml for local testing
+docker-compose up -d
+
+# 4. Build and tag for registry
+docker build -t myregistry/todo-backend:latest ./backend
+docker build -t myregistry/todo-frontend:latest ./frontend
+
+# 5. Push to registry
+docker push myregistry/todo-backend:latest
+docker push myregistry/todo-frontend:latest
 ```
 
-**Requirements**: Docker, Docker Compose
+### Scenario 2: Deploy to DigitalOcean Kubernetes (DOKS)
+**User Request**: "Deploy to production on DigitalOcean"
 
-**Key files**:
-- `docker-compose.yml` - Service orchestration
-- `.env` - Environment configuration
-- `assets/templates/docker-compose.yml` - Template
-
-### 2. Local Kubernetes (Minikube)
-
-**When to use**: Testing K8s manifests before production
-
+**Commands**:
 ```bash
-# Start Minikube
-./scripts/local/deploy-minikube.sh start
+# 1. Install doctl
+brew install doctl  # macOS
+curl -sL https://github.com/digitalocean/doctl/releases/latest/download/doctl-linux-amd64.tar.gz | tar xz
+sudo mv doctl /usr/local/bin
 
-# Deploy to Minikube
-./scripts/local/deploy-minikube.sh deploy
+# 2. Authenticate
+doctl auth init
 
-# Access via tunnel
-./scripts/local/deploy-minikube.sh tunnel
+# 3. Create cluster
+doctl kubernetes cluster create todo-prod \
+  --region fra1 \
+  --version 1.29.1 \
+  --node-pool "name=pool-1;size=s-4vcpu-8gb;count=2"
+
+# 4. Get kubeconfig
+doctl kubernetes cluster kubeconfig save todo-prod
+
+# 5. Create namespace
+kubectl create namespace todo-app
+
+# 6. Apply secrets
+kubectl apply -f k8s/backend/secrets.yaml -n todo-app
+
+# 7. Apply configmap
+kubectl apply -f k8s/backend/configmap.yaml -n todo-app
+
+# 8. Deploy backend
+kubectl apply -f k8s/backend/deployment.yaml -n todo-app
+
+# 9. Expose with service
+kubectl apply -f k8s/backend/service.yaml -n todo-app
+
+# 10. Setup ingress
+kubectl apply -f k8s/ingress.yaml -n todo-app
+
+# 11. Verify
+kubectl get pods -n todo-app
+kubectl get services -n todo-app
 ```
 
-**Requirements**: Minikube, kubectl
+### Scenario 3: Package Application as Helm Chart
+**User Request**: "Create a Helm chart for the application"
 
-**See**: `references/local-deployment.md` for Minikube setup and troubleshooting
-
-### 3. Backend Deployment (systemd)
-
-**When to use**: Production Linux servers, VPS deployment
-
+**Commands**:
 ```bash
-# Install systemd service
-sudo ./scripts/backend/deploy-systemd.sh install
+# 1. Create chart structure
+helm create todo-app
+cd todo-app
 
-# Start service
-sudo ./scripts/backend/deploy-systemd.sh start
+# 2. Edit Chart.yaml
+# 3. Configure values.yaml
+# 4. Customize templates/
 
-# Check status
-sudo ./scripts/backend/deploy-systemd.sh status
+# 5. Lint chart
+helm lint todo-app
+
+# 6. Install chart
+helm install todo-backend todo-app/ -n todo-app --create-namespace
+
+# 7. Install with custom values
+helm install todo-backend todo-app/ -n todo-app \
+  --values todo-app/values-prod.yaml \
+  --set image.tag=v1.0.0
+
+# 8. Test the chart
+helm test todo-backend -n todo-app
+
+# 9. Get manifest (dry-run)
+helm template todo-backend todo-app/
 ```
 
-**Requirements**: Linux with systemd, Python 3.13+
+### Scenario 4: Add Dapr Sidecars for Event-Driven Architecture
+**User Request**: "Make the application event-driven with Dapr"
 
-**Key variables**:
-- `SERVICE_NAME` - Service name (default: todo-backend)
-- `WORK_DIR` - Application directory (default: /opt/todo-backend)
-- `VENV_DIR` - Virtual environment path
-
-**See**: `references/backend-deployment.md` for systemd configuration and Nginx reverse proxy
-
-### 4. Backend Deployment (PM2)
-
-**When to use**: Node.js environments, need process monitoring
-
+**Commands**:
 ```bash
-# Start with PM2
-./scripts/backend/deploy-pm2.sh start
+# 1. Install Dapr CLI
+curl -fsSL https://raw.githubusercontent.com/dapr/cli/master/install/install.sh | bash
 
-# Monitor
-./scripts/backend/deploy-pm2.sh monit
+# 2. Initialize Dapr on cluster
+dapr init -k
 
-# Zero-downtime reload
-./scripts/backend/deploy-pm2.sh reload
+# 3. Verify Dapr installation
+kubectl get pods -n dapr-system
+
+# 4. Add Dapr annotations to deployment
+# Edit k8s/backend/deployment.yaml:
+metadata:
+  annotations:
+    dapr.io/enabled: "true"
+    dapr.io/app-id: "todo-backend"
+    dapr.io/app-port: "8000"
+
+# 5. Create pub/sub component
+kubectl apply -f k8s/dapr/pubsub.yaml -n todo-app
+
+# 6. Create state store component
+kubectl apply -f k8s/dapr/statestore.yaml -n todo-app
+
+# 7. Deploy updated application
+kubectl apply -f k8s/backend/deployment.yaml -n todo-app
+
+# 8. Verify Dapr sidecar is running
+kubectl get pods -n todo-app -l app=todos-backend
 ```
 
-**Requirements**: Node.js, PM2
+### Scenario 5: Deploy Kafka for Event Streaming
+**User Request**: "Set up Kafka for task events"
 
-**See**: `references/backend-deployment.md` for PM2 ecosystem configuration
-
-### 5. Cloud Deployment (Kubernetes)
-
-**When to use**: Production cloud deployment, scalable infrastructure
-
+**Commands**:
 ```bash
-# Deploy to cluster
-CLUSTER=do-fra1-hackathon2 ./scripts/cloud/deploy-kubernetes.sh deploy
+# 1. Install Strimzi operator
+kubectl create namespace kafka
+kubectl apply -f https://strimzi.io/install/latest?namespace=kafka -n kafka
 
-# Check status
-CLUSTER=do-fra1-hackathon2 ./scripts/cloud/deploy-kubernetes.sh status
+# 2. Deploy Kafka cluster
+kubectl apply -f k8s/kafka/kafka-cluster.yaml
 
-# Rollback
-CLUSTER=do-fra1-hackathon2 ./scripts/cloud/deploy-kubernetes.sh rollback 2
+# 3. Create topics
+kubectl apply -f k8s/kafka/topics.yaml
+
+# 4. Verify Kafka installation
+kubectl get pods -n kafka
+kubectl get kafkatopics -n kafka
+
+# 5. Test Kafka (optional)
+kubectl exec -it todo-kafka-kafka-0 -n kafka -- bin/kafka-topics.sh \
+  --bootstrap-server localhost:9092 --list
 ```
 
-**Requirements**: kubectl configured for target cluster
+### Scenario 6: Set Up Monitoring with Prometheus and Grafana
+**User Request**: "Add monitoring and dashboards"
 
-**Key variables**:
-- `CLUSTER` - Kubernetes cluster context
-- `NAMESPACE` - Target namespace (default: default)
-- `REGISTRY` - Container registry URL
-
-**See**: `references/cloud-deployment.md` for cluster setup, Helm charts, and troubleshooting
-
-### 6. Cloud Deployment (Vercel)
-
-**When to use**: Serverless deployment, quick prototyping
-
+**Commands**:
 ```bash
-# Deploy frontend to production
-./scripts/cloud/deploy-vercel.sh frontend prod
+# 1. Add Prometheus Community Helm repo
+helm repo add prometheus-community \
+  https://prometheus-community.github.io/helm-charts
+helm repo update
 
-# Deploy backend preview
-./scripts/cloud/deploy-vercel.sh backend preview
+# 2. Install Prometheus Operator
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  -n monitoring --create-namespace
 
-# List deployments
-./scripts/cloud/deploy-vercel.sh list
+# 3. Create ServiceMonitor for application
+kubectl apply -f k8s/monitoring/servicemonitor.yaml -n todo-app
+
+# 4. Expose FastAPI metrics in backend
+# Add to backend/app/main.py:
+from prometheus_client import Counter, Histogram
+task_created = Counter('tasks_created_total', 'Total tasks created')
+
+# 5. Port forward Grafana
+kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
+
+# 6. Access Grafana: http://localhost:3000
+#    Default: admin / prom-operator
+
+# 7. Import dashboards (IDs: 10826, 11412, 6417, 13327)
 ```
 
-**Requirements**: Vercel CLI, Vercel token
+---
 
-**See**: `references/cloud-deployment.md` for Vercel configuration
+## Quick Templates
 
-### 7. CI/CD Setup (GitHub Actions)
+### Kubernetes Deployment Manifest
 
-**When to use**: Automated testing and deployment
-
-```bash
-# Setup workflow
-./scripts/cloud/deploy-cicd.sh setup
-
-# Validate workflow
-./scripts/cloud/deploy-cicd.sh validate
+**File**: `k8s/backend/deployment.yaml`
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-backend
+  namespace: todo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend
+    spec:
+      containers:
+      - name: backend
+        image: todo-backend:latest
+        ports:
+        - name: http
+          containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: todo-backend-secrets
+              key: database-url
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
 ```
 
-**Creates**: `.github/workflows/ci-cd.yml`
+### Helm Chart Structure
 
-**Required secrets**:
-- `DIGITALOCEAN_ACCESS_TOKEN`
-- `DOCKER_USERNAME` / `DOCKER_PASSWORD`
-- `KUBERNETES_CLUSTER` / `KUBERNETES_NAMESPACE`
-- `VERCEL_TOKEN` (optional)
-
-**See**: `references/cloud-deployment.md` for workflow customization
-
-## Deployment Selection Guide
-
-Choose deployment type based on your needs:
-
-| Scenario | Recommended Deployment |
-|----------|----------------------|
-| Local development | Docker Compose |
-| Testing K8s manifests | Minikube |
-| Production server | systemd + Gunicorn |
-| Need process monitoring | PM2 |
-| Cloud production | Kubernetes (Helm) |
-| Quick deployment | Vercel |
-| Automated pipeline | GitHub Actions |
-
-## Common Patterns
-
-### Multi-Environment Setup
-
-1. **Development**: Docker Compose locally
-2. **Staging**: Minikube or small K8s cluster
-3. **Production**: Kubernetes with HPA
-
-### Blue-Green Deployment
-
-```bash
-# Deploy blue
-kubectl apply -f k8s/blue-deployment.yaml
-
-# Test blue
-# ... run tests ...
-
-# Switch traffic to blue
-kubectl apply -f k8s/service-blue.yaml
-
-# Deploy green
-kubectl apply -f k8s/green-deployment.yaml
+```
+helm/todo-app/
+├── Chart.yaml              # Chart metadata
+├── values.yaml             # Default configuration
+├── values-prod.yaml        # Production overrides
+└── templates/
+    ├── deployment.yaml
+    ├── service.yaml
+    ├── ingress.yaml
+    ├── configmap.yaml
+    ├── secret.yaml
+    └── _helpers.tpl
 ```
 
-### Canary Deployment
+### Dapr Sidecar Annotation
 
-```bash
-# Initial deployment (90% old, 10% new)
-kubectl apply -f k8s/canary-deployment.yaml
-
-# Gradually increase traffic
-kubectl scale deployment/new-version --replicas=2
-kubectl scale deployment/old-version --replicas=8
+```yaml
+metadata:
+  annotations:
+    dapr.io/enabled: "true"
+    dapr.io/app-id: "todo-backend"
+    dapr.io/app-port: "8000"
+    dapr.io/config: "todo-app-config"
 ```
 
-## Asset Templates
+### Dapr Pub/Sub Component
 
-Use templates in `assets/templates/`:
+**File**: `k8s/dapr/pubsub.yaml`
+```yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: kafka-pubsub
+  namespace: todo-app
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    - name: brokers
+      value: "todo-kafka-kafka-bootstrap.kafka.svc:9092"
+    - name: consumerGroup
+      value: "todo-service"
+```
 
-- **Dockerfile.backend** - Multi-stage FastAPI build
-- **Dockerfile.frontend** - Multi-stage Next.js build
-- **docker-compose.yml** - Full stack orchestration
-- **service.template** - systemd service template
-- **k8s-deployment.yaml** - Kubernetes manifest template
+### Kafka Topic
+
+**File**: `k8s/kafka/topics.yaml`
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: task-events
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: todo-kafka
+spec:
+  partitions: 3
+  replicas: 1
+```
+
+---
+
+## Implementation Procedures
+
+### Procedure 1: Local Development with Docker Compose
+
+**Use When**: Quick local testing, development environment setup
+
+**Steps**:
+1. Create `docker-compose.yml` with all services
+2. Define health checks for dependencies
+3. Use named volumes for data persistence
+4. Run `docker-compose up -d`
+5. View logs with `docker-compose logs -f`
+6. Stop with `docker-compose down`
+
+### Procedure 2: Containerization
+
+**Use When**: Preparing application for Kubernetes deployment
+
+**Steps**:
+1. Create multi-stage Dockerfile (builder → runtime)
+2. Minimize image size (use alpine/slim variants)
+3. Copy only necessary files
+4. Set appropriate user permissions
+5. Expose only required ports
+6. Define health check endpoints
+
+### Procedure 3: Kubernetes Deployment
+
+**Use When**: Production deployment, orchestration needs
+
+**Steps**:
+1. Create namespace for isolation
+2. Create ConfigMap for environment variables
+3. Create Secret for sensitive data
+4. Write Deployment with replicas and resource limits
+5. Create Service (ClusterIP/LB/NodePort)
+6. Configure Ingress for external access
+7. Add probes (liveness, readiness, startup)
+8. Apply with `kubectl apply -f k8s/`
+
+### Procedure 4: Helm Chart Packaging
+
+**Use When**: Complex applications, multi-environment deployments
+
+**Steps**:
+1. Run `helm create chart-name` to scaffold
+2. Edit `Chart.yaml` with metadata
+3. Configure `values.yaml` with defaults
+4. Customize templates in `templates/`
+5. Add helper templates in `_helpers.tpl`
+6. Lint with `helm lint chart-name`
+7. Test with `helm test chart-name`
+8. Install with `helm install release chart-name`
+
+### Procedure 5: Dapr Integration
+
+**Use When**: Event-driven architecture, pub/sub, state management
+
+**Steps**:
+1. Install Dapr on cluster: `dapr init -k`
+2. Add `dapr.io/enabled` annotation to deployment
+3. Configure Dapr components (pubsub, state, secrets)
+4. Update application to use Dapr HTTP API
+5. Publish events: `POST http://localhost:3500/v1.0/publish/pubsub/topic`
+6. Subscribe to topics with Subscription CRD
+7. Test end-to-end event flow
+
+### Procedure 6: Kafka Deployment
+
+**Use When**: Event streaming, message queuing
+
+**Self-hosted (Strimzi)**:
+1. Install Strimzi operator
+2. Create Kafka cluster resource
+3. Create topics with partitions
+4. Configure Dapr pubsub component
+5. Deploy applications with Kafka clients
+
+**Managed (Redpanda Cloud)**:
+1. Sign up at redpanda.com/cloud
+2. Create cluster and topics
+3. Copy bootstrap servers and credentials
+4. Update application with connection details
+5. Test with producer/consumer
+
+### Procedure 7: Monitoring Setup
+
+**Use When**: Production observability, alerting
+
+**Steps**:
+1. Install Prometheus Operator: `helm install prometheus prometheus-community/kube-prometheus-stack`
+2. Create ServiceMonitor for application
+3. Add `/metrics` endpoint to FastAPI
+4. Install Loki for logs: `helm install loki grafana/loki-stack`
+5. Configure Fluent Bit for log forwarding
+6. Create Grafana dashboards
+7. Set up alert rules (PrometheusRule)
+8. Test alerts with failure scenarios
+
+### Procedure 8: AIOps Configuration
+
+**Use When**: Natural language infrastructure operations
+
+**kubectl-ai**:
+1. Install: `go install github.com/kubectl-ai/kubectl-ai@latest`
+2. Configure OpenAI API key
+3. Use: `kubectl-ai "deploy with 3 replicas"`
+
+**kagent**:
+1. Install: `curl -sSL https://raw.githubusercontent.com/kagent-ai/kagent/main/install.sh | bash`
+2. Initialize: `kagent init`
+3. Use: `kagent "optimize resource allocation"`
+
+**Docker AI (Gordon)**:
+1. Enable in Docker Desktop Settings
+2. Use: `docker ai "optimize Dockerfile"`
+3. Get troubleshooting suggestions
+
+---
+
+## Decision Guide
+
+**Choose Docker Compose when**:
+- Local development and testing
+- Simple stack with few services
+- Quick setup required
+- No scaling needed
+
+**Choose Kubernetes when**:
+- Multi-service orchestration
+- Horizontal scaling requirements
+- Production workloads
+- Need for self-healing
+
+**Choose Helm when**:
+- Complex Kubernetes applications
+- Multi-environment deployments (dev/staging/prod)
+- Need for versioning and rollbacks
+- Template reuse across services
+
+**Choose Dapr when**:
+- Event-driven architecture
+- Pub/sub messaging needed
+- State management abstraction
+- Service-to-service communication
+
+**Choose Kafka when**:
+- Event streaming at scale
+- Message queuing with durability
+- Multiple consumers for topics
+- Event sourcing patterns
+
+**Choose Prometheus/Grafana when**:
+- Metrics collection and visualization
+- Alerting on metrics
+- Historical data analysis
+- Dashboard requirements
+
+**Choose AIOps tools when**:
+- Team learning Kubernetes
+- Natural language interface preferred
+- Quick troubleshooting needed
+- Resource optimization required
+
+---
+
+## Quick Reference Commands
+
+| Action | Command |
+|--------|---------|
+| **Docker** | `docker-compose up -d` |
+| **Minikube** | `minikube start --driver=docker` |
+| **DOKS Create** | `doctl kubernetes cluster create` |
+| **Kubeconfig** | `doctl kubernetes cluster kubeconfig save` |
+| **Deploy** | `kubectl apply -f k8s/` |
+| **Get pods** | `kubectl get pods -n namespace` |
+| **Logs** | `kubectl logs -f deployment/name -n namespace` |
+| **Port forward** | `kubectl port-forward svc/name 8080:80` |
+| **Helm Install** | `helm install release chart/` |
+| **Helm Upgrade** | `helm upgrade release chart/` |
+| **Dapr Init** | `dapr init -k` |
+| **Dapr List** | `dapr list -k` |
+| **Prometheus Install** | `helm install prometheus prometheus-community/kube-prometheus-stack` |
+| **Grafana Port Forward** | `kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring` |
+
+---
 
 ## Troubleshooting
 
-### Docker Compose Issues
+### Common Issues
 
-**Port conflicts**:
-```bash
-# Check ports
-netstat -tulpn | grep :3000
-# Change ports in docker-compose.yml
-```
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| ImagePullBackOff | Wrong image/tag or secret missing | `kubectl create secret docker-registry regcred` |
+| CrashLoopBackOff | App crashes on startup | Check logs: `kubectl logs pod-name` |
+| OOMKilled | Memory limit too low | Increase `resources.limits.memory` |
+| Pod Pending | No available nodes | Scale node pool or check resources |
+| 502/503 errors | Service not ready | Check readiness probe, service selector |
 
-**Volume errors**:
-```bash
-docker-compose down -v
-docker volume prune
-docker-compose up -d
-```
-
-### Backend Service Issues
-
-**Service won't start**:
-```bash
-sudo systemctl status todo-backend
-sudo journalctl -u todo-backend -n 50
-```
-
-**Permission errors**:
-```bash
-sudo chown -R www-data:www-data /opt/todo-backend
-```
-
-### Kubernetes Issues
-
-**Pods not starting**:
-```bash
-kubectl describe pod <pod-name>
-kubectl logs <pod-name>
-```
-
-**Image pull errors**:
-```bash
-kubectl get secret registry-pull-secret -o yaml
-# Verify credentials
-```
-
-**DNS issues**:
-```bash
-kubectl run debug --image=nicolaka/netshoot -it --rm
-# Inside pod: nslookup todo-backend
-```
-
-## Best Practices
-
-1. **Always test locally first** - Use Docker Compose before cloud deployment
-2. **Use environment variables** - Never hardcode credentials
-3. **Secure secrets** - Use Kubernetes secrets or external secret managers
-4. **Resource limits** - Set memory/CPU limits in Kubernetes
-5. **Health checks** - Always define liveness and readiness probes
-6. **Log rotation** - Prevent disk filling with logs
-7. **Monitoring** - Set up logging and metrics for production
-8. **Rollback plan** - Always know how to rollback quickly
-
-## Environment Variables
-
-Create `.env` file in project root:
+### Debug Commands
 
 ```bash
-# Database
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=password
-POSTGRES_DB=tododb
-DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/tododb
+# Describe pod for detailed info
+kubectl describe pod pod-name -n namespace
 
-# Backend
-JWT_SECRET_KEY=your-secret-key-min-32-chars
-JWT_ALGORITHM=HS256
-GROQ_API_KEY=your-groq-key
-CORS_ORIGINS=http://localhost:3000,https://yourdomain.com
+# Get logs from crashed container
+kubectl logs pod-name --previous -n namespace
 
-# Deployment
-CLUSTER=do-fra1-hackathon2
-NAMESPACE=default
-REGISTRY=registry.digitalocean.com
+# Exec into container
+kubectl exec -it pod-name -n namespace -- /bin/bash
+
+# Check events
+kubectl get events -n namespace --sort-by='.lastTimestamp'
+
+# Verify DNS resolution
+kubectl run test-pod --image=busybox --rm -it -- nslookup service-name
+
+# Check resource usage
+kubectl top pods -n namespace
+kubectl top nodes
 ```
 
-## Quick Start Commands
+---
 
+## DigitalOcean Quick Start
+
+### DOKS (Kubernetes)
 ```bash
-# Local development
-docker-compose up -d
-
-# Deploy to local Kubernetes
-eval $(minikube docker-env)
-kubectl apply -f k8s/
-
-# Deploy to cloud
-CLUSTER=do-fra1-hackathon2 ./scripts/cloud/deploy-kubernetes.sh deploy
-
-# Setup CI/CD
-./scripts/cloud/deploy-cicd.sh setup
+doctl kubernetes cluster create my-cluster \
+  --region fra1 \
+  --node-pool "name=pool-1;size=s-4vcpu-8gb;count=2"
 ```
 
-## Related Skills
+### App Platform
+```bash
+doctl apps create --spec app.yaml
+```
 
-- **cloud-ops**: Infrastructure operations and DevOps automation (merged into this skill)
-- **deployment-validator**: Validate deployments before going live
-- **dapr-events**: Event-driven architecture for microservices
+### Spaces (S3-compatible)
+```bash
+doctl spaces create my-assets --region nyc3
+aws s3 sync ./build s3://my-assets \
+  --endpoint=https://nyc3.digitaloceanspaces.com
+```

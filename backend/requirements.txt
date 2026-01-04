@@ -47,3 +47,8 @@ mcp>=1.0.0
 # Phase V: Dapr Event-Driven Architecture
 dapr>=1.14.0
 dapr-ext-fastapi>=1.14.0
+
+# Email: Gmail API (for Digital Ocean - bypasses SMTP port blocking)
+google-api-python-client>=2.100.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.0.0

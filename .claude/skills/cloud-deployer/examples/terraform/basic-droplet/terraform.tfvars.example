@@ -1,0 +1,24 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+
+# DigitalOcean API token (required)
+# Get your token at: https://cloud.digitalocean.com/settings/api/tokens
+do_token = "dop_v1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Project configuration
+project_name = "todo-app"
+environment   = "production"
+
+# Region (nyc1, nyc2, nyc3, ams3, sfo2, sfo3, fra1, sgp1)
+region = "nyc1"
+
+# Droplet configuration
+droplet_size = "s-1vcpu-1gb"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# Security: SSH access from these IPs only
+# Use ["0.0.0.0/0"] for anywhere (not recommended for production)
+ssh_allowed_ips = ["1.2.3.4/32", "5.6.7.8/32"]
+
+# Tags for organization
+droplet_tags = ["web", "production", "ubuntu"]

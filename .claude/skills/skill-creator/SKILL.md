@@ -1,6 +1,6 @@
 ---
 name: skill-creator
-description: Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.
+description: Create new skills by running .claude/skills/skill-creator/scripts/init_skill.py my-skill to generate SKILL.md with YAML frontmatter (name: my-skill, description: Use when...), add scripts/ for executable Python/Bash code that can run without loading into context, include references/ for detailed documentation loaded on-demand, and bundle assets/ for templates copied to output. Use when extending Claude with domain-specific workflows (e.g., pdf-editor, sql-query-builder), creating reusable code patterns, or packaging API/file-format/company-policy knowledge into .skill zip files.
 license: Complete terms in LICENSE.txt
 ---
 

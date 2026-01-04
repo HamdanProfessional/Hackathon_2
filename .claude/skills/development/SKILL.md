@@ -1,6 +1,6 @@
 ---
 name: test-generator
-description: Generate comprehensive test suites for Evolution of TODO project including unit tests, integration tests, and E2E tests. Use when Claude needs to create test coverage for FastAPI backend, React frontend, MCP tools, or API endpoints based on specifications and acceptance criteria.
+description: Generate pytest test suites in tests/test_[feature].py from specs/*.md files with @pytest.fixture for setup, test_[function]() for unit tests, test_api_endpoint() with TestClient for integration tests, and @pytest.mark.asyncio for async FastAPI endpoints. Create Playwright E2E tests in tests/e2e/ with page.fill(), page.click(), and expect(page).toHaveURL() for user journeys. Use when validating CRUD operations, testing JWT authentication flows, or ensuring MCP tools are invoked by AI agents.
 license: Complete terms in LICENSE.txt
 ---
 

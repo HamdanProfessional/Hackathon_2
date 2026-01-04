@@ -7,7 +7,7 @@ import { getSession } from '@/lib/auth-client';
 let runtimeApiUrl: string | null = null;
 
 // Get API URL - tries runtime config first, then production backend, then build-time env var, then localhost
-function getApiBaseUrl(): string {
+export function getApiBaseUrl(): string {
   if (runtimeApiUrl) {
     return runtimeApiUrl;
   }
@@ -331,7 +331,7 @@ class ApiClient {
   }
 
   async updateUserPreferences(preferences: any): Promise<void> {
-    await this.axios.patch('/api/users/me/preferences', preferences);
+    await this.axios.patch('/api/users/me/preferences', { preferences });
   }
 
   // Chat methods

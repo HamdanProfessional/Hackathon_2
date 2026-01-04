@@ -22,7 +22,9 @@ class Conversation(Base):
 
     # Relationships
     user = relationship("User", back_populates="conversations")
-    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at")
+    # Rely on database FK cascade (ondelete="CASCADE" in Message model) instead of ORM cascade
+    # Use passive_deletes to tell SQLAlchemy to not manage the relationship deletion
+    messages = relationship("Message", back_populates="conversation", passive_deletes='all', order_by="Message.created_at")
 
     # Indexes
     __table_args__ = (

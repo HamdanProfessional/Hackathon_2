@@ -16,9 +16,11 @@ spec:
       labels:
         app.kubernetes.io/name: frontend
     spec:
+      imagePullSecrets:
+      - name: registry-pull-secret
       containers:
       - name: frontend
-        image: todo-frontend:latest
+        image: registry.digitalocean.com/todo-chatbot-reg/todo-frontend:latest
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -26,7 +28,7 @@ spec:
           protocol: TCP
         env:
         - name: NEXT_PUBLIC_API_URL
-          value: "http://todo-backend:8000"
+          value: "https://api.testservers.online"
         livenessProbe:
           httpGet:
             path: /

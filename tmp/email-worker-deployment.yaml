@@ -1,0 +1,72 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-worker
+  namespace: default
+  labels:
+    app.kubernetes.io/name: email-worker
+    app.kubernetes.io/component: email-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: email-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: email-worker
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "email-worker"
+        dapr.io/app-port: "8003"
+    spec:
+      containers:
+      - name: email-worker
+        image: registry.digitalocean.com/todo-chatbot-reg/todo-backend:email-worker-v4
+        ports:
+        - containerPort: 8003
+          name: http
+          protocol: TCP
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: todo-backend-secrets
+              key: database-url
+        - name: DAPR_HTTP_PORT
+          value: "3500"
+        - name: DAPR_ENABLED
+          value: "true"
+        - name: EMAIL_API_URL
+          value: "https://email.testservers.online/api/send"
+        - name: EMAIL_API_KEY
+          value: "emailsrv-a8f3e2d1-9c7b-4f6a-8e3d-2b1c5a9f7e4d"
+        - name: PORT
+          value: "8003"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      imagePullSecrets:
+      - name: registry-pull-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: email-worker
+  namespace: default
+  labels:
+    app.kubernetes.io/name: email-worker
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8003
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: email-worker

@@ -1,0 +1,52 @@
+# DigitalOcean App Platform - Simple Example
+#
+# A minimal example for getting started with App Platform.
+# This deploys a simple static site with a backend API.
+#
+# Deployment:
+#   doctl apps create --spec simple-app.yaml
+
+---
+name: simple-app
+region: nyc
+
+# Static frontend (HTML/CSS/JS)
+static_sites:
+  - name: frontend
+    github:
+      repo: your-username/simple-app
+      branch: main
+    build_command: npm run build
+    output_dir: dist
+    routes:
+      - path: /
+    env_vars:
+      - key: NODE_ENV
+        value: production
+
+# Backend API
+services:
+  - name: api
+    environment_slug: python
+    github:
+      repo: your-username/simple-app
+      branch: main
+    build_command: pip install -r requirements.txt
+    run_command: uvicorn main:app --host 0.0.0.0 --port 8080
+    http_port: 8080
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    routes:
+      - path: /api
+    env_vars:
+      - key: APP_ENV
+        value: production
+
+# Managed database
+databases:
+  - name: db
+    engine: PG
+    version: "16"
+    size: db-s-1vcpu-1gb
+    num_nodes: 1
+    production: false

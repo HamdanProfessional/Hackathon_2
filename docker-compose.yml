@@ -21,12 +21,17 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:2763@postgres:5432/postgres
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://user:password@localhost:5432/neondb?sslmode=require}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-test-secret-key-for-local-development-min-32-chars}
       - JWT_ALGORITHM=HS256
       - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - GROQ_API_KEY=${GROQ_API_KEY:-your-groq-api-key-here}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # GMAIL_CREDENTIALS comes from .env file
+      - EMAIL_FROM_NAME=${EMAIL_FROM_NAME:-Todo App}
       - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
       - APP_NAME=Todo CRUD API
       - DEBUG=true

@@ -16,9 +16,11 @@ spec:
       labels:
         app.kubernetes.io/name: backend
     spec:
+      imagePullSecrets:
+      - name: registry-pull-secret
       containers:
       - name: backend
-        image: todo-backend:latest
+        image: registry.digitalocean.com/todo-chatbot-reg/todo-backend:latest
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -52,6 +54,18 @@ spec:
             secretKeyRef:
               name: todo-backend-secrets
               key: openai-api-key
+              optional: true
+        - name: GMAIL_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: todo-backend-secrets
+              key: gmail-credentials
+              optional: true
+        - name: EMAIL_FROM_NAME
+          valueFrom:
+            secretKeyRef:
+              name: todo-backend-secrets
+              key: email-from-name
               optional: true
         - name: CORS_ORIGINS
           valueFrom:

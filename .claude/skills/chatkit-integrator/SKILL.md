@@ -1,6 +1,6 @@
 ---
 name: chatkit-integrator
-description: Integrate OpenAI Chatkit into Next.js applications with database-backed conversation persistence. Use when implementing AI chat interfaces that require: (1) OpenAI Chatkit React components for chat UI, (2) Database-backed conversation history (PostgreSQL/Neon), (3) Stateless agent architecture with message persistence, (4) Custom backend adapter for FastAPI integration, (5) JWT-authenticated chat endpoints, (6) Real-time message updates via HTTP polling, or (7) Multi-conversation management with tenant isolation. This skill provides complete backend (FastAPI + SQLModel) and frontend (Next.js + TypeScript) integration patterns.
+description: Integrate OpenAI Chatkit React components into Next.js frontend/app/chat/page.tsx, create FastAPI backend adapter at backend/app/routers/chat.py with POST /api/chat/conversations (create), GET /api/chat/conversations (list with cursor pagination), GET /api/chat/conversations/{id}/messages (history), implement Conversation/Message SQLModels in backend/app/models/conversation.py with PostgreSQL, enforce stateless agent architecture that loads history via load_conversation_context() on every request. Use when building chat interfaces with JWT Authorization headers, real-time polling at 2s intervals, or conversation persistence across sessions.
 ---
 
 # OpenAI Chatkit Integrator
@@ -9,10 +9,23 @@ This skill guides you through integrating OpenAI Chatkit with database-backed co
 
 ## Architecture Overview
 
-Three-layer architecture:
-1. **Frontend**: OpenAI Chatkit React components (chat UI)
-2. **Backend API**: FastAPI REST endpoints (conversation/message CRUD)
-3. **Database**: PostgreSQL with conversations and messages tables
+```
+Frontend (Next.js)              Backend (FastAPI)              Database
+┌──────────────────┐            ┌──────────────────┐          ┌──────────────┐
+│ ChatKit UI       │◄──JSON────►│ POST /api/chat/  │◄───────►│ conversations │
+│ - Chat component │            │   conversations  │          │ messages      │
+│ - Message list   │            │ - Create/List    │          └──────────────┘
+│ - Input field    │            │ - Send message   │
+└──────────────────┘            └──────────────────┘
+```
+
+**File Locations**:
+- Frontend Chat Page: `frontend/app/chat/page.tsx`
+- Backend Chat Router: `backend/app/api/chat.py`
+- Conversation Model: `backend/app/models/conversation.py`
+- Message Model: `backend/app/models/message.py`
+- ChatKit Config: `frontend/lib/chatkit-config.ts`
+- API Client: `frontend/lib/api/chat.ts`
 
 **Critical requirement**: Stateless design - all conversation history must be fetched from database on every request.
 

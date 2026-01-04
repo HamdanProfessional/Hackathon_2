@@ -1045,6 +1045,7 @@ async def test_conversation_creation():
 from app.api import auth, tasks, users, chat, analytics, task_templates, subtasks
 from app.api import recurring_tasks
 from app.api import background_jobs
+from app.api import email
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -1055,6 +1056,7 @@ app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(task_templates.router, prefix="/api/task-templates", tags=["Task Templates"])
 app.include_router(recurring_tasks.router, prefix="/api/recurring-tasks", tags=["Recurring Tasks"])
+app.include_router(email.router, prefix="/api/email", tags=["Email"])
 
 # Phase V: Background jobs for scheduled tasks and event-driven architecture
 app.include_router(background_jobs.router)
